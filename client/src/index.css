@@ -53,11 +53,25 @@
   }
 }
 
+/* ==========================================================================
+   GLOBAL LAYOUT CONTRACT — single source of truth for html / body / #root.
+   Do NOT re-declare these in individual page CSS files. Every page CSS is
+   bundled into one global stylesheet, so duplicate html/body/#root rules
+   have identical specificity and are resolved by bundle order, which shifts
+   whenever imports change. That is what repeatedly broke scrolling.
+
+   Rules:
+   - html/body: never a fixed height, never overflow-y: hidden.
+   - #root: min-height only (never height), never overflow: hidden.
+   - Page roots (.home, .camera-page, ...) follow the same pattern and are
+     free to style themselves, but must not clip vertical overflow.
+   ========================================================================== */
 html,
 body {
   width: 100%;
   max-width: 100%;
   margin: 0;
+  padding: 0;
   height: auto;
   min-height: 100%;
   overflow-x: hidden;
@@ -65,15 +79,14 @@ body {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  text-align: left;
+  border-inline: none;
+  min-height: 100dvh;
   height: auto;
-  display: flex;
-  flex-direction: column;
+  display: block;
   box-sizing: border-box;
   overflow: visible;
 }

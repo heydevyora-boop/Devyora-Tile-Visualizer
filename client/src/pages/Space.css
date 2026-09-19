@@ -1,30 +1,7 @@
 @layer base{html,body{width:100%;max-width:100%;margin:0;padding:0;background-color:#121314;height:auto;overflow-x:hidden;overflow-y:auto;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}
 
-#root {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  text-align: left;
-  border-inline: none;
-  min-height: 100svh;
-  height: auto;
-  display: block;
-  box-sizing: border-box;
-  overflow: visible;
-}
-
-html,
-body {
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
 .space-page {
-  min-height: 100svh;
+  min-height: 100dvh;
   height: auto;
   overflow-x: hidden;
   overflow-y: visible;
@@ -101,7 +78,7 @@ p {
 .h-11 { height: 2.75rem; }
 .h-16 { height: 4rem; }
 .h-\[54px\] { height: 54px; }
-.min-h-screen { min-height: 100vh; }
+.min-h-screen { min-height: 100dvh; }
 .max-w-\[480px\] { max-width: 480px; }
 .aspect-\[4\/3\] { aspect-ratio: 4 / 3; }
 .overflow-hidden { overflow: hidden; }
