@@ -22,6 +22,16 @@ function rotateSize(width: number, height: number, rotation: number) {
   }
 }
 
+/**
+ * Longest edge of the exported crop, in pixels.
+ *
+ * A phone camera crop can be 3000px+, which encodes to a multi-megabyte data
+ * URL — slow to upload on showroom wifi and large enough to exceed the API's
+ * request body limit. 1400px keeps the tile's grain and veining legible for
+ * the image model while keeping the payload well under 1 MB.
+ */
+const MAX_EXPORT_EDGE = 1400
+
 export async function getCroppedImage(
   imageSrc: string,
   pixelCrop: Area,
@@ -51,8 +61,15 @@ export async function getCroppedImage(
     throw new Error('Canvas 2D context is not available')
   }
 
-  croppedCanvas.width = pixelCrop.width
-  croppedCanvas.height = pixelCrop.height
+  // Downscale only when the crop is larger than the export cap; never upscale.
+  const scale = Math.min(1, MAX_EXPORT_EDGE / Math.max(pixelCrop.width, pixelCrop.height))
+  const outputWidth = Math.max(1, Math.round(pixelCrop.width * scale))
+  const outputHeight = Math.max(1, Math.round(pixelCrop.height * scale))
+
+  croppedCanvas.width = outputWidth
+  croppedCanvas.height = outputHeight
+  croppedCtx.imageSmoothingEnabled = true
+  croppedCtx.imageSmoothingQuality = 'high'
   croppedCtx.drawImage(
     canvas,
     pixelCrop.x,
@@ -61,9 +78,9 @@ export async function getCroppedImage(
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height,
+    outputWidth,
+    outputHeight,
   )
 
-  return croppedCanvas.toDataURL('image/jpeg', 0.92)
+  return croppedCanvas.toDataURL('image/jpeg', 0.9)
 }

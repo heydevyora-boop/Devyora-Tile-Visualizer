@@ -98,6 +98,49 @@ body {
   font-family: 'Hanken Grotesk', system-ui, sans-serif;
 }
 
+/* ==========================================================================
+   DESKTOP FRAME — part of the same global layout contract above.
+
+   Every page is designed for a phone. On a wide screen that layout stretched
+   edge to edge: a 1920px-wide header, metre-long rules and copy pinned to the
+   far left. Instead of rewriting nine mobile layouts, the whole app is
+   centred in a phone-width column and the page background fills the rest.
+
+   The pages pin their header and action bar with `.fixed.inset-x-0`, which is
+   relative to the viewport, so those bars must be re-anchored to the column or
+   they would still span the full screen. `#root .fixed` outranks `.inset-x-0`
+   on specificity, so this holds no matter how the CSS bundle is ordered — the
+   ordering fragility that broke layout before. `left` + a negative margin are
+   used rather than a transform, because a transform on an ancestor would turn
+   any nested `position: fixed` into `position: absolute`.
+
+   The lightbox overlay is excluded on purpose: it is a true full-screen layer.
+   ========================================================================== */
+@media (min-width: 900px) {
+  :root {
+    --app-frame-width: 520px;
+  }
+
+  body {
+    background: var(--color-surface-container-lowest);
+  }
+
+  #root {
+    max-width: var(--app-frame-width);
+    margin-inline: auto;
+    background: var(--color-background);
+    box-shadow: 0 0 0 1px rgba(153, 143, 131, 0.12), 0 24px 60px rgba(0, 0, 0, 0.55);
+  }
+
+  #root .fixed:not(.lightbox-overlay) {
+    left: 50%;
+    right: auto;
+    width: 100%;
+    max-width: var(--app-frame-width);
+    margin-left: calc(var(--app-frame-width) / -2);
+  }
+}
+
 h1,
 h2 {
   font-family: var(--heading);

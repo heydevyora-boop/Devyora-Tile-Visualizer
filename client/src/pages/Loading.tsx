@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import './Loading.css'
 
-const GENERATE_ENDPOINT = 'http://localhost:3001/api/generate'
+// Same-origin by default: in production this hits the Vercel function in
+// client/api/generate.ts, and in `npm run dev` Vite proxies /api to the local
+// Express server. Set VITE_API_BASE_URL only to point at a different host.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const GENERATE_ENDPOINT = `${API_BASE_URL}/api/generate`
+
+// Generation normally takes 15-25s. Give it room, but never hang forever.
+const REQUEST_TIMEOUT_MS = 75_000
 
 function Loading() {
   const navigate = useNavigate()
@@ -21,17 +28,31 @@ function Loading() {
 
   const runGeneration = useCallback(
     async (signal: AbortSignal) => {
-      const response = await fetch(GENERATE_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tileImage: croppedImage,
-          space,
-          style,
-          tileSize,
-        }),
-        signal,
-      })
+      if (!croppedImage) {
+        throw new Error('No tile photo was found. Please go back and retake the tile photo.')
+      }
+
+      let response: Response
+      try {
+        response = await fetch(GENERATE_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tileImage: croppedImage,
+            space,
+            style,
+            tileSize,
+          }),
+          signal,
+        })
+      } catch (networkError) {
+        // The browser could not reach the API at all (offline, DNS, blocked).
+        // Safari reports this as the unhelpful "Load failed", so say something useful.
+        if (signal.aborted) throw networkError
+        throw new Error(
+          'We could not reach the server. Please check your internet connection and try again.',
+        )
+      }
 
       if (!response.ok) {
         let detail = ''
@@ -44,7 +65,11 @@ function Loading() {
         throw new Error(detail || `Request failed with status ${response.status}`)
       }
 
-      return response.json()
+      try {
+        return await response.json()
+      } catch {
+        throw new Error('The server sent a response we could not read. Please try again.')
+      }
     },
     [croppedImage, space, style, tileSize],
   )
@@ -52,15 +77,27 @@ function Loading() {
   useEffect(() => {
     const controller = new AbortController()
     let cancelled = false
+    let timedOut = false
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, REQUEST_TIMEOUT_MS)
 
     runGeneration(controller.signal)
       .then((result) => {
         if (cancelled) return
+        window.clearTimeout(timeoutId)
         setGeneratedResult(result)
         navigate('/results')
       })
       .catch((requestError: unknown) => {
-        if (cancelled || controller.signal.aborted) return
+        window.clearTimeout(timeoutId)
+        if (cancelled) return
+        if (timedOut) {
+          setError('This is taking longer than expected. Please try again.')
+          return
+        }
+        if (controller.signal.aborted) return
         setError(
           requestError instanceof Error && requestError.message
             ? requestError.message
@@ -70,6 +107,7 @@ function Loading() {
 
     return () => {
       cancelled = true
+      window.clearTimeout(timeoutId)
       controller.abort()
     }
   }, [attempt, navigate, runGeneration, setGeneratedResult])
