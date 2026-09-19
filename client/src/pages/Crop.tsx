@@ -216,7 +216,7 @@ function Crop() {
         </div>
       </header>
       <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">
-        <div className="flex flex-col w-full">
+        <div className="flex flex-col w-full pb-32">
           {/* Progress Stepper & Micro Context */}
           <div className="px-margin pt-space-sm pb-space-xs flex items-center justify-between">
             <div className="flex items-center gap-space-xs">
@@ -406,9 +406,11 @@ function Crop() {
               />
             </div>
           </div>
-          {/* Bottom Persistent Ergonomic Action Bar */}
-          <div className="mt-auto px-margin pt-space-xs pb-space-md">
-            <div className="flex items-center gap-space-sm w-full">
+          {/* Bottom Persistent Ergonomic Action Bar — pinned so Reset/Use This
+              Tile stay reachable on short viewports without scrolling, matching
+              the fixed CTA bars on TileSize/Space/Style. */}
+          <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-lg pb-safe">
+            <div className="max-w-md mx-auto px-margin pt-space-xs pb-space-md flex items-center gap-space-sm w-full">
               {/* Secondary Reset Button */}
               <button
                 className="h-[52px] px-space-md rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 font-label-caps text-label-caps tracking-widest uppercase font-semibold"

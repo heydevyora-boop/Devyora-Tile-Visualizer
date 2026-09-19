@@ -475,3 +475,23 @@ p {
     min-height: 44px;
   }
 }
+
+/* Utilities needed by the pinned bottom action bar (not previously used in
+   this file). */
+.bottom-0 { bottom: 0; }
+.z-40 { z-index: 40; }
+.max-w-md { max-width: 28rem; }
+.pb-32 { padding-bottom: 8rem; }
+.bg-surface\/90 { background-color: rgba(18, 19, 20, 0.9); }
+.backdrop-blur-lg {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* The crop canvas sets touch-action: none so drag-to-crop works, which makes
+   it a dead zone for touch scrolling. On short viewports that dead zone used
+   to cover >50% of the screen, leaving little room to start a scroll gesture.
+   Capping its height keeps the crop tool usable while shrinking the dead zone. */
+.crop-page #cropCanvas {
+  max-width: min(420px, 42svh);
+}
