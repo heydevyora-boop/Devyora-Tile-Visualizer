@@ -1,8 +1,9 @@
 import { getSpaceConfig, type SpaceConfig } from '../config/spaces'
-import { getStyleConfig, type StyleConfig } from '../config/styles'
+import { getStyleConfig, resolveStyleValue, type StyleConfig } from '../config/styles'
 
 export interface PromptInput {
   space: string
+  /** May be "surprise" — resolved to a concrete style before prompts are built. */
   style: string
   tileSize?: string
 }
@@ -14,6 +15,12 @@ export interface BuiltPrompt {
   focus: string
   /** The full text prompt sent to the image model alongside the tile photo. */
   text: string
+  /**
+   * The concrete style id actually used for this prompt. Equal to the input
+   * style unless the input was "surprise", in which case this is the style
+   * that was randomly picked.
+   */
+  resolvedStyle: string
 }
 
 /**
@@ -51,6 +58,7 @@ function describeSpace(space: SpaceConfig | undefined, rawSpace: string): string
   return [
     `Space: ${space.label}.`,
     `In this space the tile may be applied to: ${space.surfaces.join(', ')}. Do not apply it to surfaces outside that list.`,
+    `Environment: ${space.environment}`,
   ].join('\n')
 }
 
@@ -61,8 +69,9 @@ function describeSpace(space: SpaceConfig | undefined, rawSpace: string): string
  * reviewed without spending API credits.
  */
 export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
+  const resolvedStyle = resolveStyleValue(input.style)
   const spaceConfig = getSpaceConfig(input.space)
-  const styleConfig = getStyleConfig(input.style)
+  const styleConfig = getStyleConfig(resolvedStyle)
   const tileSizeLabel = input.tileSize ? formatTileSize(input.tileSize) : 'the size specified by the showroom'
 
   const variations: string[] = spaceConfig
@@ -76,6 +85,7 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
   return variations.map((focus, index) => ({
     conceptIndex: index + 1,
     focus,
+    resolvedStyle,
     text: [
       'You are an architectural visualiser producing a client-facing concept image for a tile showroom.',
       '',
@@ -83,7 +93,7 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
       '',
       describeSpace(spaceConfig, input.space),
       '',
-      describeStyle(styleConfig, input.style),
+      describeStyle(styleConfig, resolvedStyle),
       '',
       `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
       'The three concepts are shown side by side to a client, so this one must be visibly different in framing and hero surface from the other two.',

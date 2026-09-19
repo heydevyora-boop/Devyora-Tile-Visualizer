@@ -1,9 +1,8 @@
 /**
  * Per-style application rules.
  *
- * Describes the aesthetic direction for each design style. Not wired into
- * the generate flow yet — scaffolding for when the real AI generation needs
- * to build style-aware prompts.
+ * Describes the aesthetic direction for each design style. Consumed by
+ * buildGenerationPrompt.ts to build style-aware prompts.
  */
 
 export interface StyleConfig {
@@ -42,11 +41,29 @@ export const STYLES: Record<string, StyleConfig> = {
     description: 'Sunlit terracotta & timber',
     keywords: ['terracotta', 'timber joinery', 'warm daylight'],
   },
+  contemporary: {
+    id: 'contemporary',
+    label: 'Contemporary',
+    description: 'Curved forms & fluidity',
+    keywords: ['fluid sculptural forms', 'curved plaster walls', 'brushed brass framing', 'soft architectural shadows'],
+  },
   earthy: {
     id: 'earthy',
     label: 'Earthy',
     description: 'Raw slate & fired clay',
     keywords: ['raw slate', 'fired clay', 'natural texture'],
+  },
+  indian: {
+    id: 'indian',
+    label: 'Indian',
+    description: 'Sandstone jaali & brass',
+    keywords: ['hand-carved sandstone jaali fretwork', 'heritage teak accents', 'brushed copper details', 'moody atmospheric lighting'],
+  },
+  elegant: {
+    id: 'elegant',
+    label: 'Elegant',
+    description: 'Quiet symmetry & poise',
+    keywords: ['neoclassical mouldings', 'herringbone parquet', 'honed marble', 'diffused daylight'],
   },
 }
 
@@ -56,4 +73,31 @@ export function getStyleConfig(value: string): StyleConfig | undefined {
   return Object.values(STYLES).find(
     (style) => style.id === needle || style.label.toLowerCase() === needle,
   )
+}
+
+/** The value the client sends when the salesperson picks "Surprise Me". */
+const SURPRISE_VALUE = 'surprise'
+
+/** True when the raw style value from the client means "let the system choose". */
+export function isSurpriseStyle(value: string): boolean {
+  return value.trim().toLowerCase() === SURPRISE_VALUE
+}
+
+/**
+ * Picks a random style from the full list. Any style is a valid surprise —
+ * nothing is excluded.
+ */
+export function pickRandomStyle(): StyleConfig {
+  const all = Object.values(STYLES)
+  return all[Math.floor(Math.random() * all.length)]
+}
+
+/**
+ * Resolves the style value to use for generation: if the client sent
+ * "surprise", picks a random real style; otherwise returns the value
+ * unchanged. This is the single place "Surprise Me" is triggered from, so
+ * both prompt building and the API response stay consistent.
+ */
+export function resolveStyleValue(rawStyle: string): string {
+  return isSurpriseStyle(rawStyle) ? pickRandomStyle().id : rawStyle
 }

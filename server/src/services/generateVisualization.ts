@@ -151,7 +151,10 @@ export async function generateVisualization(
     generationId: randomUUID(),
     images,
     space: input.space,
-    style: input.style,
+    // Echo the concrete style actually used, not the literal "surprise"
+    // the client may have sent — all three prompts resolve to the same
+    // style, so any entry carries it.
+    style: prompts[0].resolvedStyle,
     tileSize: input.tileSize ?? '',
   }
 }
