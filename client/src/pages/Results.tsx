@@ -1,8 +1,26 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useFlow } from '../state/FlowContext'
 import './Results.css'
+
+const TILE_SIZE_LABELS: Record<string, string> = {
+  '600x600': '600 × 600 mm',
+  '800x800': '800 × 800 mm',
+  '1200x600': '1200 × 600 mm',
+  '1200x1200': '1200 × 1200 mm',
+}
+
+const NOT_SELECTED = 'Not selected'
 
 function Results() {
   const navigate = useNavigate()
+  const { tileSize, space } = useFlow()
+  const tileSizeLabel = tileSize ? TILE_SIZE_LABELS[tileSize] ?? tileSize : NOT_SELECTED
+  const spaceLabel = space ?? NOT_SELECTED
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({})
+  const handleImageError = (index: number) => {
+    setFailedImages((prev) => ({ ...prev, [index]: true }))
+  }
   const handleReturn = () => {
     navigate('/summary')
   }
@@ -50,9 +68,9 @@ function Results() {
             <div className="flex items-center gap-space-xs">
               <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">DEVYORA</span>
               <span className="text-outline text-[10px]">•</span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">Bathroom Suite</span>
+              <span className="font-body-sm text-body-sm text-on-surface-variant">{spaceLabel}</span>
               <span className="text-outline text-[10px]">•</span>
-              <span className="font-spec-numeral text-body-sm text-primary">1200×600 mm</span>
+              <span className="font-spec-numeral text-body-sm text-primary">{tileSizeLabel}</span>
             </div>
             <div className="flex items-center gap-space-xs">
               <button
@@ -92,11 +110,18 @@ function Results() {
             <article className="bg-surface-container rounded-xl overflow-hidden shadow-lg flex flex-col transition-all">
               {/* Image Container */}
               <div className="relative w-full aspect-[4/3] bg-surface-container-highest overflow-hidden">
-                <img
-                  alt="High-end minimal architectural luxury bathroom interior featuring warm limestone and large format floor and wall tiles, floating vanity, warm recessed cove lighting, serene spa ambiance"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP5oA3AvnTsObA-oOr4trg44RxFMMyW1m2E5Wj_q9lD8zAQpMucUrLBk1i1LS3-0QMe5H1M9vIcaNV7UZer4PYV8q16dhpMVMIWdKyqidxgMR1C40tcJKfupQba_dFnRvQyL9_ZbtHz2N5OfsvGA__l8k4ov_w-LRcpxFLSl06yQWvUZ1yQZy9E1HM8OdDMZC1QbbLRXfpckIN3-C89gipLFBzNYdi0iCqSJYptKIrO6cqG7S7utJooQ"
-                />
+                {failedImages[0] ? (
+                  <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
+                    <span className="material-symbols-outlined text-[40px] text-on-surface-variant">broken_image</span>
+                  </div>
+                ) : (
+                  <img
+                    alt="High-end minimal architectural luxury bathroom interior featuring warm limestone and large format floor and wall tiles, floating vanity, warm recessed cove lighting, serene spa ambiance"
+                    className="w-full h-full object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP5oA3AvnTsObA-oOr4trg44RxFMMyW1m2E5Wj_q9lD8zAQpMucUrLBk1i1LS3-0QMe5H1M9vIcaNV7UZer4PYV8q16dhpMVMIWdKyqidxgMR1C40tcJKfupQba_dFnRvQyL9_ZbtHz2N5OfsvGA__l8k4ov_w-LRcpxFLSl06yQWvUZ1yQZy9E1HM8OdDMZC1QbbLRXfpckIN3-C89gipLFBzNYdi0iCqSJYptKIrO6cqG7S7utJooQ"
+                    onError={() => handleImageError(0)}
+                  />
+                )}
                 {/* Ambient subtle overlay scrim */}
                 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent"></div>
                 {/* Surface Specification Tag */}
@@ -137,11 +162,18 @@ function Results() {
             <article className="bg-surface-container rounded-xl overflow-hidden shadow-lg flex flex-col transition-all">
               {/* Image Container */}
               <div className="relative w-full aspect-[4/3] bg-surface-container-highest overflow-hidden">
-                <img
-                  alt="Ultra-luxury architectural living room with floor-to-ceiling glass, polished warm stone large format porcelain tile flooring, contemporary minimal Italian furniture, warm diffused sunlight"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEpIiiTMWE3tlqPgacanwBWvrlqlG6yioPf75-SOnp0uAf0O8cNzvnaO_1Toqhj7hHHiF4gXu-W-auEGwIJhM3ydoh1__OhYTjgizqJbYzmWcaw58wxITXm3jtZm2xfURG3ahEkSWTZwMrVpu5B8Ft2kEWlOyzU1xcW1nX_jbw5v1u64B9pkwoNH9O9GHqfq7KmbLVw6SzRU8Bzq5bc-NRnbM7FdIOtlDbEmwzzkNrZH9AZqqF7uIg3w"
-                />
+                {failedImages[1] ? (
+                  <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
+                    <span className="material-symbols-outlined text-[40px] text-on-surface-variant">broken_image</span>
+                  </div>
+                ) : (
+                  <img
+                    alt="Ultra-luxury architectural living room with floor-to-ceiling glass, polished warm stone large format porcelain tile flooring, contemporary minimal Italian furniture, warm diffused sunlight"
+                    className="w-full h-full object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEpIiiTMWE3tlqPgacanwBWvrlqlG6yioPf75-SOnp0uAf0O8cNzvnaO_1Toqhj7hHHiF4gXu-W-auEGwIJhM3ydoh1__OhYTjgizqJbYzmWcaw58wxITXm3jtZm2xfURG3ahEkSWTZwMrVpu5B8Ft2kEWlOyzU1xcW1nX_jbw5v1u64B9pkwoNH9O9GHqfq7KmbLVw6SzRU8Bzq5bc-NRnbM7FdIOtlDbEmwzzkNrZH9AZqqF7uIg3w"
+                    onError={() => handleImageError(1)}
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent"></div>
                 {/* Surface Specification Tag */}
                 <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm">
@@ -181,11 +213,18 @@ function Results() {
             <article className="bg-surface-container rounded-xl overflow-hidden shadow-lg flex flex-col transition-all">
               {/* Image Container */}
               <div className="relative w-full aspect-[4/3] bg-surface-container-highest overflow-hidden">
-                <img
-                  alt="Editorial architectural photography of a luxury modern kitchen with large format warm porcelain floor tiles, minimalist monolithic marble kitchen island, matte black hardware, warm daylight"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuB00wtIuZZffbITcFtmcFsbTCdn_bhuz-jF0VLOqT77jqOnOpV6LFOH6AloZZVAl4HlC-YeZDpywkX1PQcE2T87vfmpgcqLRM8kDsl3ovTJTN6hP4TutpbLN9O6lgXofAVjw4LXYm9Ouaa2Ba_sZ7T6-OE78YIB-N5kIqjI6sx8tWWEMEmHTtt7znsHib_w4XqSX3C1i2uJ3NlEssWvq3EoaxkyeIxr5WV_KUfgHVSkiyzXdhryU5hFNA"
-                />
+                {failedImages[2] ? (
+                  <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
+                    <span className="material-symbols-outlined text-[40px] text-on-surface-variant">broken_image</span>
+                  </div>
+                ) : (
+                  <img
+                    alt="Editorial architectural photography of a luxury modern kitchen with large format warm porcelain floor tiles, minimalist monolithic marble kitchen island, matte black hardware, warm daylight"
+                    className="w-full h-full object-cover"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuB00wtIuZZffbITcFtmcFsbTCdn_bhuz-jF0VLOqT77jqOnOpV6LFOH6AloZZVAl4HlC-YeZDpywkX1PQcE2T87vfmpgcqLRM8kDsl3ovTJTN6hP4TutpbLN9O6lgXofAVjw4LXYm9Ouaa2Ba_sZ7T6-OE78YIB-N5kIqjI6sx8tWWEMEmHTtt7znsHib_w4XqSX3C1i2uJ3NlEssWvq3EoaxkyeIxr5WV_KUfgHVSkiyzXdhryU5hFNA"
+                    onError={() => handleImageError(2)}
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent"></div>
                 {/* Surface Specification Tag */}
                 <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm">

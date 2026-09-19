@@ -461,3 +461,17 @@ p {
 .dt-crop-handle--sw {
   cursor: nesw-resize;
 }
+
+/* Ensure comfortable tap targets on touch devices (phone/tablet) without
+   changing desktop sizing or visual design. */
+@media (max-width: 1024px) {
+  .crop-page button[aria-label="Rotate 90 degrees"],
+  .crop-page button[aria-label="Auto straighten alignment"] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .crop-page #zoomBtn {
+    min-height: 44px;
+  }
+}
