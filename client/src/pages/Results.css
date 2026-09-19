@@ -367,3 +367,14 @@ aside.fixed .max-w-md > button.flex-1 > span:last-child {
     line-height: 18px;
   }
 }
+
+/* Ensure comfortable tap targets on touch devices (phone/tablet) without
+   changing desktop sizing or visual design. */
+@media (max-width: 1024px) {
+  .results-page button[aria-label="Share concept folio"],
+  .results-page button[aria-label="Export folio"],
+  .results-page button[aria-label="Pin finish selection"] {
+    width: 44px;
+    height: 44px;
+  }
+}

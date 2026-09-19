@@ -271,3 +271,12 @@ p {
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Ensure comfortable tap target on touch devices (phone/tablet) without
+   changing desktop sizing or visual design. */
+@media (max-width: 1024px) {
+  .tile-size-page button[aria-label="Previous step"] {
+    min-height: 44px;
+    padding-block: 10px;
+  }
+}

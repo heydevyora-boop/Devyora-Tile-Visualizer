@@ -364,3 +364,23 @@ header.fixed .h-16 img {
     max-width: calc(50% - 0.25rem);
   }
 }
+
+/* Ensure comfortable tap targets on touch devices (phone/tablet) without
+   changing desktop sizing or visual design. */
+@media (max-width: 1024px) {
+  .summary-page button[aria-label="Re-crop Tile"] {
+    min-height: 44px;
+  }
+
+  .summary-page button[aria-label="Edit Tile Profile"] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .summary-page button[aria-label="Edit Tile Size"],
+  .summary-page button[aria-label="Edit Space"],
+  .summary-page button[aria-label="Edit Style"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

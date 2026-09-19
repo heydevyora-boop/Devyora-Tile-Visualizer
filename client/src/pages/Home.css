@@ -407,3 +407,12 @@
   color: var(--color-outline);
   text-transform: uppercase;
 }
+
+/* Ensure comfortable tap target on touch devices (phone/tablet) without
+   changing desktop sizing or visual design. */
+@media (max-width: 1024px) {
+  .home__theme-toggle {
+    width: 44px;
+    height: 44px;
+  }
+}
