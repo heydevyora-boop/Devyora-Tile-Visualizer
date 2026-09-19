@@ -12,6 +12,9 @@ const prompts = buildGenerationPrompts({ space, style, tileSize })
 
 console.log('='.repeat(78))
 console.log(`INPUT  space="${space}"  style="${style}"  tileSize="${tileSize}"`)
+if (prompts[0].resolvedStyle !== style) {
+  console.log(`RESOLVED STYLE  "${style}" -> "${prompts[0].resolvedStyle}" (Surprise Me picked this randomly)`)
+}
 console.log(`MODEL  ${process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image'}`)
 console.log(`Plus the tile photograph, attached to every call as an image part.`)
 console.log('='.repeat(78))
