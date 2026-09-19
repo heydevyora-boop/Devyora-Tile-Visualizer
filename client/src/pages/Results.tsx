@@ -12,9 +12,20 @@ const TILE_SIZE_LABELS: Record<string, string> = {
 
 const NOT_SELECTED = 'Not selected'
 
+// Used when the user lands on /results without a completed generation
+// (e.g. navigating directly to the route).
+const FALLBACK_IMAGES = [
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDP5oA3AvnTsObA-oOr4trg44RxFMMyW1m2E5Wj_q9lD8zAQpMucUrLBk1i1LS3-0QMe5H1M9vIcaNV7UZer4PYV8q16dhpMVMIWdKyqidxgMR1C40tcJKfupQba_dFnRvQyL9_ZbtHz2N5OfsvGA__l8k4ov_w-LRcpxFLSl06yQWvUZ1yQZy9E1HM8OdDMZC1QbbLRXfpckIN3-C89gipLFBzNYdi0iCqSJYptKIrO6cqG7S7utJooQ',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDEpIiiTMWE3tlqPgacanwBWvrlqlG6yioPf75-SOnp0uAf0O8cNzvnaO_1Toqhj7hHHiF4gXu-W-auEGwIJhM3ydoh1__OhYTjgizqJbYzmWcaw58wxITXm3jtZm2xfURG3ahEkSWTZwMrVpu5B8Ft2kEWlOyzU1xcW1nX_jbw5v1u64B9pkwoNH9O9GHqfq7KmbLVw6SzRU8Bzq5bc-NRnbM7FdIOtlDbEmwzzkNrZH9AZqqF7uIg3w',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuB00wtIuZZffbITcFtmcFsbTCdn_bhuz-jF0VLOqT77jqOnOpV6LFOH6AloZZVAl4HlC-YeZDpywkX1PQcE2T87vfmpgcqLRM8kDsl3ovTJTN6hP4TutpbLN9O6lgXofAVjw4LXYm9Ouaa2Ba_sZ7T6-OE78YIB-N5kIqjI6sx8tWWEMEmHTtt7znsHib_w4XqSX3C1i2uJ3NlEssWvq3EoaxkyeIxr5WV_KUfgHVSkiyzXdhryU5hFNA',
+]
+
 function Results() {
   const navigate = useNavigate()
-  const { tileSize, space } = useFlow()
+  const { tileSize, space, generatedResult } = useFlow()
+  const conceptImages = generatedResult?.images?.length
+    ? generatedResult.images
+    : FALLBACK_IMAGES
   const tileSizeLabel = tileSize ? TILE_SIZE_LABELS[tileSize] ?? tileSize : NOT_SELECTED
   const spaceLabel = space ?? NOT_SELECTED
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({})
@@ -118,7 +129,7 @@ function Results() {
                   <img
                     alt="High-end minimal architectural luxury bathroom interior featuring warm limestone and large format floor and wall tiles, floating vanity, warm recessed cove lighting, serene spa ambiance"
                     className="w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP5oA3AvnTsObA-oOr4trg44RxFMMyW1m2E5Wj_q9lD8zAQpMucUrLBk1i1LS3-0QMe5H1M9vIcaNV7UZer4PYV8q16dhpMVMIWdKyqidxgMR1C40tcJKfupQba_dFnRvQyL9_ZbtHz2N5OfsvGA__l8k4ov_w-LRcpxFLSl06yQWvUZ1yQZy9E1HM8OdDMZC1QbbLRXfpckIN3-C89gipLFBzNYdi0iCqSJYptKIrO6cqG7S7utJooQ"
+                    src={conceptImages[0] ?? FALLBACK_IMAGES[0]}
                     onError={() => handleImageError(0)}
                   />
                 )}
@@ -170,7 +181,7 @@ function Results() {
                   <img
                     alt="Ultra-luxury architectural living room with floor-to-ceiling glass, polished warm stone large format porcelain tile flooring, contemporary minimal Italian furniture, warm diffused sunlight"
                     className="w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEpIiiTMWE3tlqPgacanwBWvrlqlG6yioPf75-SOnp0uAf0O8cNzvnaO_1Toqhj7hHHiF4gXu-W-auEGwIJhM3ydoh1__OhYTjgizqJbYzmWcaw58wxITXm3jtZm2xfURG3ahEkSWTZwMrVpu5B8Ft2kEWlOyzU1xcW1nX_jbw5v1u64B9pkwoNH9O9GHqfq7KmbLVw6SzRU8Bzq5bc-NRnbM7FdIOtlDbEmwzzkNrZH9AZqqF7uIg3w"
+                    src={conceptImages[1] ?? FALLBACK_IMAGES[1]}
                     onError={() => handleImageError(1)}
                   />
                 )}
@@ -221,7 +232,7 @@ function Results() {
                   <img
                     alt="Editorial architectural photography of a luxury modern kitchen with large format warm porcelain floor tiles, minimalist monolithic marble kitchen island, matte black hardware, warm daylight"
                     className="w-full h-full object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuB00wtIuZZffbITcFtmcFsbTCdn_bhuz-jF0VLOqT77jqOnOpV6LFOH6AloZZVAl4HlC-YeZDpywkX1PQcE2T87vfmpgcqLRM8kDsl3ovTJTN6hP4TutpbLN9O6lgXofAVjw4LXYm9Ouaa2Ba_sZ7T6-OE78YIB-N5kIqjI6sx8tWWEMEmHTtt7znsHib_w4XqSX3C1i2uJ3NlEssWvq3EoaxkyeIxr5WV_KUfgHVSkiyzXdhryU5hFNA"
+                    src={conceptImages[2] ?? FALLBACK_IMAGES[2]}
                     onError={() => handleImageError(2)}
                   />
                 )}

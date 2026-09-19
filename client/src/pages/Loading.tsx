@@ -1,19 +1,78 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useFlow } from '../state/FlowContext'
 import './Loading.css'
+
+const GENERATE_ENDPOINT = 'http://localhost:3001/api/generate'
 
 function Loading() {
   const navigate = useNavigate()
+  const { croppedImage, space, style, tileSize, setGeneratedResult } = useFlow()
+  const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
+
   const handleReturn = () => {
     navigate('/summary')
   }
+  const handleRetry = () => {
+    setError(null)
+    setAttempt((current) => current + 1)
+  }
+
+  const runGeneration = useCallback(
+    async (signal: AbortSignal) => {
+      const response = await fetch(GENERATE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tileImage: croppedImage,
+          space,
+          style,
+          tileSize,
+        }),
+        signal,
+      })
+
+      if (!response.ok) {
+        let detail = ''
+        try {
+          const errorBody = await response.json()
+          detail = typeof errorBody?.error === 'string' ? errorBody.error : ''
+        } catch {
+          detail = ''
+        }
+        throw new Error(detail || `Request failed with status ${response.status}`)
+      }
+
+      return response.json()
+    },
+    [croppedImage, space, style, tileSize],
+  )
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      navigate('/results')
-    }, 2400)
-    return () => window.clearTimeout(timer)
-  }, [navigate])
+    const controller = new AbortController()
+    let cancelled = false
+
+    runGeneration(controller.signal)
+      .then((result) => {
+        if (cancelled) return
+        setGeneratedResult(result)
+        navigate('/results')
+      })
+      .catch((requestError: unknown) => {
+        if (cancelled || controller.signal.aborted) return
+        setError(
+          requestError instanceof Error && requestError.message
+            ? requestError.message
+            : 'Something went wrong while creating your concepts.',
+        )
+      })
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [attempt, navigate, runGeneration, setGeneratedResult])
 
   return (
     <div className="loading-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
@@ -99,25 +158,58 @@ function Loading() {
                 600 × 1200 mm
               </div>
             </div>
-            {/* Editorial Architectural Heading */}
-            <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-wide font-normal mb-space-sm">
-              Creating your concepts…
-            </h2>
-            {/* Subtitle */}
-            <p className="font-body-md text-body-md text-on-surface-variant max-w-xs leading-relaxed mb-space-lg">
-              We’re exploring different ways to use this tile.
-            </p>
-            {/* Linear Micro Calibration Metric Indicator */}
-            <div className="w-full max-w-[240px] flex flex-col items-center gap-space-xs">
-              <div className="w-full h-[2px] bg-surface-container-high rounded-full overflow-hidden relative">
-                <div className="h-full bg-primary transition-all duration-700 ease-out" id="metricBar" style={{ width: '28%' }}></div>
-              </div>
-              {/* Real-time Calibration Stage Ticker */}
-              <div className="flex items-center justify-between w-full pt-space-xs font-label-caps text-label-caps text-outline uppercase tracking-wider">
-                <span id="metricStepLabel">Stage 01/03</span>
-                <span id="metricRatioLabel">Surface Map</span>
-              </div>
-            </div>
+            {error ? (
+              <>
+                {/* Generation Failure Notice */}
+                <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-wide font-normal mb-space-sm">
+                  We couldn’t create your concepts
+                </h2>
+                <p className="font-body-md text-body-md text-on-surface-variant max-w-xs leading-relaxed mb-space-lg" id="generationErrorMessage">
+                  {error}
+                </p>
+                <div className="w-full max-w-[240px] flex flex-col items-center gap-space-sm">
+                  <button
+                    className="w-full h-11 bg-primary text-on-primary font-title-md text-title-md rounded flex items-center justify-center gap-space-xs active:scale-[0.99] transition-transform"
+                    id="retryGenerationBtn"
+                    onClick={handleRetry}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">refresh</span>
+                    <span>Try Again</span>
+                  </button>
+                  <button
+                    className="w-full h-11 bg-surface-container-high text-on-surface font-title-md text-title-md rounded flex items-center justify-center transition-colors"
+                    id="backToSummaryBtn"
+                    onClick={handleReturn}
+                    type="button"
+                  >
+                    <span>Back to Summary</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Editorial Architectural Heading */}
+                <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-wide font-normal mb-space-sm">
+                  Creating your concepts…
+                </h2>
+                {/* Subtitle */}
+                <p className="font-body-md text-body-md text-on-surface-variant max-w-xs leading-relaxed mb-space-lg">
+                  We’re exploring different ways to use this tile.
+                </p>
+                {/* Linear Micro Calibration Metric Indicator */}
+                <div className="w-full max-w-[240px] flex flex-col items-center gap-space-xs">
+                  <div className="w-full h-[2px] bg-surface-container-high rounded-full overflow-hidden relative">
+                    <div className="h-full bg-primary transition-all duration-700 ease-out" id="metricBar" style={{ width: '28%' }}></div>
+                  </div>
+                  {/* Real-time Calibration Stage Ticker */}
+                  <div className="flex items-center justify-between w-full pt-space-xs font-label-caps text-label-caps text-outline uppercase tracking-wider">
+                    <span id="metricStepLabel">Stage 01/03</span>
+                    <span id="metricRatioLabel">Surface Map</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           {/* Bottom Curatorial Context & Spatial Reassurance */}
           <div className="w-full max-w-sm flex flex-col items-center gap-space-md pb-space-lg">
