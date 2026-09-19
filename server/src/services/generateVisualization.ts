@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto'
+import { GoogleGenAI } from '@google/genai'
+import { buildGenerationPrompts } from './buildGenerationPrompt'
 
 export interface GenerateVisualizationInput {
   tileImage: string
@@ -15,36 +17,141 @@ export interface GenerateVisualizationResult {
   tileSize: string
 }
 
-// Same stock placeholder images currently used in the frontend's Results.tsx,
-// reused here so the mock response looks like a real generation result.
-const PLACEHOLDER_IMAGES = [
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDP5oA3AvnTsObA-oOr4trg44RxFMMyW1m2E5Wj_q9lD8zAQpMucUrLBk1i1LS3-0QMe5H1M9vIcaNV7UZer4PYV8q16dhpMVMIWdKyqidxgMR1C40tcJKfupQba_dFnRvQyL9_ZbtHz2N5OfsvGA__l8k4ov_w-LRcpxFLSl06yQWvUZ1yQZy9E1HM8OdDMZC1QbbLRXfpckIN3-C89gipLFBzNYdi0iCqSJYptKIrO6cqG7S7utJooQ',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDEpIiiTMWE3tlqPgacanwBWvrlqlG6yioPf75-SOnp0uAf0O8cNzvnaO_1Toqhj7hHHiF4gXu-W-auEGwIJhM3ydoh1__OhYTjgizqJbYzmWcaw58wxITXm3jtZm2xfURG3ahEkSWTZwMrVpu5B8Ft2kEWlOyzU1xcW1nX_jbw5v1u64B9pkwoNH9O9GHqfq7KmbLVw6SzRU8Bzq5bc-NRnbM7FdIOtlDbEmwzzkNrZH9AZqqF7uIg3w',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuB00wtIuZZffbITcFtmcFsbTCdn_bhuz-jF0VLOqT77jqOnOpV6LFOH6AloZZVAl4HlC-YeZDpywkX1PQcE2T87vfmpgcqLRM8kDsl3ovTJTN6hP4TutpbLN9O6lgXofAVjw4LXYm9Ouaa2Ba_sZ7T6-OE78YIB-N5kIqjI6sx8tWWEMEmHTtt7znsHib_w4XqSX3C1i2uJ3NlEssWvq3EoaxkyeIxr5WV_KUfgHVSkiyzXdhryU5hFNA',
-]
+/** Thrown when generation fails; carries the HTTP status the route should use. */
+export class GenerationError extends Error {
+  status: number
 
-const MOCK_DELAY_MS = 1500
+  constructor(message: string, status = 502) {
+    super(message)
+    this.name = 'GenerationError'
+    this.status = status
+  }
+}
+
+// Any image model id the SDK accepts. Overridable without a code change.
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image'
+
+interface ParsedDataUrl {
+  data: string
+  mimeType: string
+}
 
 /**
- * Generates an architectural tile visualization for the given input.
- *
- * This is currently a MOCK implementation: it simulates the latency of a
- * real AI provider call and returns placeholder images. The route calling
- * this function does not need to change when this is swapped for a real
- * AI provider call later.
+ * Accepts either a bare base64 string or a full data URL and returns the raw
+ * base64 payload plus its mime type.
  */
-export function generateVisualization(
+export function parseTileImage(tileImage: string): ParsedDataUrl {
+  const dataUrlMatch = tileImage.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s)
+  if (dataUrlMatch) {
+    return { mimeType: dataUrlMatch[1], data: dataUrlMatch[2] }
+  }
+  if (/^[A-Za-z0-9+/=\s]+$/.test(tileImage) && tileImage.length > 32) {
+    return { mimeType: 'image/jpeg', data: tileImage.replace(/\s/g, '') }
+  }
+  throw new GenerationError(
+    'The tile photo could not be read. Please retake or re-upload the tile photo.',
+    400,
+  )
+}
+
+/** Maps an SDK/network error onto a user-facing message plus HTTP status. */
+function toGenerationError(error: unknown): GenerationError {
+  if (error instanceof GenerationError) return error
+
+  const raw = error instanceof Error ? error.message : String(error)
+  const status =
+    typeof (error as { status?: unknown })?.status === 'number'
+      ? (error as { status: number }).status
+      : undefined
+  const haystack = `${status ?? ''} ${raw}`.toLowerCase()
+
+  if (haystack.includes('api key') || haystack.includes('unauthenticated') || status === 401 || status === 403) {
+    return new GenerationError(
+      'The image service rejected our credentials. Please check the server API key configuration.',
+      502,
+    )
+  }
+  if (status === 429 || haystack.includes('rate limit') || haystack.includes('quota') || haystack.includes('resource_exhausted')) {
+    return new GenerationError(
+      'The image service is busy right now. Please wait a moment and try again.',
+      503,
+    )
+  }
+  if (haystack.includes('safety') || haystack.includes('blocked') || haystack.includes('policy')) {
+    return new GenerationError(
+      'The image service declined to generate from this photo. Please try a different tile photo.',
+      422,
+    )
+  }
+  if (haystack.includes('fetch failed') || haystack.includes('econnrefused') || haystack.includes('enotfound') || haystack.includes('timeout')) {
+    return new GenerationError(
+      'We could not reach the image service. Please check the connection and try again.',
+      504,
+    )
+  }
+  return new GenerationError('We could not create your concepts. Please try again.', 502)
+}
+
+/**
+ * Generates three architectural tile visualizations for the given input.
+ *
+ * Calls the Gemini image model once per concept, each with a different
+ * variation focus taken from the space config, so the three results are
+ * genuinely different concepts rather than three near-identical images.
+ */
+export async function generateVisualization(
   input: GenerateVisualizationInput,
 ): Promise<GenerateVisualizationResult> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        generationId: randomUUID(),
-        images: PLACEHOLDER_IMAGES,
-        space: input.space,
-        style: input.style,
-        tileSize: input.tileSize ?? '',
-      })
-    }, MOCK_DELAY_MS)
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    throw new GenerationError(
+      'Image generation is not configured on the server (missing GEMINI_API_KEY).',
+      500,
+    )
+  }
+
+  const tile = parseTileImage(input.tileImage)
+  const prompts = buildGenerationPrompts({
+    space: input.space,
+    style: input.style,
+    tileSize: input.tileSize,
   })
+
+  const ai = new GoogleGenAI({ apiKey })
+
+  let interactions
+  try {
+    interactions = await Promise.all(
+      prompts.map((prompt) =>
+        ai.interactions.create({
+          model: IMAGE_MODEL,
+          input: [
+            { type: 'text', text: prompt.text },
+            { type: 'image', data: tile.data, mime_type: tile.mimeType },
+          ],
+        }),
+      ),
+    )
+  } catch (error) {
+    throw toGenerationError(error)
+  }
+
+  const images = interactions.map((interaction, index) => {
+    const image = interaction.output_image
+    if (!image?.data) {
+      throw new GenerationError(
+        `The image service returned no image for concept ${index + 1}. Please try again.`,
+        502,
+      )
+    }
+    return `data:${image.mime_type ?? 'image/png'};base64,${image.data}`
+  })
+
+  return {
+    generationId: randomUUID(),
+    images,
+    space: input.space,
+    style: input.style,
+    tileSize: input.tileSize ?? '',
+  }
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { generateVisualization } from '../services/generateVisualization'
+import { GenerationError, generateVisualization } from '../services/generateVisualization'
 
 const router = Router()
 
@@ -18,8 +18,19 @@ router.post('/generate', async (req, res) => {
     return
   }
 
-  const result = await generateVisualization({ tileImage, space, style, tileSize })
-  res.json(result)
+  try {
+    const result = await generateVisualization({ tileImage, space, style, tileSize })
+    res.json(result)
+  } catch (error) {
+    // Generation failures must not take the server down.
+    const status = error instanceof GenerationError ? error.status : 502
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : 'We could not create your concepts. Please try again.'
+    console.error('[POST /api/generate] generation failed:', error)
+    res.status(status).json({ error: message })
+  }
 })
 
 export default router
