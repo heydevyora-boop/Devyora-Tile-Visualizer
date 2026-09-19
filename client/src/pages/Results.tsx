@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import './Results.css'
@@ -20,6 +20,13 @@ const FALLBACK_IMAGES = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuB00wtIuZZffbITcFtmcFsbTCdn_bhuz-jF0VLOqT77jqOnOpV6LFOH6AloZZVAl4HlC-YeZDpywkX1PQcE2T87vfmpgcqLRM8kDsl3ovTJTN6hP4TutpbLN9O6lgXofAVjw4LXYm9Ouaa2Ba_sZ7T6-OE78YIB-N5kIqjI6sx8tWWEMEmHTtt7znsHib_w4XqSX3C1i2uJ3NlEssWvq3EoaxkyeIxr5WV_KUfgHVSkiyzXdhryU5hFNA',
 ]
 
+// Titles/plans shown in the lightbox caption, matching each concept card below.
+const CONCEPTS = [
+  { title: 'Vanity Wall & Floor', plan: 'Plan A' },
+  { title: 'Spa Walk-in & Wet Room', plan: 'Plan B' },
+  { title: 'Daylight Perspective', plan: 'Plan C' },
+]
+
 function Results() {
   const navigate = useNavigate()
   const { tileSize, space, generatedResult } = useFlow()
@@ -32,6 +39,40 @@ function Results() {
   const handleImageError = (index: number) => {
     setFailedImages((prev) => ({ ...prev, [index]: true }))
   }
+
+  // Lightbox: null = closed, otherwise the index of the concept being viewed.
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const lightboxCloseRef = useRef<HTMLButtonElement>(null)
+  const showPrevConcept = () =>
+    setLightboxIndex((current) =>
+      current === null ? null : (current + conceptImages.length - 1) % conceptImages.length,
+    )
+  const showNextConcept = () =>
+    setLightboxIndex((current) => (current === null ? null : (current + 1) % conceptImages.length))
+
+  // Escape/Arrow-key navigation and locking background scroll while the
+  // lightbox is open.
+  useEffect(() => {
+    if (lightboxIndex === null) return
+    const total = conceptImages.length
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLightboxIndex(null)
+      } else if (event.key === 'ArrowLeft') {
+        setLightboxIndex((current) => (current === null ? null : (current + total - 1) % total))
+      } else if (event.key === 'ArrowRight') {
+        setLightboxIndex((current) => (current === null ? null : (current + 1) % total))
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    lightboxCloseRef.current?.focus()
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [lightboxIndex, conceptImages.length])
   const handleReturn = () => {
     navigate('/summary')
   }
@@ -128,15 +169,16 @@ function Results() {
                 ) : (
                   <img
                     alt="High-end minimal architectural luxury bathroom interior featuring warm limestone and large format floor and wall tiles, floating vanity, warm recessed cove lighting, serene spa ambiance"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer"
                     src={conceptImages[0] ?? FALLBACK_IMAGES[0]}
+                    onClick={() => setLightboxIndex(0)}
                     onError={() => handleImageError(0)}
                   />
                 )}
                 {/* Ambient subtle overlay scrim */}
-                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent pointer-events-none"></div>
                 {/* Surface Specification Tag */}
-                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm pointer-events-none">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   <span className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface">Concept 01</span>
                 </div>
@@ -149,7 +191,7 @@ function Results() {
                   <span className="material-symbols-outlined text-[18px]">bookmark</span>
                 </button>
                 {/* In-view specs pill anchored over lower image bounds */}
-                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between">
+                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between pointer-events-none">
                   <div className="bg-surface-container/90 backdrop-blur-md px-space-sm py-1 rounded-full">
                     <span className="font-body-sm text-body-sm text-primary">Full Height Slab • Matte Honed</span>
                   </div>
@@ -180,14 +222,15 @@ function Results() {
                 ) : (
                   <img
                     alt="Ultra-luxury architectural living room with floor-to-ceiling glass, polished warm stone large format porcelain tile flooring, contemporary minimal Italian furniture, warm diffused sunlight"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer"
                     src={conceptImages[1] ?? FALLBACK_IMAGES[1]}
+                    onClick={() => setLightboxIndex(1)}
                     onError={() => handleImageError(1)}
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent pointer-events-none"></div>
                 {/* Surface Specification Tag */}
-                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm pointer-events-none">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   <span className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface">Concept 02</span>
                 </div>
@@ -200,7 +243,7 @@ function Results() {
                   <span className="material-symbols-outlined text-[18px]">bookmark</span>
                 </button>
                 {/* In-view specs pill anchored over lower image bounds */}
-                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between">
+                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between pointer-events-none">
                   <div className="bg-surface-container/90 backdrop-blur-md px-space-sm py-1 rounded-full">
                     <span className="font-body-sm text-body-sm text-primary">Continuous Vein Match</span>
                   </div>
@@ -231,14 +274,15 @@ function Results() {
                 ) : (
                   <img
                     alt="Editorial architectural photography of a luxury modern kitchen with large format warm porcelain floor tiles, minimalist monolithic marble kitchen island, matte black hardware, warm daylight"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer"
                     src={conceptImages[2] ?? FALLBACK_IMAGES[2]}
+                    onClick={() => setLightboxIndex(2)}
                     onError={() => handleImageError(2)}
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent pointer-events-none"></div>
                 {/* Surface Specification Tag */}
-                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm pointer-events-none">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   <span className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface">Concept 03</span>
                 </div>
@@ -251,7 +295,7 @@ function Results() {
                   <span className="material-symbols-outlined text-[18px]">bookmark</span>
                 </button>
                 {/* In-view specs pill anchored over lower image bounds */}
-                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between">
+                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between pointer-events-none">
                   <div className="bg-surface-container/90 backdrop-blur-md px-space-sm py-1 rounded-full">
                     <span className="font-body-sm text-body-sm text-primary">Natural Raking Light</span>
                   </div>
@@ -321,6 +365,82 @@ function Results() {
           </aside>
         </div>
       </main>
+      {lightboxIndex !== null && (
+        <div
+          aria-label={`${CONCEPTS[lightboxIndex]?.title ?? `Concept ${lightboxIndex + 1}`} — full size view`}
+          aria-modal="true"
+          className="lightbox-overlay fixed inset-0 flex items-center justify-center"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setLightboxIndex(null)
+          }}
+          role="dialog"
+        >
+          <button
+            aria-label="Close full-size view"
+            className="lightbox-close-btn"
+            onClick={() => setLightboxIndex(null)}
+            ref={lightboxCloseRef}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+          {conceptImages.length > 1 && (
+            <button
+              aria-label="Previous concept"
+              className="lightbox-nav-btn lightbox-nav-btn--prev"
+              onClick={showPrevConcept}
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[24px]">chevron_left</span>
+            </button>
+          )}
+          <img
+            alt={`${CONCEPTS[lightboxIndex]?.title ?? `Concept ${lightboxIndex + 1}`} — full size`}
+            className="lightbox-image"
+            src={conceptImages[lightboxIndex]}
+          />
+          {conceptImages.length > 1 && (
+            <button
+              aria-label="Next concept"
+              className="lightbox-nav-btn lightbox-nav-btn--next"
+              onClick={showNextConcept}
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[24px]">chevron_right</span>
+            </button>
+          )}
+          <div className="lightbox-caption">
+            <div className="flex items-center justify-center gap-1.5">
+              <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">
+                Concept {String(lightboxIndex + 1).padStart(2, '0')}
+              </span>
+              {CONCEPTS[lightboxIndex] && (
+                <>
+                  <span className="text-outline text-[10px]">•</span>
+                  <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
+                    {CONCEPTS[lightboxIndex].plan}
+                  </span>
+                </>
+              )}
+            </div>
+            {CONCEPTS[lightboxIndex] && (
+              <h2 className="lightbox-caption-title font-title-md text-title-md text-on-surface">
+                {CONCEPTS[lightboxIndex].title}
+              </h2>
+            )}
+            {conceptImages.length > 1 && (
+              <div className="lightbox-dots">
+                {conceptImages.map((_, index) => (
+                  <span
+                    className={`lightbox-dot${index === lightboxIndex ? ' lightbox-dot--active' : ''}`}
+                    key={index}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
