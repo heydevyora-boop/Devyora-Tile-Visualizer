@@ -15,7 +15,11 @@ import Results from './pages/Results'
 import History from './pages/History'
 import './App.css'
 
-/** Every page in the consultation flow sits behind sign-in. */
+/**
+ * Every page in the consultation flow. These require the "user" role, not just
+ * a session: admins are review-only and get redirected to /history if they try
+ * to reach any of them.
+ */
 const PROTECTED_ROUTES = [
   { path: '/home', element: <Home /> },
   { path: '/camera', element: <Camera /> },
@@ -38,7 +42,7 @@ function App() {
             <Route
               key={path}
               path={path}
-              element={<ProtectedRoute>{element}</ProtectedRoute>}
+              element={<ProtectedRoute requireRole="user">{element}</ProtectedRoute>}
             />
           ))}
           <Route

@@ -7,7 +7,7 @@ const TILE_SRC =
 
 function Home() {
   const navigate = useNavigate()
-  const { role, userName, logout } = useAuth()
+  const { userName, logout } = useAuth()
   const handleThemeToggle = () => {}
   const handleLogout = () => {
     logout()
@@ -38,20 +38,6 @@ function Home() {
                 light_mode
               </span>
             </button>
-            {role === 'admin' && (
-              <button
-                id="home-history-btn"
-                type="button"
-                aria-label="Generation history"
-                title="Generation history"
-                className="home__theme-toggle"
-                onClick={() => navigate('/history')}
-              >
-                <span className="material-symbols-outlined home__theme-icon">
-                  history
-                </span>
-              </button>
-            )}
             <div className="home__atelier-badge" title={userName ?? undefined}>
               <span className="home__atelier-dot"></span>
               <span className="home__atelier-label">

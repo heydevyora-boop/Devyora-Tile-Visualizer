@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import HeaderUserMenu from '../components/HeaderUserMenu'
+import { useAuth } from '../state/AuthContext'
 import './History.css'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
@@ -32,6 +32,11 @@ function formatTimestamp(timestamp: string): { date: string; time: string } {
 
 function History() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
+  const handleLogout = () => {
+    logout()
+    navigate('/', { replace: true })
+  }
   const [records, setRecords] = useState<GenerationRecord[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<LightboxTarget | null>(null)
@@ -112,21 +117,13 @@ function History() {
 
   return (
     <div className="history-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
+      {/* Admins are review-only, so this header carries no navigation into the
+          visualiser — branding, title, and sign-out only. */}
       <header className="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(0,0,0,0.45)]">
         <div className="h-16 px-margin flex items-center justify-between">
-          <div className="flex items-center gap-space-sm">
-            <button
-              aria-label="Return"
-              className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
-              onClick={() => navigate('/home')}
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
-            </button>
-            <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">
-              DEVYORA
-            </span>
-          </div>
+          <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">
+            DEVYORA
+          </span>
           <div className="flex flex-col items-center">
             <span className="font-headline-sm text-headline-sm uppercase text-on-surface">
               Generation History
@@ -135,7 +132,16 @@ function History() {
               Admin
             </span>
           </div>
-          <HeaderUserMenu showHistoryLink={false} />
+          <button
+            aria-label="Sign out"
+            className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
+            id="logoutBtn"
+            onClick={handleLogout}
+            title="Sign out"
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+          </button>
         </div>
       </header>
 

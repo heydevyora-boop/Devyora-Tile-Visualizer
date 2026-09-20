@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../state/AuthContext'
+import { landingPathFor, useAuth } from '../state/AuthContext'
 import './Login.css'
 
 /**
@@ -11,17 +11,18 @@ const SUBMIT_DELAY_MS = 300
 
 function Login() {
   const navigate = useNavigate()
-  const { isAuthenticated, login } = useAuth()
+  const { isAuthenticated, role, login } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const timerRef = useRef<number | null>(null)
 
-  // Already signed in (e.g. returning via the browser back button) — skip ahead.
+  // Already signed in (e.g. returning via the browser back button) — skip ahead
+  // to wherever this role belongs.
   useEffect(() => {
-    if (isAuthenticated) navigate('/home', { replace: true })
-  }, [isAuthenticated, navigate])
+    if (isAuthenticated) navigate(landingPathFor(role), { replace: true })
+  }, [isAuthenticated, role, navigate])
 
   useEffect(() => {
     return () => {
@@ -49,9 +50,10 @@ function Login() {
 
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null
-      const ok = login(username, password)
-      if (ok) {
-        navigate('/home', { replace: true })
+      // Admins land on /history, everyone else on /home.
+      const signedInRole = login(username, password)
+      if (signedInRole) {
+        navigate(landingPathFor(signedInRole), { replace: true })
         return
       }
       setSubmitting(false)

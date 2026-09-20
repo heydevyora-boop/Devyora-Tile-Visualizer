@@ -13,14 +13,27 @@ type AuthContextValue = {
   isAuthenticated: boolean
   role: Role | null
   userName: string | null
-  /** Returns true when the credentials matched and the session was created. */
-  login: (username: string, password: string) => boolean
+  /** Returns the role when the credentials matched, or null when they did not. */
+  login: (username: string, password: string) => Role | null
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 const STORAGE_KEY = 'devyora.auth'
+
+/**
+ * The one screen a role belongs on.
+ *
+ * Admins exist only to review the generation history — they have no reason to
+ * run a consultation, so /history is both their landing page and the page they
+ * are sent back to if they try to reach the visualiser. Everyone else lives in
+ * the visualiser and starts at /home. Routing decisions read this rather than
+ * hardcoding paths, so the two can never disagree.
+ */
+export function landingPathFor(role: Role | null): string {
+  return role === 'admin' ? '/history' : '/home'
+}
 
 /**
  * Reads a previously stored session. Returns null for anything unexpected so a
@@ -59,12 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback((username: string, password: string) => {
     const role = resolveRole(username, password)
-    if (!role) return false
+    if (!role) return null
     // The username is the only identity we have, so it is what gets recorded
     // against each generation in the admin history. Normalised to lowercase so
     // "Admin" and "admin" do not appear as two different people.
     setSession({ role, userName: username.trim().toLowerCase() })
-    return true
+    return role
   }, [])
 
   const logout = useCallback(() => {
