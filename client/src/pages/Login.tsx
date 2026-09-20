@@ -12,7 +12,6 @@ const SUBMIT_DELAY_MS = 300
 function Login() {
   const navigate = useNavigate()
   const { isAuthenticated, login } = useAuth()
-  const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -40,8 +39,8 @@ function Login() {
     event.preventDefault()
     if (submitting) return
 
-    if (!name.trim() || !username.trim() || !password) {
-      setError('Please fill in your name, username and password.')
+    if (!username.trim() || !password) {
+      setError('Please enter your username and password.')
       return
     }
 
@@ -50,7 +49,7 @@ function Login() {
 
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null
-      const ok = login(name, username, password)
+      const ok = login(username, password)
       if (ok) {
         navigate('/home', { replace: true })
         return
@@ -82,23 +81,6 @@ function Login() {
           </div>
 
           <form className="login__form" onSubmit={handleSubmit} noValidate>
-            <div className="login__field">
-              <label className="login__label" htmlFor="login-name">
-                Name
-              </label>
-              <input
-                autoComplete="name"
-                className="login__input"
-                disabled={submitting}
-                id="login-name"
-                name="name"
-                onChange={(event) => handleChange(setName)(event.target.value)}
-                placeholder="Your full name"
-                type="text"
-                value={name}
-              />
-            </div>
-
             <div className="login__field">
               <label className="login__label" htmlFor="login-username">
                 Username

@@ -5,6 +5,7 @@ export type { Role }
 
 type StoredSession = {
   role: Role
+  /** The username they signed in with; shown in the admin history. */
   userName: string
 }
 
@@ -13,7 +14,7 @@ type AuthContextValue = {
   role: Role | null
   userName: string | null
   /** Returns true when the credentials matched and the session was created. */
-  login: (name: string, username: string, password: string) => boolean
+  login: (username: string, password: string) => boolean
   logout: () => void
 }
 
@@ -56,10 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session])
 
-  const login = useCallback((name: string, username: string, password: string) => {
+  const login = useCallback((username: string, password: string) => {
     const role = resolveRole(username, password)
     if (!role) return false
-    setSession({ role, userName: name.trim() || username.trim() })
+    // The username is the only identity we have, so it is what gets recorded
+    // against each generation in the admin history. Normalised to lowercase so
+    // "Admin" and "admin" do not appear as two different people.
+    setSession({ role, userName: username.trim().toLowerCase() })
     return true
   }, [])
 
