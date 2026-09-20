@@ -111,6 +111,66 @@ function toGenerationError(error: unknown): GenerationError {
 }
 
 /**
+ * JPEG quality for the returned concepts. 90 keeps them presentation-grade
+ * while cutting the payload by roughly 75%.
+ */
+const TRANSPORT_JPEG_QUALITY = Number(process.env.GENERATED_IMAGE_QUALITY ?? 90)
+
+/**
+ * Re-encodes the model's output as JPEG before it is returned.
+ *
+ * Gemini returns lossless PNG. A photographic 1024x1024 render is 1.5-3MB as
+ * PNG, and base64 adds another third, so three of them in one JSON response
+ * reach 6-11MB. A Vercel serverless function may only return 4.5MB: past that
+ * the platform discards the response and answers 500 with an HTML body, which
+ * no amount of error handling inside the function can catch or explain. JPEG
+ * at quality 90 brings the same three images to roughly 1.5MB.
+ *
+ * Fails open on purpose. If sharp cannot load, returning slightly-too-large
+ * images that might work is better than failing a generation the user has
+ * already paid for — and the log line says which path was taken.
+ */
+async function compressForTransport(
+  raw: Array<{ data: string; mimeType: string }>,
+): Promise<string[]> {
+  const asDataUrl = (mimeType: string, data: string) => `data:${mimeType};base64,${data}`
+
+  let sharp: (typeof import('sharp'))['default']
+  try {
+    sharp = (await import('sharp')).default
+  } catch (error) {
+    console.warn(
+      '[generateVisualization] sharp unavailable, returning original images:',
+      error instanceof Error ? error.message : error,
+    )
+    return raw.map((image) => asDataUrl(image.mimeType, image.data))
+  }
+
+  return Promise.all(
+    raw.map(async (image, index) => {
+      const input = Buffer.from(image.data, 'base64')
+      try {
+        const jpeg = await sharp(input)
+          .jpeg({ quality: TRANSPORT_JPEG_QUALITY, mozjpeg: true })
+          .toBuffer()
+        console.log(
+          `[generateVisualization] concept ${index + 1}: ` +
+            `${(input.length / 1024).toFixed(0)}KB ${image.mimeType} -> ` +
+            `${(jpeg.length / 1024).toFixed(0)}KB jpeg`,
+        )
+        return asDataUrl('image/jpeg', jpeg.toString('base64'))
+      } catch (error) {
+        console.warn(
+          `[generateVisualization] could not compress concept ${index + 1}, sending original:`,
+          error instanceof Error ? error.message : error,
+        )
+        return asDataUrl(image.mimeType, image.data)
+      }
+    }),
+  )
+}
+
+/**
  * Generates three architectural tile visualizations for the given input.
  *
  * Calls the Gemini image model once per concept, each with a different
@@ -154,7 +214,7 @@ export async function generateVisualization(
     throw toGenerationError(error)
   }
 
-  const images = interactions.map((interaction, index) => {
+  const rawImages = interactions.map((interaction, index) => {
     const image = interaction.output_image
     if (!image?.data) {
       throw new GenerationError(
@@ -162,8 +222,10 @@ export async function generateVisualization(
         502,
       )
     }
-    return `data:${image.mime_type ?? 'image/png'};base64,${image.data}`
+    return { data: image.data, mimeType: image.mime_type ?? 'image/png' }
   })
+
+  const images = await compressForTransport(rawImages)
 
   return {
     generationId: randomUUID(),
