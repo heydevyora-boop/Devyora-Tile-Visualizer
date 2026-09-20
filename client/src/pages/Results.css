@@ -1,4 +1,4 @@
-@layer base{html,body{width:100%;max-width:100%;margin:0;padding:0;background-color:#121314;height:auto;overflow-x:hidden;overflow-y:auto;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}
+@layer base{html,body{width:100%;max-width:100%;margin:0;padding:0;background-color:#121314;height:auto;overflow-x:hidden;overflow-y:auto;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}
 
 .results-page {
   min-height: 100dvh;
