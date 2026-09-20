@@ -300,6 +300,13 @@ function Crop() {
                   showGrid={false}
                   minZoom={1}
                   maxZoom={3}
+                  // react-easy-crop's default wheel-to-zoom calls
+                  // event.preventDefault() on every wheel/trackpad event over
+                  // the crop image, unconditionally — which silently ate page
+                  // scroll on desktop, exactly where the cursor naturally
+                  // rests. Zoom is still available via the zoom button
+                  // (id="zoomBtn" above) and pinch-to-zoom on touch.
+                  zoomWithScroll={false}
                   cropSize={{ width: cropEdge, height: cropEdge }}
                   objectFit="cover"
                   onCropChange={setCrop}

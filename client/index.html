@@ -1,5 +1,14 @@
 <!doctype html>
-<html lang="en">
+<!--
+  Scrolling contract, enforced here as inline styles (not just in index.css):
+  html/body/#root must never end up height:auto-less or overflow:hidden.
+  Inline style wins over every external stylesheet rule regardless of CSS
+  layers, bundle order, or a future page CSS file accidentally re-declaring
+  these — the exact class of bug that broke scrolling before. Do not remove
+  these attributes; if a rule in index.css ever needs to change this
+  behavior, change it here too so the two can never disagree.
+-->
+<html lang="en" style="height: auto; overflow-y: auto; overflow-x: hidden;">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -9,8 +18,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <title>Devyora Tile Visualizer</title>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="height: auto; overflow-y: auto; overflow-x: hidden; margin: 0;">
+    <div id="root" style="height: auto; overflow: visible;"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
