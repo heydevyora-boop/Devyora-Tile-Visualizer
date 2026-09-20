@@ -5,62 +5,164 @@ import { GenerationError, generateVisualization } from './_lib/generateVisualiza
 // timeout is 10s, which would abort every request before Gemini answers.
 export const maxDuration = 60
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    res.status(405).json({ error: 'Method not allowed. Use POST.' })
-    return
-  }
+/**
+ * Our own budget, deliberately under `maxDuration`.
+ *
+ * If Vercel hits its own limit first it kills the function and returns an
+ * opaque platform error page with no JSON body — which is exactly the
+ * undiagnosable "Request failed with status 500/504" the UI was showing.
+ * Failing a few seconds early lets us return a readable JSON error instead.
+ */
+const INTERNAL_BUDGET_MS = 50_000
 
-  // Vercel parses JSON bodies automatically, but be defensive about a body
-  // that arrived as a raw string (e.g. an unexpected content-type).
-  let body: Record<string, unknown> = {}
-  if (typeof req.body === 'string') {
-    try {
-      body = JSON.parse(req.body)
-    } catch {
-      res.status(400).json({ error: 'Request body was not valid JSON.' })
+/**
+ * Vercel rejects request bodies over 4.5MB before the handler ever runs.
+ * Checking here lets us say so clearly rather than letting the platform
+ * return a bare 413 the UI cannot explain.
+ */
+const MAX_BODY_BYTES = 4_000_000
+
+/** Serialises an unknown thrown value into something worth logging/returning. */
+function describeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      // SDK/HTTP errors commonly carry one of these.
+      status: (error as { status?: unknown }).status,
+      code: (error as { code?: unknown }).code,
+      cause:
+        error.cause instanceof Error
+          ? { name: error.cause.name, message: error.cause.message }
+          : error.cause,
+      stack: error.stack,
+    }
+  }
+  return { name: 'NonError', message: String(error) }
+}
+
+async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new GenerationError(
+                `Image generation did not finish within ${Math.round(ms / 1000)}s. ` +
+                  'The image service may be slow right now — please try again.',
+                504,
+              ),
+            ),
+          ms,
+        )
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Everything is inside this try. Previously a throw during body handling (or
+  // any other pre-flight step) escaped the handler entirely, which Vercel
+  // surfaces as FUNCTION_INVOCATION_FAILED: a 500 with an HTML body and no
+  // usable message. Now every failure leaves here as JSON.
+  try {
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST')
+      res.status(405).json({ error: 'Method not allowed. Use POST.' })
       return
     }
-  } else if (req.body && typeof req.body === 'object') {
-    body = req.body as Record<string, unknown>
-  }
 
-  const { tileImage, space, style, tileSize } = body as {
-    tileImage?: string
-    space?: string
-    style?: string
-    tileSize?: string
-  }
+    let body: Record<string, unknown> = {}
+    if (typeof req.body === 'string') {
+      if (req.body.length > MAX_BODY_BYTES) {
+        res.status(413).json({
+          error:
+            'The tile photo is too large to upload. Please retake or re-crop it and try again.',
+        })
+        return
+      }
+      try {
+        body = JSON.parse(req.body)
+      } catch {
+        res.status(400).json({ error: 'Request body was not valid JSON.' })
+        return
+      }
+    } else if (req.body && typeof req.body === 'object') {
+      body = req.body as Record<string, unknown>
+    }
 
-  const missingFields: string[] = []
-  if (!tileImage) missingFields.push('tileImage')
-  if (!space) missingFields.push('space')
-  if (!style) missingFields.push('style')
+    const { tileImage, space, style, tileSize } = body as {
+      tileImage?: string
+      space?: string
+      style?: string
+      tileSize?: string
+    }
 
-  if (missingFields.length > 0) {
-    res.status(400).json({
-      error: `Missing required field(s): ${missingFields.join(', ')}`,
-    })
-    return
-  }
+    const missingFields: string[] = []
+    if (!tileImage) missingFields.push('tileImage')
+    if (!space) missingFields.push('space')
+    if (!style) missingFields.push('style')
 
-  try {
-    const result = await generateVisualization({
-      tileImage: tileImage as string,
-      space: space as string,
-      style: style as string,
+    if (missingFields.length > 0) {
+      res.status(400).json({
+        error: `Missing required field(s): ${missingFields.join(', ')}`,
+      })
+      return
+    }
+
+    if (typeof tileImage === 'string' && tileImage.length > MAX_BODY_BYTES) {
+      res.status(413).json({
+        error:
+          'The tile photo is too large to upload. Please retake or re-crop it and try again.',
+      })
+      return
+    }
+
+    // Logged so the real numbers show up in Vercel's runtime logs even on success.
+    console.log('[POST /api/generate] start', {
+      model: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image',
+      keyConfigured: Boolean(process.env.GEMINI_API_KEY),
+      tileImageBytes: typeof tileImage === 'string' ? tileImage.length : 0,
+      space,
+      style,
       tileSize,
     })
+
+    const startedAt = Date.now()
+    const result = await withTimeout(
+      generateVisualization({
+        tileImage: tileImage as string,
+        space: space as string,
+        style: style as string,
+        tileSize,
+      }),
+      INTERNAL_BUDGET_MS,
+    )
+    console.log('[POST /api/generate] done in', Date.now() - startedAt, 'ms')
+
     res.status(200).json(result)
   } catch (error) {
-    // Generation failures must return JSON, never an unhandled crash.
     const status = error instanceof GenerationError ? error.status : 502
     const message =
       error instanceof Error && error.message
         ? error.message
         : 'We could not create your concepts. Please try again.'
-    console.error('[POST /api/generate] generation failed:', error)
-    res.status(status).json({ error: message })
+    const detail = describeError(error)
+
+    // Full detail goes to the Vercel runtime log regardless.
+    console.error('[POST /api/generate] FAILED', JSON.stringify(detail))
+
+    // The response carries the detail too while DEBUG_API_ERRORS is set, so the
+    // real cause is visible from the browser without shell access to the logs.
+    // Unset that env var once the issue is understood.
+    const payload: Record<string, unknown> = { error: message }
+    if (process.env.DEBUG_API_ERRORS) payload.detail = detail
+
+    res.status(status).json(payload)
   }
 }

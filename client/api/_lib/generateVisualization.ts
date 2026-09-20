@@ -21,14 +21,22 @@ export interface GenerateVisualizationResult {
   tileSize: string
 }
 
-/** Thrown when generation fails; carries the HTTP status the route should use. */
+/**
+ * Thrown when generation fails; carries the HTTP status the route should use.
+ *
+ * `cause` keeps the original SDK/network error. Without it the friendly message
+ * replaced the real one and the actual reason (bad key, unknown model, quota)
+ * was lost before it reached the logs — which made a failure in production
+ * impossible to diagnose from the outside.
+ */
 export class GenerationError extends Error {
   status: number
 
-  constructor(message: string, status = 502) {
+  constructor(message: string, status = 502, cause?: unknown) {
     super(message)
     this.name = 'GenerationError'
     this.status = status
+    if (cause !== undefined) this.cause = cause
   }
 }
 
@@ -73,27 +81,37 @@ function toGenerationError(error: unknown): GenerationError {
     return new GenerationError(
       'The image service rejected our credentials. Please check the server API key configuration.',
       502,
+      error,
     )
   }
   if (status === 429 || haystack.includes('rate limit') || haystack.includes('quota') || haystack.includes('resource_exhausted')) {
     return new GenerationError(
       'The image service is busy right now. Please wait a moment and try again.',
       503,
+      error,
     )
   }
   if (haystack.includes('safety') || haystack.includes('blocked') || haystack.includes('policy')) {
     return new GenerationError(
       'The image service declined to generate from this photo. Please try a different tile photo.',
       422,
+      error,
     )
   }
   if (haystack.includes('fetch failed') || haystack.includes('econnrefused') || haystack.includes('enotfound') || haystack.includes('timeout')) {
     return new GenerationError(
       'We could not reach the image service. Please check the connection and try again.',
       504,
+      error,
     )
   }
-  return new GenerationError('We could not create your concepts. Please try again.', 502)
+  return new GenerationError(
+    // Keep the raw message visible: this is the catch-all branch, so it is the
+    // one most likely to hide something we have not seen before.
+    `We could not create your concepts. (${raw || 'unknown error'})`,
+    502,
+    error,
+  )
 }
 
 /**
