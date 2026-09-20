@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import { resolveRole, type Role } from '../config/auth'
+import { resolveCredential, type Role } from '../config/auth'
 
 export type { Role }
 
 type StoredSession = {
   role: Role
-  /** The username they signed in with; shown in the admin history. */
+  /** The person's display name, shown against their work in the admin history. */
   userName: string
 }
 
@@ -71,13 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session])
 
   const login = useCallback((username: string, password: string) => {
-    const role = resolveRole(username, password)
-    if (!role) return null
-    // The username is the only identity we have, so it is what gets recorded
-    // against each generation in the admin history. Normalised to lowercase so
-    // "Admin" and "admin" do not appear as two different people.
-    setSession({ role, userName: username.trim().toLowerCase() })
-    return role
+    const credential = resolveCredential(username, password)
+    if (!credential) return null
+    // Store the account's display name, not what was typed: every salesperson
+    // has their own account, so the history can name the actual person rather
+    // than a shared login.
+    setSession({ role: credential.role, userName: credential.displayName })
+    return credential.role
   }, [])
 
   const logout = useCallback(() => {
