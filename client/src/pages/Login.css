@@ -1,0 +1,394 @@
+/* Login — the app's entry screen.
+   Mirrors Home.css exactly: same tokens, same Metrophobic/Hanken pairing, same
+   4px radii and hairline borders. Follows the global layout contract in
+   index.css (min-height only, never a fixed height, never clipping vertical
+   overflow) so a short viewport scrolls normally. */
+
+.login {
+  --login-font-heading: 'Metrophobic', sans-serif;
+  --login-font-body: 'Hanken Grotesk', system-ui, sans-serif;
+  --login-space-xs: 0.25rem;
+  --login-space-sm: 0.5rem;
+  --login-space-md: 1rem;
+  --login-space-lg: 1.5rem;
+  --login-space-xl: 2rem;
+  --login-margin: 1.25rem;
+  --login-radius: 0.25rem;
+  --login-radius-full: 0.75rem;
+  --login-control-height: 52px;
+
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: visible;
+  box-sizing: border-box;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--login-font-body);
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+  text-align: left;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.login .material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.login__frame {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100dvh - 4rem);
+  padding-inline: var(--login-margin);
+  box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------------- header -- */
+
+.login__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-block: var(--login-space-md);
+}
+
+.login__logo {
+  font-family: var(--login-font-heading);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  color: var(--color-primary);
+  text-transform: uppercase;
+}
+
+.login__atelier-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--login-space-xs);
+  background-color: var(--color-surface-container-low);
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--login-radius-full);
+}
+
+.login__atelier-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--login-radius-full);
+  background-color: var(--color-primary);
+  animation: login-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes login-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.login__atelier-label {
+  font-family: var(--login-font-heading);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  color: var(--color-on-surface-variant);
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------ body -- */
+
+.login__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 24rem;
+  margin-inline: auto;
+  margin-block: auto;
+  padding-block: var(--login-space-lg);
+}
+
+.login__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  margin-bottom: var(--login-space-xl);
+}
+
+.login__eyebrow {
+  font-family: var(--login-font-heading);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  color: var(--color-outline);
+  text-transform: uppercase;
+  margin: 0 0 var(--login-space-sm);
+}
+
+.login__title {
+  font-family: var(--login-font-heading);
+  font-size: 30px;
+  line-height: 36px;
+  letter-spacing: 0.2em;
+  font-weight: 400;
+  color: var(--color-on-surface);
+  text-transform: uppercase;
+  margin: 0 0 0.25rem;
+}
+
+.login__subtitle {
+  font-family: var(--login-font-heading);
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: 0.08em;
+  font-weight: 400;
+  color: var(--color-primary);
+  margin: 0 0 var(--login-space-sm);
+}
+
+.login__vision {
+  font-family: var(--login-font-body);
+  font-size: 14px;
+  line-height: 1.625;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+  color: var(--color-on-surface-variant);
+  max-width: 260px;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ form -- */
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: var(--login-space-md);
+}
+
+.login__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--login-space-xs);
+}
+
+.login__label {
+  font-family: var(--login-font-heading);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  color: var(--color-outline);
+  text-transform: uppercase;
+}
+
+.login__input {
+  width: 100%;
+  min-height: var(--login-control-height);
+  box-sizing: border-box;
+  padding: 0 var(--login-space-md);
+  background-color: var(--color-surface-container-low);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--login-radius);
+  color: var(--color-on-surface);
+  font-family: var(--login-font-body);
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+  /* Border only — no glow, no ring expansion. */
+  transition: border-color 150ms ease;
+  appearance: none;
+}
+
+.login__input::placeholder {
+  color: var(--color-outline);
+  opacity: 1;
+}
+
+.login__input:hover:not(:disabled) {
+  border-color: var(--color-outline);
+}
+
+.login__input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.login__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Reserve the row so showing/hiding the message never shifts the button. */
+.login__error-slot {
+  min-height: 20px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--login-space-xs);
+  margin: 0;
+  font-family: var(--login-font-body);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0.01em;
+  color: var(--color-error);
+  animation: login-error-in 180ms ease-out;
+}
+
+.login__error-icon {
+  font-size: 16px;
+  color: var(--color-error);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+@keyframes login-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login__submit {
+  width: 100%;
+  min-height: var(--login-control-height);
+  border: none;
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: var(--login-font-body);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  border-radius: var(--login-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--login-space-sm);
+  box-shadow: 0 4px 6px -1px
+    color-mix(in srgb, var(--color-surface-container-lowest) 40%, transparent);
+  cursor: pointer;
+  transition: transform 150ms ease, opacity 150ms ease;
+  margin-top: var(--login-space-xs);
+}
+
+.login__submit:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.login__submit:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.login__submit:disabled {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+.login__submit-label {
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.login__submit-icon {
+  font-size: 20px;
+  color: var(--color-on-primary);
+}
+
+.login__spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, var(--color-on-primary) 30%, transparent);
+  border-top-color: var(--color-on-primary);
+  animation: login-spin 700ms linear infinite;
+}
+
+@keyframes login-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------- footer -- */
+
+.login__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--login-space-xs);
+  width: 100%;
+  padding-top: var(--login-space-sm);
+  padding-bottom: var(--login-space-lg);
+}
+
+.login__footer-icon {
+  font-size: 14px;
+  color: var(--color-outline);
+}
+
+.login__footer-label {
+  font-family: var(--login-font-heading);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  color: var(--color-outline);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Tablet and up: the composition stays centred and narrow rather than
+   stretching, matching the app's framed treatment on wider screens. */
+@media (min-width: 768px) {
+  .login__body {
+    padding-block: var(--login-space-xl);
+  }
+
+  .login__intro {
+    margin-bottom: calc(var(--login-space-xl) + var(--login-space-sm));
+  }
+}
+
+/* Reduced motion: keep the state changes, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .login__atelier-dot,
+  .login__spinner {
+    animation: none;
+  }
+
+  .login__error {
+    animation: none;
+  }
+}

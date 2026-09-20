@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
+import { useAuth } from '../state/AuthContext'
+import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Loading.css'
 
 // Same-origin by default: in production this hits the Vercel function in
@@ -8,6 +10,7 @@ import './Loading.css'
 // Express server. Set VITE_API_BASE_URL only to point at a different host.
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const GENERATE_ENDPOINT = `${API_BASE_URL}/api/generate`
+const GENERATIONS_ENDPOINT = `${API_BASE_URL}/api/generations`
 
 // Generation normally takes 15-25s. Give it room, but never hang forever.
 const REQUEST_TIMEOUT_MS = 75_000
@@ -15,6 +18,7 @@ const REQUEST_TIMEOUT_MS = 75_000
 function Loading() {
   const navigate = useNavigate()
   const { croppedImage, space, style, tileSize, setGeneratedResult } = useFlow()
+  const { userName } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
 
@@ -74,6 +78,33 @@ function Loading() {
     [croppedImage, space, style, tileSize],
   )
 
+  /**
+   * Records the finished generation for the admin history page.
+   *
+   * Deliberately fire-and-forget: the user has already paid for these images,
+   * so a history write that fails must never block them reaching /results or
+   * surface as a generation error. Failures are logged and nothing else.
+   */
+  const saveToHistory = useCallback(
+    (result: { generationId?: string; images?: string[] }) => {
+      if (!result?.images?.length || !croppedImage) return
+      void fetch(GENERATIONS_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generationId: result.generationId ?? `gen-${Date.now()}`,
+          userName: userName ?? 'Unknown',
+          croppedImage,
+          generatedImages: result.images,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch((historyError: unknown) => {
+        console.error('Could not save this generation to history:', historyError)
+      })
+    },
+    [croppedImage, userName],
+  )
+
   useEffect(() => {
     const controller = new AbortController()
     let cancelled = false
@@ -88,6 +119,7 @@ function Loading() {
         if (cancelled) return
         window.clearTimeout(timeoutId)
         setGeneratedResult(result)
+        saveToHistory(result)
         navigate('/results')
       })
       .catch((requestError: unknown) => {
@@ -110,7 +142,7 @@ function Loading() {
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [attempt, navigate, runGeneration, setGeneratedResult])
+  }, [attempt, navigate, runGeneration, saveToHistory, setGeneratedResult])
 
   return (
     <div className="loading-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
@@ -133,9 +165,7 @@ function Loading() {
             <span className="font-headline-sm text-headline-sm uppercase text-on-surface">Specification Sheet</span>
             <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">Visualizer</span>
           </div>
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-[0_0_12px_rgba(197,168,128,0.18)]">
-            <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
-          </div>
+          <HeaderUserMenu />
         </div>
       </header>
       <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">

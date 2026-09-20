@@ -3,6 +3,7 @@ import Cropper, { type Area } from 'react-easy-crop'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { getCroppedImage } from '../utils/cropImage'
+import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Crop.css'
 
 const SAMPLE_TILE_IMAGE = '/sample-tile.jpg'
@@ -208,11 +209,7 @@ function Crop() {
             <span className="font-headline-sm text-headline-sm uppercase text-on-surface">Surface Selection</span>
             <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">Visualizer</span>
           </div>
-          <div className="flex items-center gap-space-xs">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-[0_0_12px_rgba(197,168,128,0.18)]">
-              <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
-            </div>
-          </div>
+          <HeaderUserMenu />
         </div>
       </header>
       <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">

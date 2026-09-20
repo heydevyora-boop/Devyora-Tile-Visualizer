@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../state/AuthContext'
 import './Home.css'
 
 const TILE_SRC =
@@ -6,7 +7,12 @@ const TILE_SRC =
 
 function Home() {
   const navigate = useNavigate()
+  const { role, userName, logout } = useAuth()
   const handleThemeToggle = () => {}
+  const handleLogout = () => {
+    logout()
+    navigate('/', { replace: true })
+  }
   const handleStart = () => {
     navigate('/camera')
   }
@@ -32,10 +38,38 @@ function Home() {
                 light_mode
               </span>
             </button>
-            <div className="home__atelier-badge">
+            {role === 'admin' && (
+              <button
+                id="home-history-btn"
+                type="button"
+                aria-label="Generation history"
+                title="Generation history"
+                className="home__theme-toggle"
+                onClick={() => navigate('/history')}
+              >
+                <span className="material-symbols-outlined home__theme-icon">
+                  history
+                </span>
+              </button>
+            )}
+            <div className="home__atelier-badge" title={userName ?? undefined}>
               <span className="home__atelier-dot"></span>
-              <span className="home__atelier-label">Milan Atelier</span>
+              <span className="home__atelier-label">
+                {userName ?? 'Milan Atelier'}
+              </span>
             </div>
+            <button
+              id="home-logout-btn"
+              type="button"
+              aria-label="Sign out"
+              title="Sign out"
+              className="home__theme-toggle"
+              onClick={handleLogout}
+            >
+              <span className="material-symbols-outlined home__theme-icon">
+                logout
+              </span>
+            </button>
           </div>
         </header>
 

@@ -8,3 +8,7 @@ dist
 *.log
 
 .DS_Store
+
+# Runtime generation history (contains customer tile photos and generated
+# images). Created on first save; never commit it.
+server/data/
