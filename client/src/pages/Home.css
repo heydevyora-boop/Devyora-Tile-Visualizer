@@ -31,7 +31,6 @@
   text-align: left;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  overscroll-behavior: none;
 }
 
 .home .material-symbols-outlined {
