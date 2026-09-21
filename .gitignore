@@ -1,5 +1,9 @@
 # Never commit real environment values — only *.env.example files should be tracked.
-.env
+# The broad *.env catches any stray file someone names like "notepad.env" or
+# "scratch.env" while working — not just the exact ".env" name — since those
+# have held real credentials in the past. It does not affect .env.example
+# (that ends in ".example", not ".env").
+*.env
 .env.local
 .env.*.local
 
