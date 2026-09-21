@@ -2,8 +2,8 @@
 // client/api/. Vercel only uploads files under the project Root Directory
 // (client/), so this cannot import from ../../server/src.
 // KEEP IN SYNC with the local-dev Express copy in server/src/.
-import { getSpaceConfig, type SpaceConfig } from './spaces'
-import { getStyleConfig, resolveStyleValue, type StyleConfig } from './styles'
+import { getSpaceConfig, type SpaceConfig } from './spaces.js'
+import { getStyleConfig, resolveStyleValue, type StyleConfig } from './styles.js'
 
 export interface PromptInput {
   space: string

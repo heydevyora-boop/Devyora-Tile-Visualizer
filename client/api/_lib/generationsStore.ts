@@ -8,9 +8,14 @@ import path from 'node:path'
 export interface GenerationRecord {
   generationId: string
   userName: string
-  /** Data URL of the cropped tile photo the user supplied. */
+  /**
+   * The cropped tile photo: normally a Google Drive URL, uploaded by
+   * generateVisualization.ts. Falls back to a base64 data URL when Drive is
+   * not configured or an upload failed, so either can show up here — this
+   * store just persists whatever string the client sent.
+   */
   croppedImage: string
-  /** Data URLs of the generated concept images. */
+  /** The three generated concepts, in the same Drive-URL-or-base64 shape. */
   generatedImages: string[]
   /** ISO 8601 timestamp. */
   timestamp: string

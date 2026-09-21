@@ -4,7 +4,7 @@ import {
   appendGeneration,
   listGenerations,
   toGenerationRecord,
-} from './_lib/generationsStore'
+} from './_lib/generationsStore.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {

@@ -3,6 +3,8 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 export type GeneratedResult = {
   generationId: string
   images: string[]
+  /** The uploaded tile photo's URL (Google Drive, or a base64 fallback). */
+  tileImageUrl?: string
   space?: string
   style?: string
   tileSize?: string

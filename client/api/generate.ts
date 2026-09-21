@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { GenerationError, generateVisualization } from './_lib/generateVisualization'
+import { GenerationError, generateVisualization } from './_lib/generateVisualization.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -21,6 +21,15 @@ const INTERNAL_BUDGET_MS = 50_000
  * return a bare 413 the UI cannot explain.
  */
 const MAX_BODY_BYTES = 4_000_000
+
+/**
+ * Vercel also caps the RESPONSE at 4.5MB. Past that it discards whatever the
+ * function returned and answers 500 with an HTML body — a failure that happens
+ * after our code has already succeeded, so no try/catch inside the handler can
+ * see it. Measuring before sending turns that invisible platform 500 into a
+ * readable JSON error that names the real problem.
+ */
+const MAX_RESPONSE_BYTES = 4_000_000
 
 /** Serialises an unknown thrown value into something worth logging/returning. */
 function describeError(error: unknown) {
@@ -143,9 +152,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
       INTERNAL_BUDGET_MS,
     )
-    console.log('[POST /api/generate] done in', Date.now() - startedAt, 'ms')
+    const payload = JSON.stringify(result)
+    const payloadBytes = Buffer.byteLength(payload, 'utf8')
+    console.log(
+      '[POST /api/generate] done in',
+      Date.now() - startedAt,
+      'ms, response',
+      (payloadBytes / 1024 / 1024).toFixed(2),
+      'MB',
+    )
 
-    res.status(200).json(result)
+    if (payloadBytes > MAX_RESPONSE_BYTES) {
+      // Better a clear message than the platform silently replacing our reply.
+      const mb = (payloadBytes / 1024 / 1024).toFixed(1)
+      console.error(`[POST /api/generate] response too large: ${mb}MB > 4MB cap`)
+      res.status(502).json({
+        error:
+          `The generated images came back too large to return (${mb}MB). ` +
+          'Please try again — if it keeps happening, the image quality setting needs lowering.',
+      })
+      return
+    }
+
+    res.setHeader('Content-Type', 'application/json')
+    res.status(200).send(payload)
   } catch (error) {
     const status = error instanceof GenerationError ? error.status : 502
     const message =

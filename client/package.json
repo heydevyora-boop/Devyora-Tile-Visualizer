@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@google/genai": "^2.23.0",
+    "googleapis": "^161.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-easy-crop": "^6.2.3",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

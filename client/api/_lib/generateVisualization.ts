@@ -4,7 +4,8 @@
 // KEEP IN SYNC with the local-dev Express copy in server/src/.
 import { randomUUID } from 'node:crypto'
 import { GoogleGenAI } from '@google/genai'
-import { buildGenerationPrompts } from './buildGenerationPrompt'
+import { buildGenerationPrompts } from './buildGenerationPrompt.js'
+import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive.js'
 
 export interface GenerateVisualizationInput {
   tileImage: string
@@ -16,6 +17,8 @@ export interface GenerateVisualizationInput {
 export interface GenerateVisualizationResult {
   generationId: string
   images: string[]
+  /** The uploaded tile photo — a Drive URL, or a base64 fallback. See uploadOrFallback. */
+  tileImageUrl: string
   space: string
   style: string
   tileSize: string
@@ -115,6 +118,114 @@ function toGenerationError(error: unknown): GenerationError {
 }
 
 /**
+ * JPEG quality for the returned concepts. 90 keeps them presentation-grade
+ * while cutting the payload by roughly 75%.
+ */
+const TRANSPORT_JPEG_QUALITY = Number(process.env.GENERATED_IMAGE_QUALITY ?? 90)
+
+interface CompressedImage {
+  buffer: Buffer
+  mimeType: string
+}
+
+/**
+ * Re-encodes the model's output as JPEG.
+ *
+ * Gemini returns lossless PNG. A photographic 1024x1024 render is 1.5-3MB as
+ * PNG. JPEG at quality 90 brings that to roughly 300-500KB, which matters
+ * regardless of where the bytes end up next: smaller Drive uploads, and a
+ * smaller base64 fallback on the rare request where Drive upload fails (see
+ * uploadOrFallback below) — a Vercel serverless function may only return
+ * 4.5MB, and three uncompressed PNGs as base64 alone would exceed that.
+ *
+ * Fails open on purpose. If sharp cannot load, returning the original bytes
+ * is better than failing a generation the user has already paid for — and the
+ * log line says which path was taken.
+ */
+async function compressForTransport(
+  raw: Array<{ data: string; mimeType: string }>,
+): Promise<CompressedImage[]> {
+  let sharp: (typeof import('sharp'))['default']
+  try {
+    sharp = (await import('sharp')).default
+  } catch (error) {
+    console.warn(
+      '[generateVisualization] sharp unavailable, using original images:',
+      error instanceof Error ? error.message : error,
+    )
+    return raw.map((image) => ({ buffer: Buffer.from(image.data, 'base64'), mimeType: image.mimeType }))
+  }
+
+  return Promise.all(
+    raw.map(async (image, index) => {
+      const input = Buffer.from(image.data, 'base64')
+      try {
+        const jpeg = await sharp(input)
+          .jpeg({ quality: TRANSPORT_JPEG_QUALITY, mozjpeg: true })
+          .toBuffer()
+        console.log(
+          `[generateVisualization] concept ${index + 1}: ` +
+            `${(input.length / 1024).toFixed(0)}KB ${image.mimeType} -> ` +
+            `${(jpeg.length / 1024).toFixed(0)}KB jpeg`,
+        )
+        return { buffer: jpeg, mimeType: 'image/jpeg' }
+      } catch (error) {
+        console.warn(
+          `[generateVisualization] could not compress concept ${index + 1}, using original:`,
+          error instanceof Error ? error.message : error,
+        )
+        return { buffer: input, mimeType: image.mimeType }
+      }
+    }),
+  )
+}
+
+/** File extension matching a mime type, for Drive file names. */
+function extensionFor(mimeType: string): string {
+  switch (mimeType) {
+    case 'image/jpeg':
+      return 'jpg'
+    case 'image/png':
+      return 'png'
+    case 'image/webp':
+      return 'webp'
+    default:
+      return 'bin'
+  }
+}
+
+/**
+ * Uploads one image to the given Google Drive folder and returns its
+ * shareable URL. Falls back to a base64 data URL of the same bytes if Drive
+ * is not configured, the folder id is missing, or the upload fails for any
+ * reason (bad credentials, quota, network) — the user has already paid for
+ * this generation, so losing the image outright is worse than serving it
+ * inline instead of from Drive.
+ */
+async function uploadOrFallback(
+  buffer: Buffer,
+  mimeType: string,
+  fileName: string,
+  label: string,
+  folderId: string | undefined,
+): Promise<string> {
+  if (!isGoogleDriveConfigured() || !folderId) {
+    return `data:${mimeType};base64,${buffer.toString('base64')}`
+  }
+  try {
+    const url = await uploadImageToDrive(buffer.toString('base64'), fileName, mimeType, folderId)
+    console.log(`[generateVisualization] ${label} uploaded to Drive: ${fileName}`)
+    return url
+  } catch (error) {
+    console.warn(
+      `[generateVisualization] Drive upload failed for ${label}, falling back to inline image:`,
+      error instanceof Error ? error.message : error,
+    )
+    return `data:${mimeType};base64,${buffer.toString('base64')}`
+  }
+}
+
+/**
  * Generates three architectural tile visualizations for the given input.
  *
  * Calls the Gemini image model once per concept, each with a different
@@ -138,6 +249,9 @@ export async function generateVisualization(
     style: input.style,
     tileSize: input.tileSize,
   })
+  // Generated up front so it can name the Drive files below, and reused
+  // as-is on the returned result rather than generating a second, different id.
+  const generationId = randomUUID()
 
   const ai = new GoogleGenAI({ apiKey })
 
@@ -158,7 +272,7 @@ export async function generateVisualization(
     throw toGenerationError(error)
   }
 
-  const images = interactions.map((interaction, index) => {
+  const rawImages = interactions.map((interaction, index) => {
     const image = interaction.output_image
     if (!image?.data) {
       throw new GenerationError(
@@ -166,12 +280,41 @@ export async function generateVisualization(
         502,
       )
     }
-    return `data:${image.mime_type ?? 'image/png'};base64,${image.data}`
+    return { data: image.data, mimeType: image.mime_type ?? 'image/png' }
   })
 
+  const compressed = await compressForTransport(rawImages)
+
+  // Two separate destination folders: concepts and tile sources are uploaded
+  // to different Drive folders, so each keeps its own env var.
+  const generatedFolderId = process.env.GOOGLE_DRIVE_GENERATED_FOLDER_ID
+  const cropFolderId = process.env.GOOGLE_DRIVE_CROP_FOLDER_ID
+
+  const [images, tileImageUrl] = await Promise.all([
+    Promise.all(
+      compressed.map((image, index) =>
+        uploadOrFallback(
+          image.buffer,
+          image.mimeType,
+          `${generationId}-concept-${index + 1}.${extensionFor(image.mimeType)}`,
+          `concept ${index + 1}`,
+          generatedFolderId,
+        ),
+      ),
+    ),
+    uploadOrFallback(
+      Buffer.from(tile.data, 'base64'),
+      tile.mimeType,
+      `${generationId}-tile-source.${extensionFor(tile.mimeType)}`,
+      'tile source',
+      cropFolderId,
+    ),
+  ])
+
   return {
-    generationId: randomUUID(),
+    generationId,
     images,
+    tileImageUrl,
     space: input.space,
     // Echo the concrete style actually used, not the literal "surprise"
     // the client may have sent — all three prompts resolve to the same
