@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.23.0",
+    "googleapis": "^161.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-easy-crop": "^6.2.3",

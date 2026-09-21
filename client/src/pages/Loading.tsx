@@ -86,15 +86,19 @@ function Loading() {
    * surface as a generation error. Failures are logged and nothing else.
    */
   const saveToHistory = useCallback(
-    (result: { generationId?: string; images?: string[] }) => {
+    (result: { generationId?: string; images?: string[]; tileImageUrl?: string }) => {
       if (!result?.images?.length || !croppedImage) return
+      // The server already uploaded the tile photo (to Drive, or a base64
+      // fallback) and returns its URL — send that instead of the raw crop, so
+      // the history file stores a short URL rather than the full photo a
+      // second time. Older responses without tileImageUrl still work.
       void fetch(GENERATIONS_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           generationId: result.generationId ?? `gen-${Date.now()}`,
           userName: userName ?? 'Unknown',
-          croppedImage,
+          croppedImage: result.tileImageUrl ?? croppedImage,
           generatedImages: result.images,
           timestamp: new Date().toISOString(),
         }),

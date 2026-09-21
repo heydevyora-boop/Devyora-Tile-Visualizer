@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto'
 import { GoogleGenAI } from '@google/genai'
 import { buildGenerationPrompts } from './buildGenerationPrompt.js'
+import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive.js'
 
 export interface GenerateVisualizationInput {
   tileImage: string
@@ -16,6 +17,8 @@ export interface GenerateVisualizationInput {
 export interface GenerateVisualizationResult {
   generationId: string
   images: string[]
+  /** The uploaded tile photo — a Drive URL, or a base64 fallback. See uploadOrFallback. */
+  tileImageUrl: string
   space: string
   style: string
   tileSize: string
@@ -120,34 +123,37 @@ function toGenerationError(error: unknown): GenerationError {
  */
 const TRANSPORT_JPEG_QUALITY = Number(process.env.GENERATED_IMAGE_QUALITY ?? 90)
 
+interface CompressedImage {
+  buffer: Buffer
+  mimeType: string
+}
+
 /**
- * Re-encodes the model's output as JPEG before it is returned.
+ * Re-encodes the model's output as JPEG.
  *
  * Gemini returns lossless PNG. A photographic 1024x1024 render is 1.5-3MB as
- * PNG, and base64 adds another third, so three of them in one JSON response
- * reach 6-11MB. A Vercel serverless function may only return 4.5MB: past that
- * the platform discards the response and answers 500 with an HTML body, which
- * no amount of error handling inside the function can catch or explain. JPEG
- * at quality 90 brings the same three images to roughly 1.5MB.
+ * PNG. JPEG at quality 90 brings that to roughly 300-500KB, which matters
+ * regardless of where the bytes end up next: smaller Drive uploads, and a
+ * smaller base64 fallback on the rare request where Drive upload fails (see
+ * uploadOrFallback below) — a Vercel serverless function may only return
+ * 4.5MB, and three uncompressed PNGs as base64 alone would exceed that.
  *
- * Fails open on purpose. If sharp cannot load, returning slightly-too-large
- * images that might work is better than failing a generation the user has
- * already paid for — and the log line says which path was taken.
+ * Fails open on purpose. If sharp cannot load, returning the original bytes
+ * is better than failing a generation the user has already paid for — and the
+ * log line says which path was taken.
  */
 async function compressForTransport(
   raw: Array<{ data: string; mimeType: string }>,
-): Promise<string[]> {
-  const asDataUrl = (mimeType: string, data: string) => `data:${mimeType};base64,${data}`
-
+): Promise<CompressedImage[]> {
   let sharp: (typeof import('sharp'))['default']
   try {
     sharp = (await import('sharp')).default
   } catch (error) {
     console.warn(
-      '[generateVisualization] sharp unavailable, returning original images:',
+      '[generateVisualization] sharp unavailable, using original images:',
       error instanceof Error ? error.message : error,
     )
-    return raw.map((image) => asDataUrl(image.mimeType, image.data))
+    return raw.map((image) => ({ buffer: Buffer.from(image.data, 'base64'), mimeType: image.mimeType }))
   }
 
   return Promise.all(
@@ -162,16 +168,59 @@ async function compressForTransport(
             `${(input.length / 1024).toFixed(0)}KB ${image.mimeType} -> ` +
             `${(jpeg.length / 1024).toFixed(0)}KB jpeg`,
         )
-        return asDataUrl('image/jpeg', jpeg.toString('base64'))
+        return { buffer: jpeg, mimeType: 'image/jpeg' }
       } catch (error) {
         console.warn(
-          `[generateVisualization] could not compress concept ${index + 1}, sending original:`,
+          `[generateVisualization] could not compress concept ${index + 1}, using original:`,
           error instanceof Error ? error.message : error,
         )
-        return asDataUrl(image.mimeType, image.data)
+        return { buffer: input, mimeType: image.mimeType }
       }
     }),
   )
+}
+
+/** File extension matching a mime type, for Drive file names. */
+function extensionFor(mimeType: string): string {
+  switch (mimeType) {
+    case 'image/jpeg':
+      return 'jpg'
+    case 'image/png':
+      return 'png'
+    case 'image/webp':
+      return 'webp'
+    default:
+      return 'bin'
+  }
+}
+
+/**
+ * Uploads one image to the configured Google Drive folder and returns its
+ * shareable URL. Falls back to a base64 data URL of the same bytes if Drive
+ * is not configured, or if the upload fails for any reason (bad credentials,
+ * quota, network) — the user has already paid for this generation, so losing
+ * the image outright is worse than serving it inline instead of from Drive.
+ */
+async function uploadOrFallback(
+  buffer: Buffer,
+  mimeType: string,
+  fileName: string,
+  label: string,
+): Promise<string> {
+  if (!isGoogleDriveConfigured()) {
+    return `data:${mimeType};base64,${buffer.toString('base64')}`
+  }
+  try {
+    const url = await uploadImageToDrive(buffer.toString('base64'), fileName, mimeType)
+    console.log(`[generateVisualization] ${label} uploaded to Drive: ${fileName}`)
+    return url
+  } catch (error) {
+    console.warn(
+      `[generateVisualization] Drive upload failed for ${label}, falling back to inline image:`,
+      error instanceof Error ? error.message : error,
+    )
+    return `data:${mimeType};base64,${buffer.toString('base64')}`
+  }
 }
 
 /**
@@ -198,6 +247,9 @@ export async function generateVisualization(
     style: input.style,
     tileSize: input.tileSize,
   })
+  // Generated up front so it can name the Drive files below, and reused
+  // as-is on the returned result rather than generating a second, different id.
+  const generationId = randomUUID()
 
   const ai = new GoogleGenAI({ apiKey })
 
@@ -229,11 +281,31 @@ export async function generateVisualization(
     return { data: image.data, mimeType: image.mime_type ?? 'image/png' }
   })
 
-  const images = await compressForTransport(rawImages)
+  const compressed = await compressForTransport(rawImages)
+
+  const [images, tileImageUrl] = await Promise.all([
+    Promise.all(
+      compressed.map((image, index) =>
+        uploadOrFallback(
+          image.buffer,
+          image.mimeType,
+          `${generationId}-concept-${index + 1}.${extensionFor(image.mimeType)}`,
+          `concept ${index + 1}`,
+        ),
+      ),
+    ),
+    uploadOrFallback(
+      Buffer.from(tile.data, 'base64'),
+      tile.mimeType,
+      `${generationId}-tile-source.${extensionFor(tile.mimeType)}`,
+      'tile source',
+    ),
+  ])
 
   return {
-    generationId: randomUUID(),
+    generationId,
     images,
+    tileImageUrl,
     space: input.space,
     // Echo the concrete style actually used, not the literal "surprise"
     // the client may have sent — all three prompts resolve to the same
