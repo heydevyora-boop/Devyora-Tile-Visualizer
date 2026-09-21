@@ -4,4 +4,4 @@ dist
 *.log
 test-output
 .env.example
-notepad.env
+
