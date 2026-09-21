@@ -40,31 +40,23 @@ function getDriveClient(): ReturnType<typeof google.drive> {
   return cachedDrive
 }
 
-function getTargetFolderId(): string {
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
-  if (!folderId) {
-    throw new Error('Google Drive is not configured (missing GOOGLE_DRIVE_FOLDER_ID).')
-  }
-  return folderId
-}
-
 /**
- * True once all three Drive env vars are present. Checked before attempting
- * an upload so a not-yet-configured deployment logs one clear line instead of
- * a stack trace, and callers can skip straight to their base64 fallback.
+ * True once the shared credential env vars are present. Checked before
+ * attempting an upload so a not-yet-configured deployment logs one clear line
+ * instead of a stack trace, and callers can skip straight to their base64
+ * fallback. Does not check either folder id — those are validated per call,
+ * in uploadImageToDrive, against whichever one that specific call needs.
  */
 export function isGoogleDriveConfigured(): boolean {
   return Boolean(
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
-      process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY &&
-      process.env.GOOGLE_DRIVE_FOLDER_ID,
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
   )
 }
 
 /**
- * Uploads a base64-encoded image to the configured Drive folder, sets it
- * shareable by anyone with the link, and returns a URL that renders as an
- * image inline (works directly in an <img src>).
+ * Uploads a base64-encoded image to the given Drive folder, sets it shareable
+ * by anyone with the link, and returns a URL that renders as an image inline
+ * (works directly in an <img src>).
  *
  * Deliberately returns drive.google.com/thumbnail?id=…, not the more commonly
  * pasted drive.google.com/uc?export=view&id=… — the uc/export=view endpoint
@@ -84,8 +76,11 @@ export async function uploadImageToDrive(
   base64Data: string,
   fileName: string,
   mimeType: string,
+  folderId: string,
 ): Promise<string> {
-  const folderId = getTargetFolderId()
+  if (!folderId) {
+    throw new Error('Google Drive is not configured (missing folder id).')
+  }
   const drive = getDriveClient()
   const buffer = Buffer.from(base64Data, 'base64')
 

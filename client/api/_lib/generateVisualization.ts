@@ -195,23 +195,25 @@ function extensionFor(mimeType: string): string {
 }
 
 /**
- * Uploads one image to the configured Google Drive folder and returns its
+ * Uploads one image to the given Google Drive folder and returns its
  * shareable URL. Falls back to a base64 data URL of the same bytes if Drive
- * is not configured, or if the upload fails for any reason (bad credentials,
- * quota, network) — the user has already paid for this generation, so losing
- * the image outright is worse than serving it inline instead of from Drive.
+ * is not configured, the folder id is missing, or the upload fails for any
+ * reason (bad credentials, quota, network) — the user has already paid for
+ * this generation, so losing the image outright is worse than serving it
+ * inline instead of from Drive.
  */
 async function uploadOrFallback(
   buffer: Buffer,
   mimeType: string,
   fileName: string,
   label: string,
+  folderId: string | undefined,
 ): Promise<string> {
-  if (!isGoogleDriveConfigured()) {
+  if (!isGoogleDriveConfigured() || !folderId) {
     return `data:${mimeType};base64,${buffer.toString('base64')}`
   }
   try {
-    const url = await uploadImageToDrive(buffer.toString('base64'), fileName, mimeType)
+    const url = await uploadImageToDrive(buffer.toString('base64'), fileName, mimeType, folderId)
     console.log(`[generateVisualization] ${label} uploaded to Drive: ${fileName}`)
     return url
   } catch (error) {
@@ -283,6 +285,11 @@ export async function generateVisualization(
 
   const compressed = await compressForTransport(rawImages)
 
+  // Two separate destination folders: concepts and tile sources are uploaded
+  // to different Drive folders, so each keeps its own env var.
+  const generatedFolderId = process.env.GOOGLE_DRIVE_GENERATED_FOLDER_ID
+  const cropFolderId = process.env.GOOGLE_DRIVE_CROP_FOLDER_ID
+
   const [images, tileImageUrl] = await Promise.all([
     Promise.all(
       compressed.map((image, index) =>
@@ -291,6 +298,7 @@ export async function generateVisualization(
           image.mimeType,
           `${generationId}-concept-${index + 1}.${extensionFor(image.mimeType)}`,
           `concept ${index + 1}`,
+          generatedFolderId,
         ),
       ),
     ),
@@ -299,6 +307,7 @@ export async function generateVisualization(
       tile.mimeType,
       `${generationId}-tile-source.${extensionFor(tile.mimeType)}`,
       'tile source',
+      cropFolderId,
     ),
   ])
 
