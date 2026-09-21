@@ -5,6 +5,7 @@
  *   npm run print-prompts -- "Bathroom" "Modern" "1200x600"
  */
 import { buildGenerationPrompts } from '../services/buildGenerationPrompt'
+import { IMAGE_MODEL } from '../config/imageModel'
 
 const [space = 'Bathroom', style = 'Modern', tileSize = '1200x600'] = process.argv.slice(2)
 
@@ -15,7 +16,7 @@ console.log(`INPUT  space="${space}"  style="${style}"  tileSize="${tileSize}"`)
 if (prompts[0].resolvedStyle !== style) {
   console.log(`RESOLVED STYLE  "${style}" -> "${prompts[0].resolvedStyle}" (Surprise Me picked this randomly)`)
 }
-console.log(`MODEL  ${process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image'}`)
+console.log(`MODEL  ${IMAGE_MODEL}`)
 console.log(`Plus the tile photograph, attached to every call as an image part.`)
 console.log('='.repeat(78))
 

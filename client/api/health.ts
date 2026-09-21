@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { IMAGE_MODEL } from './_lib/imageModel.js'
 
 /**
  * Config + dependency check that costs nothing — no Gemini call is made.
@@ -37,7 +38,7 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     geminiKeyLength: trimmed.length,
     // A key that still has quotes or stray whitespace is a common paste error.
     geminiKeyLooksClean: key === trimmed && !/^['"]|['"]$/.test(trimmed),
-    imageModel: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image',
+    imageModel: IMAGE_MODEL,
     debugErrorsEnabled: Boolean(process.env.DEBUG_API_ERRORS),
     sdk,
     nodeVersion: process.version,

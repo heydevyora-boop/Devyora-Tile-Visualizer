@@ -15,12 +15,12 @@ import { join, resolve } from 'path'
 import { GoogleGenAI } from '@google/genai'
 import { buildGenerationPrompts } from '../services/buildGenerationPrompt'
 import { parseTileImage } from '../services/generateVisualization'
+import { IMAGE_ASPECT_RATIO, IMAGE_MODEL as MODEL, IMAGE_SIZE } from '../config/imageModel'
 
 const [space = 'Bathroom', style = 'Modern', tileSize = '1200x600'] = process.argv.slice(2)
 
 const TILE_PATH = resolve(__dirname, '../../../client/public/sample-tile.jpg')
 const OUT_DIR = resolve(__dirname, '../../test-output')
-const MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image'
 
 const EXT_BY_MIME: Record<string, string> = {
   'image/png': 'png',
@@ -66,6 +66,13 @@ async function main() {
         { type: 'text', text: prompt.text },
         { type: 'image', data: tile.data, mime_type: tile.mimeType },
       ],
+      response_modalities: ['TEXT', 'IMAGE'],
+      generation_config: {
+        image_config: {
+          aspect_ratio: IMAGE_ASPECT_RATIO,
+          image_size: IMAGE_SIZE,
+        },
+      },
     })
   } catch (error) {
     const elapsed = Date.now() - started

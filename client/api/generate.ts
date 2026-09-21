@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { GenerationError, generateVisualization } from './_lib/generateVisualization.js'
+import { IMAGE_MODEL } from './_lib/imageModel.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -134,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Logged so the real numbers show up in Vercel's runtime logs even on success.
     console.log('[POST /api/generate] start', {
-      model: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image',
+      model: IMAGE_MODEL,
       keyConfigured: Boolean(process.env.GEMINI_API_KEY),
       tileImageBytes: typeof tileImage === 'string' ? tileImage.length : 0,
       space,
