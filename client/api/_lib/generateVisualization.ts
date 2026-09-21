@@ -4,7 +4,7 @@
 // KEEP IN SYNC with the local-dev Express copy in server/src/.
 import { randomUUID } from 'node:crypto'
 import { GoogleGenAI } from '@google/genai'
-import { buildGenerationPrompts } from './buildGenerationPrompt'
+import { buildGenerationPrompts } from './buildGenerationPrompt.js'
 
 export interface GenerateVisualizationInput {
   tileImage: string

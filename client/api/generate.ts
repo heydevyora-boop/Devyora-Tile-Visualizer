@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { GenerationError, generateVisualization } from './_lib/generateVisualization'
+import { GenerationError, generateVisualization } from './_lib/generateVisualization.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
