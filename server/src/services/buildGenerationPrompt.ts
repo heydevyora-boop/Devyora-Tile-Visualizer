@@ -24,22 +24,55 @@ export interface BuiltPrompt {
 }
 
 /**
- * Instructions that must hold for every concept. These are the constraints
- * that keep the render faithful to the salesperson's physical tile.
+ * Sent as the model's system instruction on every generation call.
+ *
+ * Holds everything that is identical for all three concepts: the visualiser's
+ * role, the tile-preservation rules that keep the render faithful to the
+ * salesperson's physical tile, and the output constraints. Per-request detail
+ * (space, style, tile size, concept focus) goes in the prompt text instead.
+ *
+ * This is backend-only. It must never be returned to the client.
  */
-function fidelityRules(tileSizeLabel: string): string {
-  return [
-    'STRICT FIDELITY RULES — these override any stylistic instruction:',
-    '1. The attached photograph is a REAL physical tile. Reproduce that exact tile: its precise colour, tone, veining, pattern, grain direction and surface texture must match the photograph.',
-    '2. Do NOT invent, substitute, recolour or restyle the tile. Do not swap it for a similar-looking material. If the tile is beige travertine, every tile in the render is that same beige travertine.',
-    '3. Do NOT stretch, squash, skew or warp the tile. Keep its true proportions and repeat it naturally across the surface.',
-    `4. Render the tile at its real-world size of ${tileSizeLabel}. The number of tiles visible must be consistent with that size relative to the room, fixtures and any human-scale elements.`,
-    '5. Lay the tiles in a realistic grid with correct, consistent perspective and vanishing lines. Joint lines must stay straight and converge correctly with the room geometry.',
-    '6. Include realistic, evenly spaced grout joints appropriate to the tile size, in a colour that suits the tile. Grout must not be exaggerated or cartoonish.',
-    '7. Respect real lighting physics: reflections, sheen and shadows on the tile must match the finish visible in the photograph and the lighting in the scene.',
-    '8. Output a photorealistic architectural interior photograph. No text, no watermarks, no labels, no collage, no people looking at the camera.',
-  ].join('\n')
-}
+export const SYSTEM_INSTRUCTION = [
+  'You are an architectural visualizer for Devyora, a premium architectural',
+  "materials showroom. You produce client-facing, photorealistic concept images",
+  "showing a customer's physical tile installed in a real interior space.",
+  '',
+  'With every request you receive a photograph of a real, physical tile. That',
+  'photograph is the design reference for the image you produce.',
+  '',
+  'TILE PRESERVATION — these take priority over any stylistic instruction:',
+  "1. Preserve the supplied tile's visual identity: its dominant colours,",
+  '   pattern, texture, grain direction and visible finish characteristics.',
+  '2. Do not invent a substantially different tile. Do not substitute it for',
+  '   another material or turn it into a different product.',
+  '3. Apply the tile naturally to architectural surfaces, with realistic',
+  '   repetition across the surface.',
+  '4. Do not stretch, squash, skew or warp the tile. Keep its true proportions.',
+  '5. Render the tile at a realistic scale relative to the room, its fixtures',
+  '   and human-scale elements.',
+  '6. Lay the tiles in correct, consistent perspective. Joint lines must stay',
+  '   straight and converge correctly with the room geometry.',
+  '7. Include plausible, evenly spaced grout joints in a colour that suits the',
+  '   tile — never exaggerated or cartoonish.',
+  '8. Respect real lighting physics: reflections, sheen and shadows must match',
+  '   the finish visible in the photograph and the lighting of the scene.',
+  '9. The result must read as a physically believable installation, not a',
+  '   texture pasted onto a surface.',
+  '',
+  'ARCHITECTURAL REALISM:',
+  'Prioritise architectural realism — correct proportions, realistic fixtures',
+  'and furniture appropriate to the space, realistic lighting — while keeping',
+  'the supplied tile as the design reference.',
+  '',
+  'OUTPUT:',
+  'A single photorealistic architectural interior photograph. No text, no',
+  'watermarks, no labels, no collage, no people looking at the camera.',
+  '',
+  'Each request produces one of three concepts shown side by side to a customer,',
+  'so each must be visibly distinct from the other two in framing and in how the',
+  'tile is applied.',
+].join('\n')
 
 function describeStyle(style: StyleConfig | undefined, rawStyle: string): string {
   if (!style) {
@@ -87,18 +120,15 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
     focus,
     resolvedStyle,
     text: [
-      'You are an architectural visualiser producing a client-facing concept image for a tile showroom.',
-      '',
-      'TASK: Using the attached photograph of a physical tile, render a photorealistic interior showing that exact tile installed in the space described below.',
+      'Using the attached photograph of a physical tile, render a photorealistic interior showing that tile installed in the space described below.',
       '',
       describeSpace(spaceConfig, input.space),
       '',
       describeStyle(styleConfig, resolvedStyle),
       '',
-      `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
-      'The three concepts are shown side by side to a client, so this one must be visibly different in framing and hero surface from the other two.',
+      `Tile real-world size: ${tileSizeLabel}. The number of tiles visible must be consistent with that size relative to the room, fixtures and any human-scale elements.`,
       '',
-      fidelityRules(tileSizeLabel),
+      `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
     ].join('\n'),
   }))
 }

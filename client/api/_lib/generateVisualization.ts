@@ -4,7 +4,7 @@
 // KEEP IN SYNC with the local-dev Express copy in server/src/.
 import { randomUUID } from 'node:crypto'
 import { GoogleGenAI } from '@google/genai'
-import { buildGenerationPrompts } from './buildGenerationPrompt.js'
+import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from './buildGenerationPrompt.js'
 import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive.js'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL, IMAGE_SIZE } from './imageModel.js'
 
@@ -341,6 +341,7 @@ export async function generateVisualization(
           () =>
             ai.interactions.create({
               model: IMAGE_MODEL,
+              system_instruction: SYSTEM_INSTRUCTION,
               input: [
                 { type: 'text', text: prompt.text },
                 { type: 'image', data: tile.data, mime_type: tile.mimeType },

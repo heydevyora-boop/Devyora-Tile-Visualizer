@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { GoogleGenAI } from '@google/genai'
-import { buildGenerationPrompts } from './buildGenerationPrompt'
+import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from './buildGenerationPrompt'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL, IMAGE_SIZE } from '../config/imageModel'
 
 export interface GenerateVisualizationInput {
@@ -283,6 +283,7 @@ export async function generateVisualization(
           () =>
             ai.interactions.create({
               model: IMAGE_MODEL,
+              system_instruction: SYSTEM_INSTRUCTION,
               input: [
                 { type: 'text', text: prompt.text },
                 { type: 'image', data: tile.data, mime_type: tile.mimeType },

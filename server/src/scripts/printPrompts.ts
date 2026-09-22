@@ -4,7 +4,7 @@
  *
  *   npm run print-prompts -- "Bathroom" "Modern" "1200x600"
  */
-import { buildGenerationPrompts } from '../services/buildGenerationPrompt'
+import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from '../services/buildGenerationPrompt'
 import { IMAGE_MODEL } from '../config/imageModel'
 
 const [space = 'Bathroom', style = 'Modern', tileSize = '1200x600'] = process.argv.slice(2)
@@ -19,6 +19,11 @@ if (prompts[0].resolvedStyle !== style) {
 console.log(`MODEL  ${IMAGE_MODEL}`)
 console.log(`Plus the tile photograph, attached to every call as an image part.`)
 console.log('='.repeat(78))
+
+console.log(`\n\n${'─'.repeat(78)}`)
+console.log('SYSTEM INSTRUCTION (identical for all three concepts)')
+console.log('─'.repeat(78))
+console.log(SYSTEM_INSTRUCTION)
 
 for (const prompt of prompts) {
   console.log(`\n\n${'─'.repeat(78)}`)

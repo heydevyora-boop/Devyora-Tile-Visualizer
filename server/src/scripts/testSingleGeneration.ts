@@ -13,7 +13,7 @@ import 'dotenv/config'
 import { readFileSync, mkdirSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { GoogleGenAI } from '@google/genai'
-import { buildGenerationPrompts } from '../services/buildGenerationPrompt'
+import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from '../services/buildGenerationPrompt'
 import { parseTileImage } from '../services/generateVisualization'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL as MODEL, IMAGE_SIZE } from '../config/imageModel'
 
@@ -62,6 +62,7 @@ async function main() {
   try {
     interaction = await ai.interactions.create({
       model: MODEL,
+      system_instruction: SYSTEM_INSTRUCTION,
       input: [
         { type: 'text', text: prompt.text },
         { type: 'image', data: tile.data, mime_type: tile.mimeType },
