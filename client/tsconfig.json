@@ -1,4 +1,14 @@
 {
+  // Solution-style config: `tsc -b` builds the referenced projects below, each
+  // with its own compilerOptions. These options are for the tools that do NOT
+  // follow project references — Vercel compiles each api/ function on its own
+  // and reads this file, so without an explicit target/lib it falls back to
+  // compiler defaults and rejects ES2022 syntax such as `Error.cause`.
+  // Keep in step with tsconfig.api.json, which is what `tsc -b` checks api/ against.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"]
+  },
   "files": [],
   "references": [
     {
