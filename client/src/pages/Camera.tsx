@@ -31,6 +31,7 @@ function Camera() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const mountedRef = useRef(true)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraBusy, setCameraBusy] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
@@ -46,6 +47,7 @@ function Camera() {
 
   useEffect(() => {
     return () => {
+      mountedRef.current = false
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
@@ -89,6 +91,15 @@ function Camera() {
         })
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      }
+      // The await above can outlive this screen: a permission prompt, or a
+      // slow sensor on a mid-range phone, gives the user time to go back.
+      // The unmount cleanup will already have run and found no stream to
+      // stop, so without this the camera would stay open with nothing left
+      // alive to close it — until the page is reloaded.
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
       }
       streamRef.current = stream
       setCameraActive(true)
