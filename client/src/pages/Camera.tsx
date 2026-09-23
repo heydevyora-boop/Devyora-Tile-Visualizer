@@ -11,6 +11,19 @@ const CAMERA_UNAVAILABLE_MESSAGE =
   "Camera isn't available in this browser. Try Upload from Gallery instead."
 const CAMERA_DENIED_MESSAGE =
   "Camera access was denied or no camera was found. Try Upload from Gallery instead."
+const INVALID_FILE_MESSAGE =
+  "That file isn't a photo. Please choose an image of the tile."
+const FILE_TOO_LARGE_MESSAGE =
+  'That photo is too large. Please choose one under 15 MB, or retake it at a smaller size.'
+const FILE_READ_FAILED_MESSAGE =
+  "We couldn't load that photo. Please try again, or choose another one."
+
+/**
+ * Largest gallery photo accepted. A phone camera photo is typically 2-8MB;
+ * well past this the browser stalls holding it in memory as a data URL and
+ * the crop step drags, with no gain in visible tile detail.
+ */
+const MAX_FILE_BYTES = 15 * 1024 * 1024
 
 function Camera() {
   const navigate = useNavigate()
@@ -128,11 +141,25 @@ function Camera() {
     event.target.value = ''
     if (!file) return
 
+    // `accept="image/*"` only filters the picker's default view — most
+    // platforms still let the user choose any file from it, so the type is
+    // checked here rather than trusted.
+    if (file.type && !file.type.startsWith('image/')) {
+      setCameraError(INVALID_FILE_MESSAGE)
+      return
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setCameraError(FILE_TOO_LARGE_MESSAGE)
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = () => {
       const result = reader.result
-      if (typeof result !== 'string') {
-        setCameraError('That image could not be read. Please try another file from your gallery.')
+      // Catches a non-image picked on a platform that reported no MIME type
+      // above: the data URL names what the file actually is.
+      if (typeof result !== 'string' || !result.startsWith('data:image/')) {
+        setCameraError(INVALID_FILE_MESSAGE)
         return
       }
       setCameraError(null)
@@ -140,8 +167,9 @@ function Camera() {
       setTileImage(result)
       navigate('/crop')
     }
+    // Distinct from an invalid file: the file is fine, reading it failed.
     reader.onerror = () => {
-      setCameraError('That image could not be read. Please try another file from your gallery.')
+      setCameraError(FILE_READ_FAILED_MESSAGE)
     }
     reader.readAsDataURL(file)
   }
