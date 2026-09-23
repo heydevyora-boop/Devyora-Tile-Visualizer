@@ -11,31 +11,40 @@ const TILE_SIZE_LABELS: Record<string, string> = {
   '1200x1200': '1200 × 1200 mm',
 }
 
-const NOT_SELECTED = 'Not selected'
+const STYLE_LABELS: Record<string, string> = {
+  minimal: 'Minimal',
+  modern: 'Modern',
+  luxury: 'Luxury',
+  warm: 'Warm',
+  contemporary: 'Contemporary',
+  earthy: 'Earthy',
+  indian: 'Indian',
+  elegant: 'Elegant',
+  surprise: 'Surprise Me',
+}
 
-// Used when the user lands on /results without a completed generation
-// (e.g. navigating directly to the route).
-const FALLBACK_IMAGES = [
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDP5oA3AvnTsObA-oOr4trg44RxFMMyW1m2E5Wj_q9lD8zAQpMucUrLBk1i1LS3-0QMe5H1M9vIcaNV7UZer4PYV8q16dhpMVMIWdKyqidxgMR1C40tcJKfupQba_dFnRvQyL9_ZbtHz2N5OfsvGA__l8k4ov_w-LRcpxFLSl06yQWvUZ1yQZy9E1HM8OdDMZC1QbbLRXfpckIN3-C89gipLFBzNYdi0iCqSJYptKIrO6cqG7S7utJooQ',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDEpIiiTMWE3tlqPgacanwBWvrlqlG6yioPf75-SOnp0uAf0O8cNzvnaO_1Toqhj7hHHiF4gXu-W-auEGwIJhM3ydoh1__OhYTjgizqJbYzmWcaw58wxITXm3jtZm2xfURG3ahEkSWTZwMrVpu5B8Ft2kEWlOyzU1xcW1nX_jbw5v1u64B9pkwoNH9O9GHqfq7KmbLVw6SzRU8Bzq5bc-NRnbM7FdIOtlDbEmwzzkNrZH9AZqqF7uIg3w',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuB00wtIuZZffbITcFtmcFsbTCdn_bhuz-jF0VLOqT77jqOnOpV6LFOH6AloZZVAl4HlC-YeZDpywkX1PQcE2T87vfmpgcqLRM8kDsl3ovTJTN6hP4TutpbLN9O6lgXofAVjw4LXYm9Ouaa2Ba_sZ7T6-OE78YIB-N5kIqjI6sx8tWWEMEmHTtt7znsHib_w4XqSX3C1i2uJ3NlEssWvq3EoaxkyeIxr5WV_KUfgHVSkiyzXdhryU5hFNA',
-]
-
-// Titles/plans shown in the lightbox caption, matching each concept card below.
-const CONCEPTS = [
-  { title: 'Vanity Wall & Floor', plan: 'Plan A' },
-  { title: 'Spa Walk-in & Wet Room', plan: 'Plan B' },
-  { title: 'Daylight Perspective', plan: 'Plan C' },
-]
+/** "Concept 01", "Concept 02", … for a zero-based index. */
+function conceptLabel(index: number): string {
+  return `Concept ${String(index + 1).padStart(2, '0')}`
+}
 
 function Results() {
   const navigate = useNavigate()
-  const { tileSize, space, generatedResult } = useFlow()
-  const conceptImages = generatedResult?.images?.length
-    ? generatedResult.images
-    : FALLBACK_IMAGES
-  const tileSizeLabel = tileSize ? TILE_SIZE_LABELS[tileSize] ?? tileSize : NOT_SELECTED
-  const spaceLabel = space ?? NOT_SELECTED
+  const { tileSize, space, style, generatedResult, setGeneratedResult } = useFlow()
+
+  // Only ever the images the backend actually returned. There is deliberately
+  // no placeholder set: showing stand-in images would present them as the
+  // user's own concepts.
+  const conceptImages = generatedResult?.images ?? []
+  const hasConcepts = conceptImages.length > 0
+
+  const tileSizeLabel = tileSize ? TILE_SIZE_LABELS[tileSize] ?? tileSize : null
+  const spaceLabel = space ?? null
+  const styleLabel = style ? STYLE_LABELS[style] ?? style : null
+  // The one place the real space/style selection is shown. The per-concept
+  // surface strategy stays backend-only and is never surfaced here.
+  const selectionSubtitle = [spaceLabel, styleLabel].filter(Boolean).join(' · ')
+
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({})
   const handleImageError = (index: number) => {
     setFailedImages((prev) => ({ ...prev, [index]: true }))
@@ -74,258 +83,130 @@ function Results() {
       document.body.style.overflow = previousOverflow
     }
   }, [lightboxIndex, conceptImages.length])
+
   const handleReturn = () => {
     navigate('/summary')
   }
-  const handleShare = () => {}
-  const handleExport = () => {}
-  const handlePin = () => {}
   const handleRegenerate = () => {
     navigate('/loading')
   }
   const handleStartNew = () => {
+    // Drop the finished run, so returning here before generating again shows
+    // the empty state rather than the previous consultation's concepts.
+    setGeneratedResult(null)
     navigate('/')
   }
-  const handleDownload = () => {}
+
+  const header = (
+    <header className="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(0,0,0,0.45)]">
+      <div className="h-16 px-margin flex items-center justify-between">
+        <div className="flex items-center gap-space-sm">
+          <button
+            aria-label="Return"
+            className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
+            onClick={handleReturn}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
+          </button>
+          <div className="flex items-center gap-space-sm">
+            <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">DEVYORA</span>
+          </div>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="font-headline-sm text-headline-sm uppercase text-on-surface">Specification Sheet</span>
+          <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">Visualizer</span>
+        </div>
+        <HeaderUserMenu />
+      </div>
+    </header>
+  )
+
+  // Reached by navigating straight to /results, or after a refresh drops the
+  // in-memory flow state. Say so plainly rather than showing stand-in images.
+  if (!hasConcepts) {
+    return (
+      <div className="results-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
+        {header}
+        <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">
+          <div className="flex flex-col items-center justify-center text-center px-margin py-space-xl gap-space-md min-h-[calc(100vh-4rem)]">
+            <span className="material-symbols-outlined text-[40px] text-on-surface-variant">
+              image_not_supported
+            </span>
+            <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-wide">
+              We couldn’t find your concepts
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant max-w-xs leading-relaxed">
+              Please start a new generation.
+            </p>
+            <button
+              className="w-full max-w-[240px] h-[52px] bg-primary text-on-primary font-title-md text-title-md rounded-lg flex items-center justify-center gap-space-xs active:scale-[0.99] transition-transform"
+              id="startNewBtn"
+              onClick={handleStartNew}
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[18px]">add_circle</span>
+              <span>Start New</span>
+            </button>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="results-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
-      <header className="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(0,0,0,0.45)]">
-        <div className="h-16 px-margin flex items-center justify-between">
-          <div className="flex items-center gap-space-sm">
-            <button
-              aria-label="Return"
-              className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
-              onClick={handleReturn}
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
-            </button>
-            <div className="flex items-center gap-space-sm">
-              <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">DEVYORA</span>
-            </div>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="font-headline-sm text-headline-sm uppercase text-on-surface">Specification Sheet</span>
-            <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">Visualizer</span>
-          </div>
-          <HeaderUserMenu />
-        </div>
-      </header>
+      {header}
       <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">
         <div className="flex flex-col w-full">
           {/* Sub-Header Context Bar */}
-          <div className="w-full bg-surface-container-low px-margin py-space-sm flex items-center justify-between">
-            <div className="flex items-center gap-space-xs">
-              <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">DEVYORA</span>
-              <span className="text-outline text-[10px]">•</span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">{spaceLabel}</span>
-              <span className="text-outline text-[10px]">•</span>
-              <span className="font-spec-numeral text-body-sm text-primary">{tileSizeLabel}</span>
-            </div>
-            <div className="flex items-center gap-space-xs">
-              <button
-                aria-label="Share concept folio"
-                className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant active:text-primary active:bg-surface-bright transition-colors"
-                type="button"
-                onClick={handleShare}
-              >
-                <span className="material-symbols-outlined text-[18px]">share</span>
-              </button>
-              <button
-                aria-label="Export folio"
-                className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant active:text-primary active:bg-surface-bright transition-colors"
-                type="button"
-                onClick={handleExport}
-              >
-                <span className="material-symbols-outlined text-[18px]">ios_share</span>
-              </button>
-            </div>
+          <div className="w-full bg-surface-container-low px-margin py-space-sm flex items-center gap-space-xs">
+            <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">DEVYORA</span>
+            {tileSizeLabel && (
+              <>
+                <span className="text-outline text-[10px]">•</span>
+                <span className="font-spec-numeral text-body-sm text-primary">{tileSizeLabel}</span>
+              </>
+            )}
           </div>
           {/* Editorial Section Intro */}
           <section className="px-margin pt-space-lg pb-space-md flex flex-col gap-space-xs">
-            <div className="flex items-center gap-space-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-              <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">Showroom Spec Sheet No. 09</span>
-            </div>
             <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-wide">
               Architectural Concepts
             </h1>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              3 generated visions using your showroom tile selection.
-            </p>
+            {selectionSubtitle && (
+              <p className="font-body-md text-body-md text-on-surface-variant">{selectionSubtitle}</p>
+            )}
           </section>
           {/* Vertical Stacked Feed of Concepts */}
           <main className="px-margin pb-32 flex flex-col gap-space-lg">
-            {/* Concept 01 Card */}
-            <article className="bg-surface-container rounded-xl overflow-hidden shadow-lg flex flex-col transition-all">
-              {/* Image Container */}
-              <div className="relative w-full aspect-[4/3] bg-surface-container-highest overflow-hidden">
-                {failedImages[0] ? (
-                  <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
-                    <span className="material-symbols-outlined text-[40px] text-on-surface-variant">broken_image</span>
-                  </div>
-                ) : (
-                  <img
-                    alt="High-end minimal architectural luxury bathroom interior featuring warm limestone and large format floor and wall tiles, floating vanity, warm recessed cove lighting, serene spa ambiance"
-                    className="w-full h-full object-cover cursor-pointer"
-                    src={conceptImages[0] ?? FALLBACK_IMAGES[0]}
-                    onClick={() => setLightboxIndex(0)}
-                    onError={() => handleImageError(0)}
-                  />
-                )}
-                {/* Ambient subtle overlay scrim */}
-                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent pointer-events-none"></div>
-                {/* Surface Specification Tag */}
-                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm pointer-events-none">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  <span className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface">Concept 01</span>
+            {conceptImages.map((image, index) => (
+              <article
+                className="bg-surface-container rounded-xl overflow-hidden shadow-lg flex flex-col transition-all"
+                key={index}
+              >
+                <div className="relative w-full aspect-[4/3] bg-surface-container-highest overflow-hidden">
+                  {failedImages[index] ? (
+                    <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
+                      <span className="material-symbols-outlined text-[40px] text-on-surface-variant">
+                        broken_image
+                      </span>
+                    </div>
+                  ) : (
+                    <img
+                      alt={conceptLabel(index)}
+                      className="w-full h-full object-cover cursor-pointer"
+                      src={image}
+                      onClick={() => setLightboxIndex(index)}
+                      onError={() => handleImageError(index)}
+                    />
+                  )}
                 </div>
-                <button
-                  aria-label="Pin finish selection"
-                  className="absolute top-space-md right-space-md w-9 h-9 rounded-full bg-surface-container-lowest/80 backdrop-blur-md flex items-center justify-center text-on-surface active:text-primary transition-colors"
-                  type="button"
-                  onClick={handlePin}
-                >
-                  <span className="material-symbols-outlined text-[18px]">bookmark</span>
-                </button>
-                {/* In-view specs pill anchored over lower image bounds */}
-                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between pointer-events-none">
-                  <div className="bg-surface-container/90 backdrop-blur-md px-space-sm py-1 rounded-full">
-                    <span className="font-body-sm text-body-sm text-primary">Full Height Slab • Matte Honed</span>
-                  </div>
-                  <span className="font-spec-numeral text-body-sm text-on-surface/80 bg-surface-container-lowest/80 backdrop-blur-md px-2 py-0.5 rounded">R10 • 9.5mm</span>
+                <div className="p-space-md bg-surface-container">
+                  <h2 className="font-title-md text-title-md text-on-surface">{conceptLabel(index)}</h2>
                 </div>
-              </div>
-              {/* Card Metadata & Consultation Notes */}
-              <div className="p-space-md flex flex-col gap-space-xs bg-surface-container">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-title-md text-title-md text-on-surface">
-                    Vanity Wall & Floor
-                  </h2>
-                  <span className="font-label-caps text-label-caps uppercase text-outline tracking-wider">Plan A</span>
-                </div>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">
-                  Continuous slab orientation minimizing lateral grout joints. Balanced against floating rift-cut timber joinery and warm 2700K perimeter cove grazing.
-                </p>
-              </div>
-            </article>
-            {/* Concept 02 Card */}
-            <article className="bg-surface-container rounded-xl overflow-hidden shadow-lg flex flex-col transition-all">
-              {/* Image Container */}
-              <div className="relative w-full aspect-[4/3] bg-surface-container-highest overflow-hidden">
-                {failedImages[1] ? (
-                  <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
-                    <span className="material-symbols-outlined text-[40px] text-on-surface-variant">broken_image</span>
-                  </div>
-                ) : (
-                  <img
-                    alt="Ultra-luxury architectural living room with floor-to-ceiling glass, polished warm stone large format porcelain tile flooring, contemporary minimal Italian furniture, warm diffused sunlight"
-                    className="w-full h-full object-cover cursor-pointer"
-                    src={conceptImages[1] ?? FALLBACK_IMAGES[1]}
-                    onClick={() => setLightboxIndex(1)}
-                    onError={() => handleImageError(1)}
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent pointer-events-none"></div>
-                {/* Surface Specification Tag */}
-                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm pointer-events-none">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  <span className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface">Concept 02</span>
-                </div>
-                <button
-                  aria-label="Pin finish selection"
-                  className="absolute top-space-md right-space-md w-9 h-9 rounded-full bg-surface-container-lowest/80 backdrop-blur-md flex items-center justify-center text-on-surface active:text-primary transition-colors"
-                  type="button"
-                  onClick={handlePin}
-                >
-                  <span className="material-symbols-outlined text-[18px]">bookmark</span>
-                </button>
-                {/* In-view specs pill anchored over lower image bounds */}
-                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between pointer-events-none">
-                  <div className="bg-surface-container/90 backdrop-blur-md px-space-sm py-1 rounded-full">
-                    <span className="font-body-sm text-body-sm text-primary">Continuous Vein Match</span>
-                  </div>
-                  <span className="font-spec-numeral text-body-sm text-on-surface/80 bg-surface-container-lowest/80 backdrop-blur-md px-2 py-0.5 rounded">R11 • Wet Grip</span>
-                </div>
-              </div>
-              {/* Card Metadata & Consultation Notes */}
-              <div className="p-space-md flex flex-col gap-space-xs bg-surface-container">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-title-md text-title-md text-on-surface">
-                    Spa Walk-in & Wet Room
-                  </h2>
-                  <span className="font-label-caps text-label-caps uppercase text-outline tracking-wider">Plan B</span>
-                </div>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">
-                  Curated travertine-inflected vein continuity traveling from dry threshold into linear-drain wet room envelope.
-                </p>
-              </div>
-            </article>
-            {/* Concept 03 Card */}
-            <article className="bg-surface-container rounded-xl overflow-hidden shadow-lg flex flex-col transition-all">
-              {/* Image Container */}
-              <div className="relative w-full aspect-[4/3] bg-surface-container-highest overflow-hidden">
-                {failedImages[2] ? (
-                  <div className="w-full h-full flex items-center justify-center bg-surface-container-highest">
-                    <span className="material-symbols-outlined text-[40px] text-on-surface-variant">broken_image</span>
-                  </div>
-                ) : (
-                  <img
-                    alt="Editorial architectural photography of a luxury modern kitchen with large format warm porcelain floor tiles, minimalist monolithic marble kitchen island, matte black hardware, warm daylight"
-                    className="w-full h-full object-cover cursor-pointer"
-                    src={conceptImages[2] ?? FALLBACK_IMAGES[2]}
-                    onClick={() => setLightboxIndex(2)}
-                    onError={() => handleImageError(2)}
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 via-transparent to-transparent pointer-events-none"></div>
-                {/* Surface Specification Tag */}
-                <div className="absolute top-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-sm py-1 rounded-full flex items-center gap-1.5 shadow-sm pointer-events-none">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  <span className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface">Concept 03</span>
-                </div>
-                <button
-                  aria-label="Pin finish selection"
-                  className="absolute top-space-md right-space-md w-9 h-9 rounded-full bg-surface-container-lowest/80 backdrop-blur-md flex items-center justify-center text-on-surface active:text-primary transition-colors"
-                  type="button"
-                  onClick={handlePin}
-                >
-                  <span className="material-symbols-outlined text-[18px]">bookmark</span>
-                </button>
-                {/* In-view specs pill anchored over lower image bounds */}
-                <div className="absolute bottom-space-md left-space-md right-space-md flex items-center justify-between pointer-events-none">
-                  <div className="bg-surface-container/90 backdrop-blur-md px-space-sm py-1 rounded-full">
-                    <span className="font-body-sm text-body-sm text-primary">Natural Raking Light</span>
-                  </div>
-                  <span className="font-spec-numeral text-body-sm text-on-surface/80 bg-surface-container-lowest/80 backdrop-blur-md px-2 py-0.5 rounded">Low Luster</span>
-                </div>
-              </div>
-              {/* Card Metadata & Consultation Notes */}
-              <div className="p-space-md flex flex-col gap-space-xs bg-surface-container">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-title-md text-title-md text-on-surface">
-                    Daylight Perspective
-                  </h2>
-                  <span className="font-label-caps text-label-caps uppercase text-outline tracking-wider">Plan C</span>
-                </div>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">
-                  Low-angle solar exposure highlights surface micro-relief and calibrated satin mineral aggregates under direct south-facing glazing.
-                </p>
-              </div>
-            </article>
-            {/* Advisory Consultation Summary Footnote */}
-            <div className="bg-surface-container-low rounded-xl p-space-md flex items-center gap-space-md">
-              <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary flex-shrink-0">
-                <span className="material-symbols-outlined text-[20px]">architecture</span>
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-label-caps text-label-caps uppercase text-primary tracking-wider">Architectural Advisory</span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
-                  All concepts rendered with zero-radius rectified porcelain edge profiles.
-                </p>
-              </div>
-            </div>
+              </article>
+            ))}
           </main>
           {/* Fixed Sticky Showroom Consultation Dock */}
           <aside className="fixed bottom-3 inset-x-0 z-40 px-margin pointer-events-none">
@@ -350,23 +231,13 @@ function Results() {
                 <span className="material-symbols-outlined text-[18px]">add_circle</span>
                 <span>Start New</span>
               </button>
-              {/* Download Folio / PDF Quick Trigger */}
-              <button
-                aria-label="Download Architectural PDF Spec Folio"
-                className="w-[52px] h-[52px] rounded-full bg-surface-container-high active:bg-surface-bright text-primary flex items-center justify-center transition-colors flex-shrink-0"
-                id="downloadPdfBtn"
-                type="button"
-                onClick={handleDownload}
-              >
-                <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
-              </button>
             </div>
           </aside>
         </div>
       </main>
       {lightboxIndex !== null && (
         <div
-          aria-label={`${CONCEPTS[lightboxIndex]?.title ?? `Concept ${lightboxIndex + 1}`} — full size view`}
+          aria-label={`${conceptLabel(lightboxIndex)} — full size view`}
           aria-modal="true"
           className="lightbox-overlay fixed inset-0 flex items-center justify-center"
           onClick={(event) => {
@@ -394,7 +265,7 @@ function Results() {
             </button>
           )}
           <img
-            alt={`${CONCEPTS[lightboxIndex]?.title ?? `Concept ${lightboxIndex + 1}`} — full size`}
+            alt={`${conceptLabel(lightboxIndex)} — full size`}
             className="lightbox-image"
             src={conceptImages[lightboxIndex]}
           />
@@ -409,24 +280,9 @@ function Results() {
             </button>
           )}
           <div className="lightbox-caption">
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">
-                Concept {String(lightboxIndex + 1).padStart(2, '0')}
-              </span>
-              {CONCEPTS[lightboxIndex] && (
-                <>
-                  <span className="text-outline text-[10px]">•</span>
-                  <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
-                    {CONCEPTS[lightboxIndex].plan}
-                  </span>
-                </>
-              )}
-            </div>
-            {CONCEPTS[lightboxIndex] && (
-              <h2 className="lightbox-caption-title font-title-md text-title-md text-on-surface">
-                {CONCEPTS[lightboxIndex].title}
-              </h2>
-            )}
+            <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">
+              {conceptLabel(lightboxIndex)}
+            </span>
             {conceptImages.length > 1 && (
               <div className="lightbox-dots">
                 {conceptImages.map((_, index) => (

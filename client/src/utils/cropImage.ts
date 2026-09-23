@@ -82,5 +82,16 @@ export async function getCroppedImage(
     outputHeight,
   )
 
-  return croppedCanvas.toDataURL('image/jpeg', 0.9)
+  const dataUrl = croppedCanvas.toDataURL('image/jpeg', 0.9)
+
+  // Release both backing stores rather than waiting for a collection. The
+  // first canvas is sized to the whole source photo — a 12MP phone shot is
+  // ~48MB of pixels — and a showroom device runs this once per consultation
+  // all day without reloading the page.
+  canvas.width = 0
+  canvas.height = 0
+  croppedCanvas.width = 0
+  croppedCanvas.height = 0
+
+  return dataUrl
 }

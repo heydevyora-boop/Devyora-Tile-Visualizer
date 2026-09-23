@@ -35,6 +35,7 @@ function Crop() {
   const [yaw, setYaw] = useState(0)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [cropError, setCropError] = useState<string | null>(null)
   const [frameSize, setFrameSize] = useState(0)
   const [cropEdge, setCropEdge] = useState<number | null>(null)
 
@@ -120,6 +121,7 @@ function Crop() {
     setZoom(1)
     setRotation90(0)
     setYaw(0)
+    setCropError(null)
     if (frameSize) setCropEdge(defaultCropEdge(frameSize))
   }
 
@@ -178,12 +180,16 @@ function Crop() {
   const handleConfirmCrop = async () => {
     if (!croppedAreaPixels || confirming) return
     setConfirming(true)
+    setCropError(null)
     try {
       const dataUrl = await getCroppedImage(imageSrc, croppedAreaPixels, rotation)
       setCroppedImage(dataUrl)
       navigate('/tile-size')
     } catch (error) {
       console.error('Failed to crop tile image', error)
+      // Reset/Use This Tile both stay enabled so the crop can be adjusted and
+      // retried without leaving the screen.
+      setCropError('That crop couldn’t be processed. Please try adjusting it and try again.')
       setConfirming(false)
     }
   }
@@ -414,6 +420,17 @@ function Crop() {
               Tile stay reachable on short viewports without scrolling, matching
               the fixed CTA bars on TileSize/Space/Style. */}
           <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-lg pb-safe">
+            {cropError && (
+              <div className="max-w-md mx-auto px-margin pt-space-xs w-full">
+                <p
+                  className="font-body-sm text-body-sm text-on-surface-variant text-center"
+                  id="cropErrorMessage"
+                  role="alert"
+                >
+                  {cropError}
+                </p>
+              </div>
+            )}
             <div className="max-w-md mx-auto px-margin pt-space-xs pb-space-md flex items-center gap-space-sm w-full">
               {/* Secondary Reset Button */}
               <button

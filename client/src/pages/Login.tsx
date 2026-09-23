@@ -1,13 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { landingPathFor, useAuth } from '../state/AuthContext'
 import './Login.css'
-
-/**
- * Brief hold before the result lands. Validation is synchronous, so without
- * this the button state would flicker rather than read as a deliberate action.
- */
-const SUBMIT_DELAY_MS = 300
 
 function Login() {
   const navigate = useNavigate()
@@ -16,7 +10,6 @@ function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const timerRef = useRef<number | null>(null)
 
   // Already signed in (e.g. returning via the browser back button) — skip ahead
   // to wherever this role belongs.
@@ -24,19 +17,13 @@ function Login() {
     if (isAuthenticated) navigate(landingPathFor(role), { replace: true })
   }, [isAuthenticated, role, navigate])
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) window.clearTimeout(timerRef.current)
-    }
-  }, [])
-
   /** Clears a visible error as soon as the user starts correcting the input. */
   const handleChange = (setter: (value: string) => void) => (value: string) => {
     setter(value)
     if (error) setError(null)
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting) return
 
@@ -48,17 +35,23 @@ function Login() {
     setSubmitting(true)
     setError(null)
 
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null
-      // Admins land on /history, everyone else on /home.
-      const signedInRole = login(username, password)
+    try {
+      // Verified server-side; admins land on /history, everyone else on /home.
+      const signedInRole = await login(username, password)
       if (signedInRole) {
         navigate(landingPathFor(signedInRole), { replace: true })
         return
       }
       setSubmitting(false)
       setError('Those credentials were not recognised. Please check and try again.')
-    }, SUBMIT_DELAY_MS)
+    } catch (loginError) {
+      setSubmitting(false)
+      setError(
+        loginError instanceof Error && loginError.message
+          ? loginError.message
+          : 'Something went wrong while signing in. Please try again.',
+      )
+    }
   }
 
   return (

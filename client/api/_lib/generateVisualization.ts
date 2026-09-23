@@ -4,8 +4,9 @@
 // KEEP IN SYNC with the local-dev Express copy in server/src/.
 import { randomUUID } from 'node:crypto'
 import { GoogleGenAI } from '@google/genai'
-import { buildGenerationPrompts } from './buildGenerationPrompt.js'
+import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from './buildGenerationPrompt.js'
 import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive.js'
+import { IMAGE_ASPECT_RATIO, IMAGE_MODEL, IMAGE_SIZE } from './imageModel.js'
 
 export interface GenerateVisualizationInput {
   tileImage: string
@@ -43,9 +44,6 @@ export class GenerationError extends Error {
   }
 }
 
-// Any image model id the SDK accepts. Overridable without a code change.
-const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image'
-
 interface ParsedDataUrl {
   data: string
   mimeType: string
@@ -80,6 +78,17 @@ function toGenerationError(error: unknown): GenerationError {
       : undefined
   const haystack = `${status ?? ''} ${raw}`.toLowerCase()
 
+  // Checked first, and by exact status only: the body of a 402 can mention
+  // "quota", which the rate-limit branch below would otherwise swallow into
+  // the "busy right now" message. Deliberately says nothing about why — the
+  // user is never told which service is involved or what it costs.
+  if (status === 402) {
+    return new GenerationError(
+      'This feature is temporarily unavailable. Please contact the team.',
+      503,
+      error,
+    )
+  }
   if (haystack.includes('api key') || haystack.includes('unauthenticated') || status === 401 || status === 403) {
     return new GenerationError(
       'The image service rejected our credentials. Please check the server API key configuration.',
@@ -115,6 +124,86 @@ function toGenerationError(error: unknown): GenerationError {
     502,
     error,
   )
+}
+
+function statusOf(error: unknown): number | undefined {
+  return typeof (error as { status?: unknown })?.status === 'number'
+    ? (error as { status: number }).status
+    : undefined
+}
+
+/** Max retry attempts for a transient (429/503) failure, plus the initial try. */
+const MAX_RETRIES = 2
+const RETRY_BASE_DELAY_MS = 500
+
+/**
+ * Retries a single interactions.create call with exponential backoff on 429
+ * (rate limited) and 503 (overloaded) — both transient and worth a couple of
+ * retries before giving up. Any other error fails immediately.
+ *
+ * Takes a thunk rather than the call's params so the create() call at the
+ * call site keeps its normal (non-streaming) overload resolution.
+ */
+async function withRetry<T>(call: () => Promise<T>, conceptIndex: number): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await call()
+    } catch (error) {
+      const status = statusOf(error)
+      const retryable = status === 429 || status === 503
+      if (!retryable || attempt >= MAX_RETRIES) throw error
+      const delayMs = RETRY_BASE_DELAY_MS * 2 ** attempt
+      console.warn(
+        `[generateVisualization] concept ${conceptIndex + 1}: got ${status}, retrying in ${delayMs}ms ` +
+          `(attempt ${attempt + 1}/${MAX_RETRIES})`,
+      )
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+}
+
+/**
+ * Longest edge sent to the model. The client already exports crops capped at
+ * 1400px, but this is a safety net for any other caller: past this size the
+ * extra pixels cost input tokens without adding visible tile detail.
+ */
+const MAX_INPUT_EDGE = 1536
+
+/** Downscales the tile photo before it is sent, if it is larger than needed. */
+async function downscaleForInput(tile: ParsedDataUrl): Promise<ParsedDataUrl> {
+  let sharp: (typeof import('sharp'))['default']
+  try {
+    sharp = (await import('sharp')).default
+  } catch (error) {
+    console.warn(
+      '[generateVisualization] sharp unavailable, sending tile photo at original size:',
+      error instanceof Error ? error.message : error,
+    )
+    return tile
+  }
+
+  const input = Buffer.from(tile.data, 'base64')
+  try {
+    const metadata = await sharp(input).metadata()
+    const longestEdge = Math.max(metadata.width ?? 0, metadata.height ?? 0)
+    if (longestEdge <= MAX_INPUT_EDGE) return tile
+
+    const resized = await sharp(input)
+      .resize({ width: MAX_INPUT_EDGE, height: MAX_INPUT_EDGE, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 92, mozjpeg: true })
+      .toBuffer()
+    console.log(
+      `[generateVisualization] tile photo downscaled: ${metadata.width}x${metadata.height} ` +
+        `(${(input.length / 1024).toFixed(0)}KB) -> max edge ${MAX_INPUT_EDGE} (${(resized.length / 1024).toFixed(0)}KB)`,
+    )
+    return { data: resized.toString('base64'), mimeType: 'image/jpeg' }
+  } catch (error) {
+    console.warn(
+      '[generateVisualization] could not downscale tile photo, sending original:',
+      error instanceof Error ? error.message : error,
+    )
+    return tile
+  }
 }
 
 /**
@@ -243,7 +332,7 @@ export async function generateVisualization(
     )
   }
 
-  const tile = parseTileImage(input.tileImage)
+  const tile = await downscaleForInput(parseTileImage(input.tileImage))
   const prompts = buildGenerationPrompts({
     space: input.space,
     style: input.style,
@@ -258,19 +347,42 @@ export async function generateVisualization(
   let interactions
   try {
     interactions = await Promise.all(
-      prompts.map((prompt) =>
-        ai.interactions.create({
-          model: IMAGE_MODEL,
-          input: [
-            { type: 'text', text: prompt.text },
-            { type: 'image', data: tile.data, mime_type: tile.mimeType },
-          ],
-        }),
+      prompts.map((prompt, index) =>
+        withRetry(
+          () =>
+            ai.interactions.create({
+              model: IMAGE_MODEL,
+              system_instruction: SYSTEM_INSTRUCTION,
+              input: [
+                { type: 'text', text: prompt.text },
+                { type: 'image', data: tile.data, mime_type: tile.mimeType },
+              ],
+              response_modalities: ['TEXT', 'IMAGE'],
+              generation_config: {
+                image_config: {
+                  aspect_ratio: IMAGE_ASPECT_RATIO,
+                  image_size: IMAGE_SIZE,
+                },
+              },
+            }),
+          index,
+        ),
       ),
     )
   } catch (error) {
     throw toGenerationError(error)
   }
+
+  interactions.forEach((interaction, index) => {
+    console.log(
+      `[generateVisualization] concept ${index + 1} usage`,
+      JSON.stringify({
+        model: IMAGE_MODEL,
+        interactionId: interaction.id,
+        usage: (interaction as { usage?: unknown }).usage,
+      }),
+    )
+  })
 
   const rawImages = interactions.map((interaction, index) => {
     const image = interaction.output_image
