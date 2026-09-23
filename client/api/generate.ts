@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { GenerationError, generateVisualization } from './_lib/generateVisualization.js'
 import { IMAGE_MODEL } from './_lib/imageModel.js'
+import { getSpaceConfig } from './_lib/spaces.js'
+import { getStyleConfig, isSurpriseStyle } from './_lib/styles.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -133,6 +135,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
+    // Checked before the model is called: an unrecognised space or style would
+    // otherwise fall through to a generic prompt and still spend a real
+    // generation. "Surprise" is a valid style the backend resolves itself.
+    if (!getSpaceConfig(space as string)) {
+      res
+        .status(400)
+        .json({ error: 'That space is not one we can visualise. Please pick one from the list.' })
+      return
+    }
+    if (!isSurpriseStyle(style as string) && !getStyleConfig(style as string)) {
+      res
+        .status(400)
+        .json({ error: 'That design style is not one we offer. Please pick one from the list.' })
+      return
+    }
+
     // Logged so the real numbers show up in Vercel's runtime logs even on success.
     console.log('[POST /api/generate] start', {
       model: IMAGE_MODEL,
@@ -185,15 +203,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : 'We could not create your concepts. Please try again.'
     const detail = describeError(error)
 
-    // Full detail goes to the Vercel runtime log regardless.
+    // The full detail — error name, message, cause and stack — goes to the
+    // Vercel runtime log, which is where it is safe to read. It is
+    // deliberately never attached to the response: the browser gets only the
+    // friendly message, so a stack trace cannot reach a showroom screen
+    // because an env var was left set.
     console.error('[POST /api/generate] FAILED', JSON.stringify(detail))
 
-    // The response carries the detail too while DEBUG_API_ERRORS is set, so the
-    // real cause is visible from the browser without shell access to the logs.
-    // Unset that env var once the issue is understood.
-    const payload: Record<string, unknown> = { error: message }
-    if (process.env.DEBUG_API_ERRORS) payload.detail = detail
-
-    res.status(status).json(payload)
+    res.status(status).json({ error: message })
   }
 }
