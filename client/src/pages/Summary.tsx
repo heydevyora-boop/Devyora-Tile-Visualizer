@@ -240,17 +240,6 @@ function Summary() {
                 </p>
               </div>
             </section>
-            {/* Floor Consultation Spec Details Accordion-like Info */}
-            <div className="bg-surface-container rounded-lg p-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-[20px]">feed</span>
-                <div className="flex flex-col">
-                  <span className="font-label-caps text-label-caps uppercase text-outline">Client Package</span>
-                  <span className="font-body-sm text-body-sm text-on-surface">Architectural Presentation Export Ready</span>
-                </div>
-              </div>
-              <span className="font-label-caps text-label-caps uppercase text-primary px-2 py-1 bg-surface-container-high rounded">PDF / 4K</span>
-            </div>
             {/* Primary Action Section */}
             <div className="flex flex-col gap-2 pt-2">
               {/* Large Primary Action Button */}
