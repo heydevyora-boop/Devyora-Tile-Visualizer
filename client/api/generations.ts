@@ -5,9 +5,16 @@ import {
   listGenerations,
   toGenerationRecord,
 } from './_lib/generationsStore.js'
+import { verifyAuthHeader } from './_lib/auth.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
+    // Only admins may read the full history.
+    const session = verifyAuthHeader(req.headers.authorization)
+    if (!session || session.role !== 'admin') {
+      res.status(401).json({ error: 'Sign in as an administrator to view history.' })
+      return
+    }
     try {
       const records = await listGenerations()
       res.status(200).json(records)
@@ -19,6 +26,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST') {
+    // Any signed-in account (any role) may save a completed generation —
+    // this is the fire-and-forget write every showroom user triggers after
+    // generating, not an admin-only action.
+    if (!verifyAuthHeader(req.headers.authorization)) {
+      res.status(401).json({ error: 'Sign in required.' })
+      return
+    }
     let body: unknown = req.body
     if (typeof body === 'string') {
       try {

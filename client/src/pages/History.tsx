@@ -32,33 +32,45 @@ function formatTimestamp(timestamp: string): { date: string; time: string } {
 
 function History() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
-  const handleLogout = () => {
-    logout()
-    navigate('/', { replace: true })
-  }
+  const { logout, token } = useAuth()
   const [records, setRecords] = useState<GenerationRecord[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<LightboxTarget | null>(null)
   const lightboxCloseRef = useRef<HTMLButtonElement>(null)
 
-  const loadHistory = useCallback(async (signal?: AbortSignal) => {
-    setError(null)
-    try {
-      const response = await fetch(GENERATIONS_ENDPOINT, { signal })
-      if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
-      const data: unknown = await response.json()
-      setRecords(Array.isArray(data) ? (data as GenerationRecord[]) : [])
-    } catch (loadError) {
-      if (signal?.aborted) return
-      setRecords([])
-      setError(
-        loadError instanceof Error && loadError.message
-          ? `Could not load history. ${loadError.message}`
-          : 'Could not load history.',
-      )
-    }
-  }, [])
+  const loadHistory = useCallback(
+    async (signal?: AbortSignal) => {
+      setError(null)
+      try {
+        const response = await fetch(GENERATIONS_ENDPOINT, {
+          signal,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+        if (response.status === 401) {
+          // The session was rejected server-side (expired, or somehow not an
+          // admin token) — sign out rather than show a bare error.
+          logout()
+          navigate('/', { replace: true })
+          return
+        }
+        if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
+        const data: unknown = await response.json()
+        setRecords(Array.isArray(data) ? (data as GenerationRecord[]) : [])
+      } catch (loadError) {
+        if (signal?.aborted) return
+        setRecords([])
+        setError(
+          loadError instanceof Error && loadError.message
+            ? `Could not load history. ${loadError.message}`
+            : 'Could not load history.',
+        )
+      }
+    },
+    // `logout` (useCallback, empty deps) and `navigate` (react-router) are
+    // both stable across renders, so including them here never causes this
+    // callback — and the fetch effect below that depends on it — to re-run.
+    [token, logout, navigate],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -98,6 +110,11 @@ function History() {
       document.body.style.overflow = previousOverflow
     }
   }, [lightbox, activeImages.length])
+
+  const handleLogout = () => {
+    logout()
+    navigate('/', { replace: true })
+  }
 
   const showPrev = () =>
     setLightbox((current) =>
