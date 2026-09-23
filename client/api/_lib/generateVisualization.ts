@@ -78,6 +78,17 @@ function toGenerationError(error: unknown): GenerationError {
       : undefined
   const haystack = `${status ?? ''} ${raw}`.toLowerCase()
 
+  // Checked first, and by exact status only: the body of a 402 can mention
+  // "quota", which the rate-limit branch below would otherwise swallow into
+  // the "busy right now" message. Deliberately says nothing about why — the
+  // user is never told which service is involved or what it costs.
+  if (status === 402) {
+    return new GenerationError(
+      'This feature is temporarily unavailable. Please contact the team.',
+      503,
+      error,
+    )
+  }
   if (haystack.includes('api key') || haystack.includes('unauthenticated') || status === 401 || status === 403) {
     return new GenerationError(
       'The image service rejected our credentials. Please check the server API key configuration.',
