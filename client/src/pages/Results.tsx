@@ -30,7 +30,7 @@ function conceptLabel(index: number): string {
 
 function Results() {
   const navigate = useNavigate()
-  const { tileSize, space, style, generatedResult } = useFlow()
+  const { tileSize, space, style, generatedResult, setGeneratedResult } = useFlow()
 
   // Only ever the images the backend actually returned. There is deliberately
   // no placeholder set: showing stand-in images would present them as the
@@ -91,6 +91,9 @@ function Results() {
     navigate('/loading')
   }
   const handleStartNew = () => {
+    // Drop the finished run, so returning here before generating again shows
+    // the empty state rather than the previous consultation's concepts.
+    setGeneratedResult(null)
     navigate('/')
   }
 
