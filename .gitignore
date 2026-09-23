@@ -16,3 +16,7 @@ dist
 # Runtime generation history (contains customer tile photos and generated
 # images). Created on first save; never commit it.
 server/data/
+
+# Local working notes from a spec-compliance review. Regenerated on demand and
+# specific to one point in time, so it is kept out of the branch history.
+AUDIT.md
