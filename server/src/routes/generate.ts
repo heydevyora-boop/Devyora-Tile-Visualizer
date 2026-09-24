@@ -2,10 +2,20 @@ import { Router } from 'express'
 import { GenerationError, generateVisualization } from '../services/generateVisualization'
 import { getSpaceConfig } from '../config/spaces'
 import { getStyleConfig, isSurpriseStyle } from '../config/styles'
+import { verifyAuthHeader } from '../config/auth'
 
 const router = Router()
 
 router.post('/generate', async (req, res) => {
+  // Checked before anything else, and long before the model is called: every
+  // generation costs real money. Any signed-in account may generate — this is
+  // what the whole showroom tool does — so the role is not checked, only that
+  // there is a valid session.
+  if (!verifyAuthHeader(req.headers.authorization)) {
+    res.status(401).json({ error: 'Sign in required.' })
+    return
+  }
+
   const { tileImage, space, style, tileSize } = req.body ?? {}
 
   const missingFields: string[] = []

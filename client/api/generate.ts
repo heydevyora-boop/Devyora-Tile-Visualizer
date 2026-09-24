@@ -3,6 +3,7 @@ import { GenerationError, generateVisualization } from './_lib/generateVisualiza
 import { IMAGE_MODEL } from './_lib/imageModel.js'
 import { getSpaceConfig } from './_lib/spaces.js'
 import { getStyleConfig, isSurpriseStyle } from './_lib/styles.js'
+import { verifyAuthHeader } from './_lib/auth.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -86,6 +87,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST')
       res.status(405).json({ error: 'Method not allowed. Use POST.' })
+      return
+    }
+
+    // Checked before the body is even read, and long before the model is
+    // called: every generation costs real money, and this endpoint is public
+    // on the deployed site. Any signed-in account may generate — this is what
+    // the whole showroom tool does — so the role is not checked, only that
+    // there is a valid session.
+    if (!verifyAuthHeader(req.headers.authorization)) {
+      res.status(401).json({ error: 'Sign in required.' })
       return
     }
 

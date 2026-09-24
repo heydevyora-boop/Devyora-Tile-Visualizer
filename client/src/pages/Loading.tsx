@@ -40,7 +40,10 @@ function Loading() {
       try {
         response = await fetch(GENERATE_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             tileImage: croppedImage,
             space,
@@ -75,7 +78,7 @@ function Loading() {
         throw new Error('The server sent a response we could not read. Please try again.')
       }
     },
-    [croppedImage, space, style, tileSize],
+    [croppedImage, space, style, tileSize, token],
   )
 
   /**
