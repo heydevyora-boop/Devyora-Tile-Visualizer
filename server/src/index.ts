@@ -5,6 +5,7 @@ import healthRouter from './routes/health'
 import generateRouter from './routes/generate'
 import generationsRouter from './routes/generations'
 import loginRouter from './routes/login'
+import clientsRouter from './routes/clients'
 
 const app = express()
 
@@ -17,6 +18,7 @@ app.use('/api', healthRouter)
 app.use('/api', generateRouter)
 app.use('/api', generationsRouter)
 app.use('/api', loginRouter)
+app.use('/api', clientsRouter)
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001
 
