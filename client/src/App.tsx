@@ -13,6 +13,11 @@ import Summary from './pages/Summary'
 import Loading from './pages/Loading'
 import Results from './pages/Results'
 import History from './pages/History'
+import Dashboard from './pages/Dashboard'
+import Clients from './pages/Clients'
+import RecentGenerations from './pages/RecentGenerations'
+import SavedConcepts from './pages/SavedConcepts'
+import Settings from './pages/Settings'
 import './App.css'
 
 /**
@@ -21,6 +26,13 @@ import './App.css'
  * to reach any of them.
  */
 const PROTECTED_ROUTES = [
+  // The workspace: where a salesperson lands and navigates from.
+  { path: '/dashboard', element: <Dashboard /> },
+  { path: '/clients', element: <Clients /> },
+  { path: '/recent', element: <RecentGenerations /> },
+  { path: '/saved', element: <SavedConcepts /> },
+  { path: '/settings', element: <Settings /> },
+  // The consultation flow itself.
   { path: '/home', element: <Home /> },
   { path: '/camera', element: <Camera /> },
   { path: '/crop', element: <Crop /> },

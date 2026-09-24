@@ -37,12 +37,13 @@ const LOGIN_ENDPOINT = `${API_BASE_URL}/api/login`
  *
  * Admins exist only to review the generation history — they have no reason to
  * run a consultation, so /history is both their landing page and the page they
- * are sent back to if they try to reach the visualiser. Everyone else lives in
- * the visualiser and starts at /home. Routing decisions read this rather than
- * hardcoding paths, so the two can never disagree.
+ * are sent back to if they try to reach the visualiser. A salesperson lands on
+ * their workspace dashboard and starts a consultation from there. Routing
+ * decisions read this rather than hardcoding paths, so the two can never
+ * disagree.
  */
 export function landingPathFor(role: Role | null): string {
-  return role === 'admin' ? '/history' : '/home'
+  return role === 'admin' ? '/history' : '/dashboard'
 }
 
 /**
