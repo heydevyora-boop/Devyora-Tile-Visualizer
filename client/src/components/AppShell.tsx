@@ -16,8 +16,8 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { to: '/start', label: 'New Visualization', icon: 'add_a_photo' },
   { to: '/clients', label: 'Clients', icon: 'group' },
-  { to: '/recent', label: 'Recent Generations', icon: 'history' },
-  { to: '/saved', label: 'Saved Concepts', icon: 'bookmark' },
+  { to: '/recent-generations', label: 'Recent Generations', icon: 'history' },
+  { to: '/saved-concepts', label: 'Saved Concepts', icon: 'bookmark' },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 

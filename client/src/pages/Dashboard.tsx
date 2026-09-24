@@ -76,7 +76,7 @@ function Dashboard() {
           <span className="material-symbols-outlined">group</span>
           <span>Clients</span>
         </Link>
-        <Link className="ws__action" to="/recent">
+        <Link className="ws__action" to="/recent-generations">
           <span className="material-symbols-outlined">history</span>
           <span>Recent Generations</span>
         </Link>

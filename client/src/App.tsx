@@ -32,9 +32,8 @@ const WORKSPACE_ROUTES = [
   { path: '/dashboard', element: <Dashboard /> },
   { path: '/clients', element: <Clients /> },
   { path: '/clients/:customerId', element: <CustomerDetail /> },
-  { path: '/recent', element: <RecentGenerations /> },
-  { path: '/saved', element: <SavedConcepts /> },
-  { path: '/settings', element: <Settings /> },
+  { path: '/recent-generations', element: <RecentGenerations /> },
+  { path: '/saved-concepts', element: <SavedConcepts /> },
   // Where a consultation begins: choosing whose it is.
   { path: '/start', element: <ClientSelect /> },
 ]
@@ -79,6 +78,16 @@ function App() {
               }
             />
           ))}
+          {/* The one screen both roles share: whoever is on this device, and
+              how to hand it over. No requireRole, so a session is enough. */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/history"
             element={
