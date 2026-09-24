@@ -17,7 +17,7 @@ const REQUEST_TIMEOUT_MS = 75_000
 
 function Loading() {
   const navigate = useNavigate()
-  const { croppedImage, space, style, tileSize, setGeneratedResult } = useFlow()
+  const { customer, croppedImage, space, style, tileSize, setGeneratedResult } = useFlow()
   const { userName, token } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -101,6 +101,13 @@ function Loading() {
         body: JSON.stringify({
           generationId: result.generationId ?? `gen-${Date.now()}`,
           userName: userName ?? 'Unknown',
+          // Whose consultation this was, and which of their areas it covers.
+          // The server takes the owning salesperson from the session, so it is
+          // deliberately not sent here.
+          customerId: customer?.id ?? null,
+          space,
+          style,
+          tileSize,
           croppedImage: result.tileImageUrl ?? croppedImage,
           generatedImages: result.images,
           timestamp: new Date().toISOString(),
@@ -109,7 +116,7 @@ function Loading() {
         console.error('Could not save this generation to history:', historyError)
       })
     },
-    [croppedImage, userName, token],
+    [croppedImage, userName, token, customer, space, style, tileSize],
   )
 
   useEffect(() => {

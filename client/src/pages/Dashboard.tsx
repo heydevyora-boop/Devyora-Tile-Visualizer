@@ -68,7 +68,7 @@ function Dashboard() {
 
       <h2 className="ws__section-title">Quick actions</h2>
       <div className="ws__actions">
-        <Link className="ws__action ws__action--primary" to="/home">
+        <Link className="ws__action ws__action--primary" to="/start">
           <span className="material-symbols-outlined">add_a_photo</span>
           <span>New Visualization</span>
         </Link>

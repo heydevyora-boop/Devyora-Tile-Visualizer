@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type Architect, type Customer } from '../utils/api'
@@ -8,8 +9,8 @@ import './Workspace.css'
  * This salesperson's client book. The server returns only their own records,
  * so there is nothing to filter for ownership here.
  *
- * Read-only for now: adding a client happens at the start of a consultation,
- * which is the next step of this chunk.
+ * Adding a client happens at the start of a consultation; opening one here
+ * shows their history and the way back into a new visualisation for them.
  */
 function Clients() {
   const { token } = useAuth()
@@ -82,12 +83,14 @@ function Clients() {
       {visible.length > 0 && (
         <ul className="ws__list">
           {visible.map((customer) => (
-            <li className="ws__row" key={customer.id}>
-              <div className="ws__row-body">
-                <span className="ws__row-title">{customer.name}</span>
-                <span className="ws__row-meta">{customer.mobile}</span>
-              </div>
-              <span className="ws__badge">{architectName(customer.architectId)}</span>
+            <li key={customer.id}>
+              <Link className="ws__row ws__row--button" to={`/clients/${customer.id}`}>
+                <div className="ws__row-body">
+                  <span className="ws__row-title">{customer.name}</span>
+                  <span className="ws__row-meta">{customer.mobile}</span>
+                </div>
+                <span className="ws__badge">{architectName(customer.architectId)}</span>
+              </Link>
             </li>
           ))}
         </ul>

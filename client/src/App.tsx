@@ -18,6 +18,9 @@ import Clients from './pages/Clients'
 import RecentGenerations from './pages/RecentGenerations'
 import SavedConcepts from './pages/SavedConcepts'
 import Settings from './pages/Settings'
+import ClientSelect from './pages/ClientSelect'
+import CustomerDetail from './pages/CustomerDetail'
+import RequireClient from './components/RequireClient'
 import './App.css'
 
 /**
@@ -25,14 +28,22 @@ import './App.css'
  * a session: admins are review-only and get redirected to /history if they try
  * to reach any of them.
  */
-const PROTECTED_ROUTES = [
-  // The workspace: where a salesperson lands and navigates from.
+const WORKSPACE_ROUTES = [
   { path: '/dashboard', element: <Dashboard /> },
   { path: '/clients', element: <Clients /> },
+  { path: '/clients/:customerId', element: <CustomerDetail /> },
   { path: '/recent', element: <RecentGenerations /> },
   { path: '/saved', element: <SavedConcepts /> },
   { path: '/settings', element: <Settings /> },
-  // The consultation flow itself.
+  // Where a consultation begins: choosing whose it is.
+  { path: '/start', element: <ClientSelect /> },
+]
+
+/**
+ * The consultation itself. Every one of these additionally requires a chosen
+ * client, so concepts always have a customer to be filed against.
+ */
+const FLOW_ROUTES = [
   { path: '/home', element: <Home /> },
   { path: '/camera', element: <Camera /> },
   { path: '/crop', element: <Crop /> },
@@ -50,11 +61,22 @@ function App() {
       <FlowProvider>
         <Routes>
           <Route path="/" element={<Login />} />
-          {PROTECTED_ROUTES.map(({ path, element }) => (
+          {WORKSPACE_ROUTES.map(({ path, element }) => (
             <Route
               key={path}
               path={path}
               element={<ProtectedRoute requireRole="user">{element}</ProtectedRoute>}
+            />
+          ))}
+          {FLOW_ROUTES.map(({ path, element }) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <ProtectedRoute requireRole="user">
+                  <RequireClient>{element}</RequireClient>
+                </ProtectedRoute>
+              }
             />
           ))}
           <Route
