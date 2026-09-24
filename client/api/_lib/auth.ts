@@ -83,6 +83,25 @@ const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8u62c6Ka.PNQI2q7f5Ei5yV2H9c.Pa
 export async function verifyCredentials(username: string, password: string): Promise<Account | null> {
   const account = findAccount(username)
   const ok = await bcrypt.compare(password, account?.passwordHash ?? DUMMY_HASH)
+
+  // ===== TEMPORARY DIAGNOSTIC — REMOVE AFTER DEBUGGING THE LOGIN 401 =====
+  // Logged at error level so it surfaces under the runtime log's "Error"
+  // filter. Deliberately non-secret: a count, the usernames (which are not
+  // secret), and two booleans. The submitted password, every passwordHash and
+  // AUTH_JWT_SECRET are never touched here and must never be added.
+  const diagnosticAccounts = loadAccounts()
+  console.error('[login-diag] accounts parsed from AUTH_ACCOUNTS_JSON:', diagnosticAccounts.length)
+  console.error(
+    '[login-diag] usernames found:',
+    JSON.stringify(diagnosticAccounts.map((entry) => entry.username)),
+  )
+  console.error('[login-diag] submitted username matched an account:', account !== null)
+  console.error(
+    '[login-diag] bcrypt comparison result:',
+    account === null ? 'n/a (no matching username)' : ok,
+  )
+  // ===== END TEMPORARY DIAGNOSTIC =====
+
   return ok && account ? account : null
 }
 
