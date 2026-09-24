@@ -72,7 +72,6 @@ function Camera() {
     stopCamera()
     navigate('/')
   }
-  const handleToggleGrid = () => {}
 
   const startCamera = async () => {
     setCameraError(null)
@@ -226,15 +225,9 @@ function Camera() {
                 Step 01 / 06
               </span>
             </div>
-            <button
-              aria-label="Toggle camera grid"
-              className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
-              id="gridToggleBtn"
-              type="button"
-              onClick={handleToggleGrid}
-            >
-              <span className="material-symbols-outlined text-[18px]">grid_3x3</span>
-            </button>
+            {/* Balances the back button so the step pill stays centred in this
+                justify-between row. The alignment grid is always on. */}
+            <div className="w-10 h-10" aria-hidden="true"></div>
           </div>
           <div className="px-margin pt-space-xs pb-space-sm flex flex-col gap-1">
             <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-normal">
