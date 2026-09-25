@@ -8,17 +8,21 @@ import {
   updateDesignOption,
 } from '../services/designOptionsStore'
 import { verifyAuthHeader } from '../config/auth'
-import { DbConfigError } from '../services/db'
+import { DbError, asDbError } from '../services/db'
 
 /** KEEP IN SYNC with the deployed Vercel copy in client/api/design-options.ts. */
 const router = Router()
 
 function fail(res: Response, label: string, error: unknown): void {
+  // A driver failure is the datastore's fault, not the request's. Classifying it
+  // here means the screen says what is actually wrong instead of showing a bare
+  // 500 that could equally be a bug in this route.
+  const failure = asDbError(error) ?? error
   const status =
-    error instanceof DesignOptionsError || error instanceof DbConfigError ? error.status : 500
+    failure instanceof DesignOptionsError || failure instanceof DbError ? failure.status : 500
   const message =
-    error instanceof DesignOptionsError || error instanceof DbConfigError
-      ? error.message
+    failure instanceof DesignOptionsError || failure instanceof DbError
+      ? failure.message
       : 'Could not load the design options.'
   console.error(`[${label}] failed:`, error)
   res.status(status).json({ error: message })
@@ -52,8 +56,10 @@ router.get('/design-options', async (req, res) => {
       return
     }
     const kind = req.query.kind
-    if (kind !== 'style' && kind !== 'joint' && kind !== 'pattern') {
-      throw new DesignOptionsError('Ask for style, joint or pattern.')
+    // 'reason' belongs here too: the salesperson's "what would you like to
+    // change?" panel reads the revision reasons through this same route.
+    if (kind !== 'style' && kind !== 'joint' && kind !== 'pattern' && kind !== 'reason') {
+      throw new DesignOptionsError('Ask for style, joint, pattern or reason.')
     }
     res.json(await listDesignOptions(kind))
   } catch (error) {

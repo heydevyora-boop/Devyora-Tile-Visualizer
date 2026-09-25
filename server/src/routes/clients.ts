@@ -8,7 +8,7 @@ import {
   toOwnerScope,
 } from '../services/clientsStore'
 import { verifyAuthHeader } from '../config/auth'
-import { DbConfigError } from '../services/db'
+import { DbError, asDbError } from '../services/db'
 import type { Request, Response } from 'express'
 
 /**
@@ -26,10 +26,14 @@ const router = Router()
 
 /** Maps a store failure onto a response, without leaking internals. */
 function fail(res: Response, label: string, error: unknown, fallback: string): void {
+  // A driver failure is the datastore's fault, not the request's. Classifying it
+  // here means the screen says what is actually wrong instead of showing a bare
+  // 500 that could equally be a bug in this route.
+  const failure = asDbError(error) ?? error
   const status =
-    error instanceof ClientsStoreError || error instanceof DbConfigError ? error.status : 500
+    failure instanceof ClientsStoreError || failure instanceof DbError ? failure.status : 500
   const message =
-    error instanceof ClientsStoreError || error instanceof DbConfigError ? error.message : fallback
+    failure instanceof ClientsStoreError || failure instanceof DbError ? failure.message : fallback
   console.error(`[${label}] failed:`, error)
   res.status(status).json({ error: message })
 }

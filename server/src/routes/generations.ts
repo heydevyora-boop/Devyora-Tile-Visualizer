@@ -7,7 +7,7 @@ import {
 } from '../services/generationsStore'
 import { toOwnerScope } from '../services/clientsStore'
 import { verifyAuthHeader } from '../config/auth'
-import { DbConfigError } from '../services/db'
+import { DbError, asDbError } from '../services/db'
 
 const router = Router()
 
@@ -27,10 +27,15 @@ router.post('/generations', async (req, res) => {
   } catch (error) {
     // Saving history must never take the server down, and must never be the
     // reason a user loses a generation they already paid for.
+    const failure = asDbError(error) ?? error
     const status =
-      error instanceof GenerationsStoreError || error instanceof DbConfigError ? error.status : 500
+      failure instanceof GenerationsStoreError || failure instanceof DbError ? failure.status : 500
+    // Only errors this code raised are safe to repeat back: a driver message can
+    // carry the cluster address and the user it connected as.
     const message =
-      error instanceof Error && error.message ? error.message : 'Could not save this generation.'
+      failure instanceof GenerationsStoreError || failure instanceof DbError
+        ? failure.message
+        : 'Could not save this generation.'
     console.error('[POST /api/generations] save failed:', error)
     res.status(status).json({ error: message })
   }
@@ -48,9 +53,14 @@ router.get('/generations', async (req, res) => {
     const customerId = typeof req.query.customerId === 'string' ? req.query.customerId : undefined
     res.json(await listGenerations(toOwnerScope(session), { customerId }))
   } catch (error) {
-    const status = error instanceof DbConfigError ? error.status : 500
+    // An unreachable or misconfigured datastore is a 503 with a cause the admin
+    // can act on, not an anonymous 500.
+    const failure = asDbError(error) ?? error
+    const status = failure instanceof DbError ? failure.status : 500
+    const message =
+      failure instanceof DbError ? failure.message : 'Could not load the saved visualisations.'
     console.error('[GET /api/generations] read failed:', error)
-    res.status(status).json({ error: 'Could not load the saved visualisations.' })
+    res.status(status).json({ error: message })
   }
 })
 

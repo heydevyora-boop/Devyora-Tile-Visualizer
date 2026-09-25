@@ -1,7 +1,7 @@
 // Local-dev copy of the revision store used by the Express server.
 // KEEP IN SYNC with the deployed Vercel copy in client/api/_lib/revisionsStore.ts.
 import { randomUUID } from 'node:crypto'
-import { getCollection } from './db'
+import { describeDbError, getCollection } from './db'
 import type { OwnerScope } from './clientsStore'
 
 /**
@@ -52,11 +52,18 @@ async function ensureIndexes(): Promise<void> {
         collection.createIndex({ salesperson: 1, createdAt: -1 }),
       ])
     })().catch((error: unknown) => {
+      // Retry on a later request rather than caching the failure.
       indexesReady = null
-      throw error
+      // An index is how these reads stay fast; it is not what makes them
+      // correct. A database that refuses to create one — a read-only user, a
+      // cluster mid-failover — would otherwise take every screen down with it,
+      // so the failure is recorded and the query goes ahead. A genuine
+      // connection problem still surfaces, with its own cause, on the query
+      // itself a moment later.
+      console.error(`[${'revisions'}] index setup skipped:`, describeDbError(error))
     })
   }
-  return indexesReady
+  await indexesReady
 }
 
 function toRevision(doc: RevisionDoc): ConceptRevision {

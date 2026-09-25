@@ -8,14 +8,14 @@ import {
   updateDesignOption,
 } from './_lib/designOptionsStore.js'
 import { verifyAuthHeader } from './_lib/auth.js'
-import { DbConfigError } from './_lib/db.js'
+import { DbError, asDbError } from './_lib/db.js'
 
 /**
- * Design styles, joint widths and laying patterns.
+ * Design styles, joint widths, laying patterns and revision reasons.
  *
- * GET ?kind=style|joint|pattern — the active options of one kind, for the flow.
- * GET ?all=1                    — admin: everything, including disabled.
- * POST / PATCH                  — admin only.
+ * GET ?kind=style|joint|pattern|reason — the active options of one kind.
+ * GET ?all=1                         — admin: everything, including disabled.
+ * POST / PATCH                       — admin only.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const session = verifyAuthHeader(req.headers.authorization)
@@ -49,8 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return
       }
       const kind = req.query?.kind
-      if (kind !== 'style' && kind !== 'joint' && kind !== 'pattern') {
-        throw new DesignOptionsError('Ask for style, joint or pattern.')
+      // 'reason' belongs here too: the salesperson's "what would you like to
+      // change?" panel reads the revision reasons through this same route.
+      if (kind !== 'style' && kind !== 'joint' && kind !== 'pattern' && kind !== 'reason') {
+        throw new DesignOptionsError('Ask for style, joint, pattern or reason.')
       }
       res.status(200).json(await listDesignOptions(kind))
       return
@@ -78,11 +80,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'GET, POST, PATCH')
     res.status(405).json({ error: 'Method not allowed.' })
   } catch (error) {
+    // A driver failure is the datastore's fault, not the request's. Classifying
+    // it here means the screen says what is actually wrong instead of showing a
+    // bare 500 that could equally be a bug in this route.
+    const failure = asDbError(error) ?? error
     const status =
-      error instanceof DesignOptionsError || error instanceof DbConfigError ? error.status : 500
+      failure instanceof DesignOptionsError || failure instanceof DbError ? failure.status : 500
     const message =
-      error instanceof DesignOptionsError || error instanceof DbConfigError
-        ? error.message
+      failure instanceof DesignOptionsError || failure instanceof DbError
+        ? failure.message
         : 'Could not load the design options.'
     console.error(`[${req.method} /api/design-options] failed:`, error)
     res.status(status).json({ error: message })
