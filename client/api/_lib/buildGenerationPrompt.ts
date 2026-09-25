@@ -82,6 +82,16 @@ export const SYSTEM_INSTRUCTION = [
   'e. If the frame is ambiguous, commit to the tile occupying the most area',
   '   and at the centre of the crop, rather than averaging what you see.',
   '',
+  'TILE FIDELITY — the supplied tile is a real product, not a starting point:',
+  'Reproduce the tile in the photograph exactly. Every one of these is part of',
+  'its identity and must survive into the render: colour, pattern, print,',
+  'veining, grain, texture, motif, geometry, decorative details, finish, and',
+  'whether it is gloss or matte. Where the tile varies naturally from piece to',
+  'piece, keep that variation rather than repeating one identical face.',
+  'Do not redesign it. Do not replace it with a similar tile. Do not invent a',
+  'marble, stone or pattern that resembles it. A customer will hold the real',
+  'tile beside this image, and any difference is a difference they will see.',
+  '',
   'TILE PRESERVATION — these take priority over any stylistic instruction:',
   "1. Preserve the supplied tile's visual identity: its dominant colours,",
   '   pattern, texture, grain direction and visible finish characteristics.',
@@ -105,6 +115,13 @@ export const SYSTEM_INSTRUCTION = [
   'Prioritise architectural realism — correct proportions, realistic fixtures',
   'and furniture appropriate to the space, realistic lighting — while keeping',
   'the supplied tile as the design reference.',
+  '',
+  'PHOTOGRAPHIC REALISM:',
+  'The result must read as a real architectural interior photograph, or a',
+  'high-quality architectural visualisation. Avoid, specifically: distorted or',
+  'impossible furniture, wrong proportions, lighting that could not occur,',
+  'invented reflections, warped or bent tile geometry, surreal or dreamlike',
+  'scenes, and anything that reads as cartoon or obviously machine-made.',
   '',
   'OUTPUT:',
   'A single photorealistic architectural interior photograph. No text, no',
@@ -150,6 +167,21 @@ function describeSpace(space: SpaceConfig | undefined, rawSpace: string): string
  * Pure function — makes no network calls, so prompts can be printed and
  * reviewed without spending API credits.
  */
+/**
+ * The prompt for one concept.
+ *
+ * A consultation asks for one image at a time, so only the requested concept
+ * is built — nothing is generated speculatively and then discarded. The
+ * variation focus still rotates, so asking for another concept of the same
+ * room gives a genuinely different view rather than a near-duplicate.
+ */
+export function buildGenerationPrompt(input: PromptInput, conceptIndex = 0): BuiltPrompt {
+  const all = buildGenerationPrompts(input)
+  // Past the end of the list, the focuses cycle: a salesperson may ask for a
+  // fourth or fifth view, and each should still be a deliberate viewpoint.
+  return all[((conceptIndex % all.length) + all.length) % all.length]
+}
+
 export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
   const resolvedStyle = resolveStyleValue(input.style)
   const spaceConfig = getSpaceConfig(input.space)

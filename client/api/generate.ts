@@ -139,6 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       patternOptionId,
       customerId,
       additionalRequirement,
+      conceptIndex,
     } = body as {
       tileImage?: string
       space?: string
@@ -151,6 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       patternOptionId?: string
       customerId?: string
       additionalRequirement?: string
+      conceptIndex?: number
     }
 
     const missingFields: string[] = []
@@ -246,6 +248,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         jointWidthMm: joint ?? null,
         layingPattern: pattern?.name ?? null,
         hasAdditionalRequirement: Boolean(requirement),
+        conceptIndex: conceptIndex ?? 0,
       }),
     )
 
@@ -265,6 +268,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? { name: pattern.name, description: pattern.description }
           : undefined,
         additionalRequirement: requirement,
+        conceptIndex,
         tileSize,
       }),
       INTERNAL_BUDGET_MS,

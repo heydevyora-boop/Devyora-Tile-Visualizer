@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
+import { useAuth } from '../state/AuthContext'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
+
+// Same-origin by default, matching the rest of the app.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 const TILE_SIZE_LABELS: Record<string, string> = {
   '600x600': '600 × 600 mm',
@@ -30,7 +34,24 @@ function conceptLabel(index: number): string {
 
 function Results() {
   const navigate = useNavigate()
-  const { tileSize, space, style, generatedResult, setGeneratedResult } = useFlow()
+  const {
+    customer,
+    croppedImage,
+    tileSize,
+    space,
+    spacePath,
+    style,
+    styleOption,
+    jointWidthMm,
+    jointOption,
+    patternOption,
+    additionalRequirement,
+    generatedResult,
+    setGeneratedResult,
+  } = useFlow()
+  const { token, userName } = useAuth()
+  const [addingConcept, setAddingConcept] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
 
   // Only ever the images the backend actually returned. There is deliberately
   // no placeholder set: showing stand-in images would present them as the
@@ -90,6 +111,86 @@ function Results() {
   const handleRegenerate = () => {
     navigate('/loading')
   }
+  /**
+   * Asks for one more concept of the same room.
+   *
+   * One request, one image, appended to what is already here. The concept
+   * index continues from the images already shown, so the model is given the
+   * next viewpoint rather than repeating the first — and nothing is generated
+   * that the salesperson did not ask to see.
+   */
+  const handleAnotherConcept = async () => {
+    if (addingConcept || !croppedImage) return
+    setAddingConcept(true)
+    setAddError(null)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          tileImage: croppedImage,
+          space,
+          spacePath: spacePath.map((node) => node.id),
+          style,
+          styleOptionId: styleOption?.id,
+          jointOptionId: jointOption?.id,
+          jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
+          patternOptionId: patternOption?.id,
+          tileSize,
+          customerId: customer?.id,
+          additionalRequirement: additionalRequirement.trim() || undefined,
+          conceptIndex: conceptImages.length,
+        }),
+      })
+      if (!response.ok) {
+        let detail = ''
+        try {
+          const body = (await response.json()) as { error?: unknown }
+          detail = typeof body?.error === 'string' ? body.error : ''
+        } catch {
+          detail = ''
+        }
+        throw new Error(detail || 'That concept could not be created.')
+      }
+      const result = (await response.json()) as { image?: string; tileImageUrl?: string }
+      if (!result.image) throw new Error('No image came back. Please try again.')
+
+      const images = [...conceptImages, result.image]
+      setGeneratedResult({ ...(generatedResult as NonNullable<typeof generatedResult>), images })
+
+      // Re-save the whole set under the same id: the store replaces by
+      // generationId, so the consultation stays one record rather than
+      // becoming one per concept.
+      void fetch(`${API_BASE_URL}/api/generations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          generationId: generatedResult?.generationId,
+          userName: userName ?? 'Unknown',
+          customerId: customer?.id ?? null,
+          space: generatedResult?.space ?? space,
+          style: generatedResult?.style ?? style,
+          tileSize,
+          croppedImage: generatedResult?.tileImageUrl ?? croppedImage,
+          generatedImages: images,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch((error: unknown) => {
+        console.error('Could not save the added concept to history:', error)
+      })
+    } catch (error) {
+      setAddError(error instanceof Error ? error.message : 'That concept could not be created.')
+    } finally {
+      setAddingConcept(false)
+    }
+  }
+
   const handleStartNew = () => {
     // Drop the finished run, so returning here before generating again shows
     // the empty state rather than the previous consultation's concepts.
@@ -207,6 +308,23 @@ function Results() {
                 </div>
               </article>
             ))}
+            <div className="flex flex-col gap-space-xs">
+              {addError && (
+                <p className="font-body-sm text-body-sm text-error text-center" role="alert">
+                  {addError}
+                </p>
+              )}
+              <button
+                className="w-full h-[52px] rounded-lg border border-outline-variant text-on-surface hover:border-primary hover:text-primary active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-title-md text-title-md disabled:opacity-60"
+                id="anotherConceptBtn"
+                type="button"
+                disabled={addingConcept}
+                onClick={() => void handleAnotherConcept()}
+              >
+                <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                <span>{addingConcept ? 'Creating…' : 'Another concept'}</span>
+              </button>
+            </div>
           </main>
           {/* Fixed Sticky Showroom Consultation Dock */}
           <aside className="fixed bottom-3 inset-x-0 z-40 px-margin pointer-events-none">

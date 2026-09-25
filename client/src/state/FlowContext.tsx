@@ -3,6 +3,10 @@ import type { Customer, DesignOption, SpaceNode } from '../utils/api'
 
 export type GeneratedResult = {
   generationId: string
+  /**
+   * The concepts produced so far, in the order they were asked for. One
+   * request makes one image; asking for another appends to this.
+   */
   images: string[]
   /** The uploaded tile photo's URL (Google Drive, or a base64 fallback). */
   tileImageUrl?: string
