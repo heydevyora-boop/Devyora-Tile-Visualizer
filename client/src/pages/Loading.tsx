@@ -27,6 +27,7 @@ function Loading() {
     jointWidthMm,
     jointOption,
     patternOption,
+    additionalRequirement,
     tileSize,
     setGeneratedResult,
   } = useFlow()
@@ -69,6 +70,11 @@ function Loading() {
             jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
             patternOptionId: patternOption?.id,
             tileSize,
+            // Who this is for. The server resolves the architect from the
+            // customer and takes the salesperson from the session, so neither
+            // is sent from here.
+            customerId: customer?.id,
+            additionalRequirement: additionalRequirement.trim() || undefined,
           }),
           signal,
         })
@@ -107,6 +113,8 @@ function Loading() {
       jointWidthMm,
       jointOption,
       patternOption,
+      additionalRequirement,
+      customer,
       tileSize,
       token,
     ],

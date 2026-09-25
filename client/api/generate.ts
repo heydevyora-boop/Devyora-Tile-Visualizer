@@ -10,6 +10,7 @@ import {
   findActiveOption,
   requireJointWidth,
 } from './_lib/designOptionsStore.js'
+import { getCustomer, toOwnerScope } from './_lib/clientsStore.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -101,7 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // on the deployed site. Any signed-in account may generate — this is what
     // the whole showroom tool does — so the role is not checked, only that
     // there is a valid session.
-    if (!verifyAuthHeader(req.headers.authorization)) {
+    const session = verifyAuthHeader(req.headers.authorization)
+    if (!session) {
       res.status(401).json({ error: 'Sign in required.' })
       return
     }
@@ -135,6 +137,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       jointOptionId,
       jointWidthMm,
       patternOptionId,
+      customerId,
+      additionalRequirement,
     } = body as {
       tileImage?: string
       space?: string
@@ -145,6 +149,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       jointOptionId?: string
       jointWidthMm?: number
       patternOptionId?: string
+      customerId?: string
+      additionalRequirement?: string
     }
 
     const missingFields: string[] = []
@@ -211,6 +217,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const styleOption = styleOptionId
       ? await findActiveOption('style', String(styleOptionId))
       : null
+    // Length-capped here as well as in the browser: the field is free text and
+    // reaches the model, so an unbounded value is not accepted on trust.
+    const requirement =
+      typeof additionalRequirement === 'string' && additionalRequirement.trim()
+        ? additionalRequirement.trim().slice(0, 300)
+        : undefined
+    // The structured context for this generation, assembled server-side.
+    // Identity is never taken from the browser: the salesperson comes from the
+    // verified session, and the architect is looked up from the customer,
+    // which is itself scoped to that salesperson. None of it is put in the
+    // prompt — who the customer is does not belong in an image instruction —
+    // but it is logged so a generation can be traced back to the consultation
+    // it came from.
+    const customer = customerId
+      ? await getCustomer(toOwnerScope(session), String(customerId))
+      : null
+    console.log(
+      '[POST /api/generate] context',
+      JSON.stringify({
+        salespersonId: session.sub,
+        customerId: customer?.id ?? null,
+        architectId: customer?.architectId ?? null,
+        spaceCategory: resolved?.path[0]?.name ?? null,
+        applicationPath: resolved?.path.map((node) => node.name) ?? null,
+        tileSize: tileSize ?? null,
+        styleId: styleOption?.styleId ?? styleOption?.name ?? null,
+        jointWidthMm: joint ?? null,
+        layingPattern: pattern?.name ?? null,
+        hasAdditionalRequirement: Boolean(requirement),
+      }),
+    )
 
     const startedAt = Date.now()
     const result = await withTimeout(
@@ -227,6 +264,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         layingPattern: pattern
           ? { name: pattern.name, description: pattern.description }
           : undefined,
+        additionalRequirement: requirement,
         tileSize,
       }),
       INTERNAL_BUDGET_MS,

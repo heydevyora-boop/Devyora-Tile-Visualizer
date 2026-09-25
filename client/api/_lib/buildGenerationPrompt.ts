@@ -25,6 +25,11 @@ export interface PromptInput {
    * used in place of one.
    */
   styleDescription?: string
+  /**
+   * What the customer asked for in their own words, where the fixed choices
+   * did not cover it. Optional and usually absent.
+   */
+  additionalRequirement?: string
 }
 
 export interface BuiltPrompt {
@@ -172,6 +177,7 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
       describeApplication(input.application),
       describeJointAndPattern(input.jointWidthMm, input.layingPattern),
       describeTileGeometry(input.tileSize),
+      describeAdditionalRequirement(input.additionalRequirement),
       '',
       `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
     ].join('\n'),
@@ -256,6 +262,27 @@ function describeJointAndPattern(
   }
 
   return lines.join('\n')
+}
+
+/**
+ * The customer's own request, carried through as written.
+ *
+ * Everything else on this screen is a choice from a list; this is the one
+ * place a customer says something specific — warm lighting, a floating
+ * vanity, wood cabinets. It is placed after the fixed choices deliberately:
+ * it adds to them and must not be read as permission to override the
+ * application, the size or the joint, which were agreed separately.
+ */
+function describeAdditionalRequirement(requirement: string | undefined): string {
+  const text = requirement?.trim()
+  if (!text) return ''
+  return [
+    'CUSTOMER REQUEST — additional to the choices above, never instead of them:',
+    text,
+    'Honour this in the room around the tile. If it cannot be reconciled with',
+    'the application, tile size, joint or laying pattern already specified,',
+    'those take precedence and this is applied as far as it can be.',
+  ].join('\n')
 }
 
 /** Greatest common divisor, for reducing a size to its simplest ratio. */

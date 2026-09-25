@@ -13,6 +13,7 @@ export interface GenerateVisualizationInput {
   jointWidthMm?: number
   layingPattern?: { name: string; description: string }
   styleDescription?: string
+  additionalRequirement?: string
 }
 
 export interface GenerateVisualizationResult {
@@ -289,6 +290,7 @@ export async function generateVisualization(
     jointWidthMm: input.jointWidthMm,
     layingPattern: input.layingPattern,
     styleDescription: input.styleDescription,
+    additionalRequirement: input.additionalRequirement,
     style: input.style,
     tileSize: input.tileSize,
   })
