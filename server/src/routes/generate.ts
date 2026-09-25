@@ -9,6 +9,7 @@ import {
   findActiveOption,
   requireJointWidth,
 } from '../services/designOptionsStore'
+import { getCustomer, toOwnerScope } from '../services/clientsStore'
 
 const router = Router()
 
@@ -17,7 +18,8 @@ router.post('/generate', async (req, res) => {
   // generation costs real money. Any signed-in account may generate — this is
   // what the whole showroom tool does — so the role is not checked, only that
   // there is a valid session.
-  if (!verifyAuthHeader(req.headers.authorization)) {
+  const session = verifyAuthHeader(req.headers.authorization)
+  if (!session) {
     res.status(401).json({ error: 'Sign in required.' })
     return
   }
@@ -32,6 +34,8 @@ router.post('/generate', async (req, res) => {
     jointOptionId,
     jointWidthMm,
     patternOptionId,
+    customerId,
+    additionalRequirement,
   } = req.body ?? {}
 
   const missingFields: string[] = []
@@ -77,6 +81,37 @@ router.post('/generate', async (req, res) => {
     const styleOption = styleOptionId
       ? await findActiveOption('style', String(styleOptionId))
       : null
+    // Length-capped here as well as in the browser: the field is free text and
+    // reaches the model, so an unbounded value is not accepted on trust.
+    const requirement =
+      typeof additionalRequirement === 'string' && additionalRequirement.trim()
+        ? additionalRequirement.trim().slice(0, 300)
+        : undefined
+    // The structured context for this generation, assembled server-side.
+    // Identity is never taken from the browser: the salesperson comes from the
+    // verified session, and the architect is looked up from the customer,
+    // which is itself scoped to that salesperson. None of it is put in the
+    // prompt — who the customer is does not belong in an image instruction —
+    // but it is logged so a generation can be traced back to the consultation
+    // it came from.
+    const customer = customerId
+      ? await getCustomer(toOwnerScope(session), String(customerId))
+      : null
+    console.log(
+      '[POST /api/generate] context',
+      JSON.stringify({
+        salespersonId: session.sub,
+        customerId: customer?.id ?? null,
+        architectId: customer?.architectId ?? null,
+        spaceCategory: resolved?.path[0]?.name ?? null,
+        applicationPath: resolved?.path.map((node) => node.name) ?? null,
+        tileSize: tileSize ?? null,
+        styleId: styleOption?.styleId ?? styleOption?.name ?? null,
+        jointWidthMm: joint ?? null,
+        layingPattern: pattern?.name ?? null,
+        hasAdditionalRequirement: Boolean(requirement),
+      }),
+    )
     const result = await generateVisualization({
       tileImage,
       space: resolved?.spaceId ?? space,
@@ -88,6 +123,7 @@ router.post('/generate', async (req, res) => {
       styleDescription: styleOption?.styleId ? undefined : styleOption?.description,
       jointWidthMm: joint,
       layingPattern: pattern ? { name: pattern.name, description: pattern.description } : undefined,
+      additionalRequirement: requirement,
       tileSize,
     })
     res.json(result)

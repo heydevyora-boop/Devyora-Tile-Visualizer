@@ -34,6 +34,12 @@ type FlowContextValue = {
   jointWidthMm: number | null
   jointOption: DesignOption | null
   patternOption: DesignOption | null
+  /**
+   * Anything the customer asked for that the fixed choices do not cover —
+   * "warm lighting rakhna hai", "vanity floating honi chahiye". Optional, and
+   * usually blank.
+   */
+  additionalRequirement: string
   generatedResult: GeneratedResult | null
   setCustomer: (customer: Customer | null) => void
   setTileImage: (tileImage: string | null) => void
@@ -46,6 +52,7 @@ type FlowContextValue = {
   setJointWidthMm: (jointWidthMm: number | null) => void
   setJointOption: (jointOption: DesignOption | null) => void
   setPatternOption: (patternOption: DesignOption | null) => void
+  setAdditionalRequirement: (additionalRequirement: string) => void
   setGeneratedResult: (generatedResult: GeneratedResult | null) => void
 }
 
@@ -63,6 +70,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const [jointWidthMm, setJointWidthMm] = useState<number | null>(null)
   const [jointOption, setJointOption] = useState<DesignOption | null>(null)
   const [patternOption, setPatternOption] = useState<DesignOption | null>(null)
+  const [additionalRequirement, setAdditionalRequirement] = useState('')
   const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null)
 
   return (
@@ -79,6 +87,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         jointWidthMm,
         jointOption,
         patternOption,
+        additionalRequirement,
         generatedResult,
         setCustomer,
         setTileImage,
@@ -91,6 +100,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         setJointWidthMm,
         setJointOption,
         setPatternOption,
+        setAdditionalRequirement,
         setGeneratedResult,
       }}
     >
