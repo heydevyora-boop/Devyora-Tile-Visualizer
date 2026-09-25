@@ -157,6 +157,20 @@ export interface SpaceNode {
   active: boolean
 }
 
+export type DesignOptionKind = 'style' | 'joint' | 'pattern'
+
+export interface DesignOption {
+  id: string
+  kind: DesignOptionKind
+  name: string
+  description: string
+  imageUrl: string | null
+  valueMm: number | null
+  styleId: string | null
+  order: number
+  active: boolean
+}
+
 export interface SavedVisualisation {
   generationId: string
   userName: string

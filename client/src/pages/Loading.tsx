@@ -17,7 +17,19 @@ const REQUEST_TIMEOUT_MS = 75_000
 
 function Loading() {
   const navigate = useNavigate()
-  const { customer, croppedImage, space, spacePath, style, tileSize, setGeneratedResult } = useFlow()
+  const {
+    customer,
+    croppedImage,
+    space,
+    spacePath,
+    style,
+    styleOption,
+    jointWidthMm,
+    jointOption,
+    patternOption,
+    tileSize,
+    setGeneratedResult,
+  } = useFlow()
   const { userName, token } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -50,6 +62,12 @@ function Loading() {
             // The ids of the chosen application, re-checked server-side.
             spacePath: spacePath.map((node) => node.id),
             style,
+            // Ids where the option came from the showroom's list, so the
+            // server verifies it; the millimetres only when typed in.
+            styleOptionId: styleOption?.id,
+            jointOptionId: jointOption?.id,
+            jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
+            patternOptionId: patternOption?.id,
             tileSize,
           }),
           signal,
@@ -80,7 +98,18 @@ function Loading() {
         throw new Error('The server sent a response we could not read. Please try again.')
       }
     },
-    [croppedImage, space, spacePath, style, tileSize, token],
+    [
+      croppedImage,
+      space,
+      spacePath,
+      style,
+      styleOption,
+      jointWidthMm,
+      jointOption,
+      patternOption,
+      tileSize,
+      token,
+    ],
   )
 
   /**

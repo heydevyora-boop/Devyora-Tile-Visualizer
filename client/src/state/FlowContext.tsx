@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import type { Customer, SpaceNode } from '../utils/api'
+import type { Customer, DesignOption, SpaceNode } from '../utils/api'
 
 export type GeneratedResult = {
   generationId: string
@@ -28,6 +28,12 @@ type FlowContextValue = {
    */
   spacePath: SpaceNode[]
   style: string | null
+  /** The chosen design style, joint width and laying pattern. */
+  styleOption: DesignOption | null
+  /** Millimetres — from a preset or typed in. */
+  jointWidthMm: number | null
+  jointOption: DesignOption | null
+  patternOption: DesignOption | null
   generatedResult: GeneratedResult | null
   setCustomer: (customer: Customer | null) => void
   setTileImage: (tileImage: string | null) => void
@@ -36,6 +42,10 @@ type FlowContextValue = {
   setSpace: (space: string | null) => void
   setSpacePath: (spacePath: SpaceNode[]) => void
   setStyle: (style: string | null) => void
+  setStyleOption: (styleOption: DesignOption | null) => void
+  setJointWidthMm: (jointWidthMm: number | null) => void
+  setJointOption: (jointOption: DesignOption | null) => void
+  setPatternOption: (patternOption: DesignOption | null) => void
   setGeneratedResult: (generatedResult: GeneratedResult | null) => void
 }
 
@@ -49,6 +59,10 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const [space, setSpace] = useState<string | null>(null)
   const [spacePath, setSpacePath] = useState<SpaceNode[]>([])
   const [style, setStyle] = useState<string | null>(null)
+  const [styleOption, setStyleOption] = useState<DesignOption | null>(null)
+  const [jointWidthMm, setJointWidthMm] = useState<number | null>(null)
+  const [jointOption, setJointOption] = useState<DesignOption | null>(null)
+  const [patternOption, setPatternOption] = useState<DesignOption | null>(null)
   const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null)
 
   return (
@@ -61,6 +75,10 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         space,
         spacePath,
         style,
+        styleOption,
+        jointWidthMm,
+        jointOption,
+        patternOption,
         generatedResult,
         setCustomer,
         setTileImage,
@@ -69,6 +87,10 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         setSpace,
         setSpacePath,
         setStyle,
+        setStyleOption,
+        setJointWidthMm,
+        setJointOption,
+        setPatternOption,
         setGeneratedResult,
       }}
     >

@@ -40,6 +40,10 @@ function Settings() {
               <span className="material-symbols-outlined">category</span>
               <span>Space catalogue</span>
             </Link>
+            <Link className="ws__action" to="/design-options">
+              <span className="material-symbols-outlined">palette</span>
+              <span>Design options</span>
+            </Link>
           </div>
         </>
       )}

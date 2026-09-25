@@ -15,6 +15,9 @@ export interface GenerateVisualizationInput {
   tileSize?: string
   /** The verified application chain, root category first. */
   application?: { name: string; description: string }[]
+  jointWidthMm?: number
+  layingPattern?: { name: string; description: string }
+  styleDescription?: string
 }
 
 export interface GenerateVisualizationResult {
@@ -338,6 +341,9 @@ export async function generateVisualization(
   const prompts = buildGenerationPrompts({
     space: input.space,
     application: input.application,
+    jointWidthMm: input.jointWidthMm,
+    layingPattern: input.layingPattern,
+    styleDescription: input.styleDescription,
     style: input.style,
     tileSize: input.tileSize,
   })

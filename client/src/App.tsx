@@ -21,6 +21,7 @@ import Settings from './pages/Settings'
 import ClientSelect from './pages/ClientSelect'
 import TileFormatsAdmin from './pages/TileFormatsAdmin'
 import SpaceCatalogueAdmin from './pages/SpaceCatalogueAdmin'
+import DesignOptionsAdmin from './pages/DesignOptionsAdmin'
 import CustomerDetail from './pages/CustomerDetail'
 import RequireClient from './components/RequireClient'
 import './App.css'
@@ -113,6 +114,14 @@ function App() {
             element={
               <ProtectedRoute requireRole="admin">
                 <SpaceCatalogueAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/design-options"
+            element={
+              <ProtectedRoute requireRole="admin">
+                <DesignOptionsAdmin />
               </ProtectedRoute>
             }
           />
