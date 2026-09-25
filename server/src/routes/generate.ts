@@ -36,6 +36,7 @@ router.post('/generate', async (req, res) => {
     patternOptionId,
     customerId,
     additionalRequirement,
+    conceptIndex,
   } = req.body ?? {}
 
   const missingFields: string[] = []
@@ -110,6 +111,7 @@ router.post('/generate', async (req, res) => {
         jointWidthMm: joint ?? null,
         layingPattern: pattern?.name ?? null,
         hasAdditionalRequirement: Boolean(requirement),
+        conceptIndex: conceptIndex ?? 0,
       }),
     )
     const result = await generateVisualization({
@@ -124,6 +126,7 @@ router.post('/generate', async (req, res) => {
       jointWidthMm: joint,
       layingPattern: pattern ? { name: pattern.name, description: pattern.description } : undefined,
       additionalRequirement: requirement,
+      conceptIndex,
       tileSize,
     })
     res.json(result)

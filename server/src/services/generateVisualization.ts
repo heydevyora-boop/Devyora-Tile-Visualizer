@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { GoogleGenAI } from '@google/genai'
-import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from './buildGenerationPrompt'
+import { SYSTEM_INSTRUCTION, buildGenerationPrompt } from './buildGenerationPrompt'
+import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL, IMAGE_SIZE } from '../config/imageModel'
 
 export interface GenerateVisualizationInput {
@@ -14,11 +15,24 @@ export interface GenerateVisualizationInput {
   layingPattern?: { name: string; description: string }
   styleDescription?: string
   additionalRequirement?: string
+  /**
+   * Which concept of this consultation to produce, from zero. Each request
+   * makes exactly one image; asking again with the next index gives a
+   * different viewpoint of the same room.
+   */
+  conceptIndex?: number
 }
 
 export interface GenerateVisualizationResult {
   generationId: string
-  images: string[]
+  /** The one concept this request produced. */
+  image: string
+  /** Which concept this is, from zero. */
+  conceptIndex: number
+  /** The crop exactly as made — a Drive URL, or a base64 fallback. */
+  tileImageUrl: string
+  /** The processed copy the model saw, when processing changed anything. */
+  processedTileUrl?: string
   space: string
   style: string
   tileSize: string
@@ -169,7 +183,31 @@ async function withRetry<T>(call: () => Promise<T>, conceptIndex: number): Promi
 const MAX_INPUT_EDGE = 1536
 
 /** Downscales the tile photo before it is sent, if it is larger than needed. */
-async function downscaleForInput(tile: ParsedDataUrl): Promise<ParsedDataUrl> {
+/**
+ * Encoding quality for the tile reference. Higher than the transport quality
+ * used for finished concepts: this image is what the tile's identity is read
+ * from, and 4:4:4 chroma keeps coloured veining from smearing.
+ */
+const TILE_REFERENCE_QUALITY = 95
+
+/**
+ * Prepares the crop for the model without throwing away what makes the tile
+ * recognisable.
+ *
+ * The reference photograph is the only thing standing between a concept and
+ * an invented marble, so it is treated gently: resized only when it is larger
+ * than the model can use, never enlarged, aspect ratio untouched, and encoded
+ * at a quality high enough that grain and veining survive. A heavily
+ * compressed reference reads as a smoother, blanker stone, and the render
+ * follows the reference.
+ *
+ * Orientation is normalised from EXIF, because a phone held sideways records
+ * the rotation as a tag rather than in the pixels — left unapplied, the model
+ * sees the tile on its side. Metadata is dropped in the same pass: it is
+ * nothing the model uses, and a photograph taken in a showroom can carry a
+ * GPS location.
+ */
+async function prepareTileReference(tile: ParsedDataUrl): Promise<ParsedDataUrl> {
   let sharp: (typeof import('sharp'))['default']
   try {
     sharp = (await import('sharp')).default
@@ -185,20 +223,40 @@ async function downscaleForInput(tile: ParsedDataUrl): Promise<ParsedDataUrl> {
   try {
     const metadata = await sharp(input).metadata()
     const longestEdge = Math.max(metadata.width ?? 0, metadata.height ?? 0)
-    if (longestEdge <= MAX_INPUT_EDGE) return tile
+    const needsResize = longestEdge > MAX_INPUT_EDGE
+    const needsRotation = Boolean(metadata.orientation && metadata.orientation !== 1)
 
-    const resized = await sharp(input)
-      .resize({ width: MAX_INPUT_EDGE, height: MAX_INPUT_EDGE, fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 92, mozjpeg: true })
+    // Already the right way up and small enough: re-encoding would only cost
+    // detail for nothing.
+    if (!needsResize && !needsRotation) return tile
+
+    let pipeline = sharp(input).rotate() // no argument: applies the EXIF tag
+    if (needsResize) {
+      pipeline = pipeline.resize({
+        width: MAX_INPUT_EDGE,
+        height: MAX_INPUT_EDGE,
+        fit: 'inside',
+        withoutEnlargement: true,
+        kernel: 'lanczos3',
+      })
+    }
+    const prepared = await pipeline
+      .jpeg({ quality: TILE_REFERENCE_QUALITY, mozjpeg: true, chromaSubsampling: '4:4:4' })
       .toBuffer()
+
     console.log(
-      `[generateVisualization] tile photo downscaled: ${metadata.width}x${metadata.height} ` +
-        `(${(input.length / 1024).toFixed(0)}KB) -> max edge ${MAX_INPUT_EDGE} (${(resized.length / 1024).toFixed(0)}KB)`,
+      '[generateVisualization] tile reference prepared',
+      JSON.stringify({
+        from: `${metadata.width}x${metadata.height}`,
+        resized: needsResize,
+        reoriented: needsRotation,
+        kb: Math.round(prepared.length / 1024),
+      }),
     )
-    return { data: resized.toString('base64'), mimeType: 'image/jpeg' }
+    return { data: prepared.toString('base64'), mimeType: 'image/jpeg' }
   } catch (error) {
     console.warn(
-      '[generateVisualization] could not downscale tile photo, sending original:',
+      '[generateVisualization] could not prepare the tile reference, sending it as supplied:',
       error instanceof Error ? error.message : error,
     )
     return tile
@@ -211,34 +269,37 @@ async function downscaleForInput(tile: ParsedDataUrl): Promise<ParsedDataUrl> {
  */
 const TRANSPORT_JPEG_QUALITY = Number(process.env.GENERATED_IMAGE_QUALITY ?? 90)
 
+interface CompressedImage {
+  buffer: Buffer
+  mimeType: string
+}
+
 /**
- * Re-encodes the model's output as JPEG before it is returned.
+ * Re-encodes the model's output as JPEG.
  *
  * Gemini returns lossless PNG. A photographic 1024x1024 render is 1.5-3MB as
- * PNG, and base64 adds another third, so three of them in one JSON response
- * reach 6-11MB. A Vercel serverless function may only return 4.5MB: past that
- * the platform discards the response and answers 500 with an HTML body, which
- * no amount of error handling inside the function can catch or explain. JPEG
- * at quality 90 brings the same three images to roughly 1.5MB.
+ * PNG. JPEG at quality 90 brings that to roughly 300-500KB, which matters
+ * regardless of where the bytes end up next: smaller Drive uploads, and a
+ * smaller base64 fallback on the rare request where Drive upload fails (see
+ * uploadOrFallback below) — a Vercel serverless function may only return
+ * 4.5MB, and three uncompressed PNGs as base64 alone would exceed that.
  *
- * Fails open on purpose. If sharp cannot load, returning slightly-too-large
- * images that might work is better than failing a generation the user has
- * already paid for — and the log line says which path was taken.
+ * Fails open on purpose. If sharp cannot load, returning the original bytes
+ * is better than failing a generation the user has already paid for — and the
+ * log line says which path was taken.
  */
 async function compressForTransport(
   raw: Array<{ data: string; mimeType: string }>,
-): Promise<string[]> {
-  const asDataUrl = (mimeType: string, data: string) => `data:${mimeType};base64,${data}`
-
+): Promise<CompressedImage[]> {
   let sharp: (typeof import('sharp'))['default']
   try {
     sharp = (await import('sharp')).default
   } catch (error) {
     console.warn(
-      '[generateVisualization] sharp unavailable, returning original images:',
+      '[generateVisualization] sharp unavailable, using original images:',
       error instanceof Error ? error.message : error,
     )
-    return raw.map((image) => asDataUrl(image.mimeType, image.data))
+    return raw.map((image) => ({ buffer: Buffer.from(image.data, 'base64'), mimeType: image.mimeType }))
   }
 
   return Promise.all(
@@ -253,16 +314,61 @@ async function compressForTransport(
             `${(input.length / 1024).toFixed(0)}KB ${image.mimeType} -> ` +
             `${(jpeg.length / 1024).toFixed(0)}KB jpeg`,
         )
-        return asDataUrl('image/jpeg', jpeg.toString('base64'))
+        return { buffer: jpeg, mimeType: 'image/jpeg' }
       } catch (error) {
         console.warn(
-          `[generateVisualization] could not compress concept ${index + 1}, sending original:`,
+          `[generateVisualization] could not compress concept ${index + 1}, using original:`,
           error instanceof Error ? error.message : error,
         )
-        return asDataUrl(image.mimeType, image.data)
+        return { buffer: input, mimeType: image.mimeType }
       }
     }),
   )
+}
+
+/** File extension matching a mime type, for Drive file names. */
+function extensionFor(mimeType: string): string {
+  switch (mimeType) {
+    case 'image/jpeg':
+      return 'jpg'
+    case 'image/png':
+      return 'png'
+    case 'image/webp':
+      return 'webp'
+    default:
+      return 'bin'
+  }
+}
+
+/**
+ * Uploads one image to the given Google Drive folder and returns its
+ * shareable URL. Falls back to a base64 data URL of the same bytes if Drive
+ * is not configured, the folder id is missing, or the upload fails for any
+ * reason (bad credentials, quota, network) — the user has already paid for
+ * this generation, so losing the image outright is worse than serving it
+ * inline instead of from Drive.
+ */
+async function uploadOrFallback(
+  buffer: Buffer,
+  mimeType: string,
+  fileName: string,
+  label: string,
+  folderId: string | undefined,
+): Promise<string> {
+  if (!isGoogleDriveConfigured() || !folderId) {
+    return `data:${mimeType};base64,${buffer.toString('base64')}`
+  }
+  try {
+    const url = await uploadImageToDrive(buffer.toString('base64'), fileName, mimeType, folderId)
+    console.log(`[generateVisualization] ${label} uploaded to Drive: ${fileName}`)
+    return url
+  } catch (error) {
+    console.warn(
+      `[generateVisualization] Drive upload failed for ${label}, falling back to inline image:`,
+      error instanceof Error ? error.message : error,
+    )
+    return `data:${mimeType};base64,${buffer.toString('base64')}`
+  }
 }
 
 /**
@@ -283,8 +389,12 @@ export async function generateVisualization(
     )
   }
 
-  const tile = await downscaleForInput(parseTileImage(input.tileImage))
-  const prompts = buildGenerationPrompts({
+  // Both are kept: the crop exactly as the salesperson made it, and the
+  // processed copy the model is actually shown.
+  const original = parseTileImage(input.tileImage)
+  const tile = await prepareTileReference(original)
+  const conceptIndex = Math.max(0, Math.trunc(input.conceptIndex ?? 0))
+  const prompt = buildGenerationPrompt({
     space: input.space,
     application: input.application,
     jointWidthMm: input.jointWidthMm,
@@ -293,71 +403,107 @@ export async function generateVisualization(
     additionalRequirement: input.additionalRequirement,
     style: input.style,
     tileSize: input.tileSize,
-  })
+  }, conceptIndex)
+  // Generated up front so it can name the Drive files below, and reused
+  // as-is on the returned result rather than generating a second, different id.
+  const generationId = randomUUID()
 
   const ai = new GoogleGenAI({ apiKey })
 
-  let interactions
+  // Exactly one request, for exactly the concept asked for. Nothing is
+  // generated alongside it and discarded: every call here is billed, and a
+  // consultation only ever shows what the salesperson asked to see.
+  let interaction
   try {
-    interactions = await Promise.all(
-      prompts.map((prompt, index) =>
-        withRetry(
-          () =>
-            ai.interactions.create({
-              model: IMAGE_MODEL,
-              system_instruction: SYSTEM_INSTRUCTION,
-              input: [
-                { type: 'text', text: prompt.text },
-                { type: 'image', data: tile.data, mime_type: tile.mimeType },
-              ],
-              response_modalities: ['text', 'image'],
-              generation_config: {
-                image_config: {
-                  aspect_ratio: IMAGE_ASPECT_RATIO,
-                  image_size: IMAGE_SIZE,
-                },
-              },
-            }),
-          index,
-        ),
-      ),
+    interaction = await withRetry(
+      () =>
+        ai.interactions.create({
+          model: IMAGE_MODEL,
+          system_instruction: SYSTEM_INSTRUCTION,
+          input: [
+            { type: 'text', text: prompt.text },
+            { type: 'image', data: tile.data, mime_type: tile.mimeType },
+          ],
+          response_modalities: ['text', 'image'],
+          generation_config: {
+            image_config: {
+              aspect_ratio: IMAGE_ASPECT_RATIO,
+              image_size: IMAGE_SIZE,
+            },
+          },
+        }),
+      conceptIndex,
     )
   } catch (error) {
     throw toGenerationError(error)
   }
 
-  interactions.forEach((interaction, index) => {
-    console.log(
-      `[generateVisualization] concept ${index + 1} usage`,
-      JSON.stringify({
-        model: IMAGE_MODEL,
-        interactionId: interaction.id,
-        usage: (interaction as { usage?: unknown }).usage,
-      }),
+  console.log(
+    `[generateVisualization] concept ${conceptIndex + 1} usage`,
+    JSON.stringify({
+      model: IMAGE_MODEL,
+      interactionId: interaction.id,
+      usage: (interaction as { usage?: unknown }).usage,
+    }),
+  )
+
+  const output = interaction.output_image
+  if (!output?.data) {
+    throw new GenerationError(
+      'The image service returned no image. Please try again.',
+      502,
     )
-  })
+  }
 
-  const rawImages = interactions.map((interaction, index) => {
-    const image = interaction.output_image
-    if (!image?.data) {
-      throw new GenerationError(
-        `The image service returned no image for concept ${index + 1}. Please try again.`,
-        502,
-      )
-    }
-    return { data: image.data, mimeType: image.mime_type ?? 'image/png' }
-  })
+  const compressed = await compressForTransport([
+    { data: output.data, mimeType: output.mime_type ?? 'image/png' },
+  ])
 
-  const images = await compressForTransport(rawImages)
+  // Two separate destination folders: concepts and tile sources are uploaded
+  // to different Drive folders, so each keeps its own env var.
+  const generatedFolderId = process.env.GOOGLE_DRIVE_GENERATED_FOLDER_ID
+  const cropFolderId = process.env.GOOGLE_DRIVE_CROP_FOLDER_ID
+
+  // Both tile references are kept: the crop exactly as the salesperson made
+  // it, and the processed copy the model actually saw. When a concept is
+  // questioned later, the two together show whether the tile or the
+  // processing was at fault.
+  const [image, tileImageUrl, processedTileUrl] = await Promise.all([
+    uploadOrFallback(
+      compressed[0].buffer,
+      compressed[0].mimeType,
+      `${generationId}-concept-${conceptIndex + 1}.${extensionFor(compressed[0].mimeType)}`,
+      `concept ${conceptIndex + 1}`,
+      generatedFolderId,
+    ),
+    uploadOrFallback(
+      Buffer.from(original.data, 'base64'),
+      original.mimeType,
+      `${generationId}-tile-source.${extensionFor(original.mimeType)}`,
+      'tile source',
+      cropFolderId,
+    ),
+    tile.data === original.data
+      ? Promise.resolve<string | undefined>(undefined)
+      : uploadOrFallback(
+          Buffer.from(tile.data, 'base64'),
+          tile.mimeType,
+          `${generationId}-tile-processed.${extensionFor(tile.mimeType)}`,
+          'processed tile reference',
+          cropFolderId,
+        ),
+  ])
 
   return {
-    generationId: randomUUID(),
-    images,
+    generationId,
+    conceptIndex,
+    image,
+    tileImageUrl,
+    processedTileUrl,
     space: input.space,
     // Echo the concrete style actually used, not the literal "surprise"
-    // the client may have sent — all three prompts resolve to the same
-    // style, so any entry carries it.
-    style: prompts[0].resolvedStyle,
+    // the client may have sent.
+    style: prompt.resolvedStyle,
     tileSize: input.tileSize ?? '',
   }
 }

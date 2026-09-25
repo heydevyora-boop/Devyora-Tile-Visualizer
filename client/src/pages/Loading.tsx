@@ -128,8 +128,9 @@ function Loading() {
    * surface as a generation error. Failures are logged and nothing else.
    */
   const saveToHistory = useCallback(
-    (result: { generationId?: string; images?: string[]; tileImageUrl?: string }) => {
-      if (!result?.images?.length || !croppedImage) return
+    (result: { generationId?: string; image?: string; images?: string[]; tileImageUrl?: string }) => {
+      const images = result?.image ? [result.image] : (result?.images ?? [])
+      if (!images.length || !croppedImage) return
       // The server already uploaded the tile photo (to Drive, or a base64
       // fallback) and returns its URL — send that instead of the raw crop, so
       // the history file stores a short URL rather than the full photo a
@@ -151,7 +152,7 @@ function Loading() {
           style,
           tileSize,
           croppedImage: result.tileImageUrl ?? croppedImage,
-          generatedImages: result.images,
+          generatedImages: images,
           timestamp: new Date().toISOString(),
         }),
       }).catch((historyError: unknown) => {
@@ -174,7 +175,12 @@ function Loading() {
       .then((result) => {
         if (cancelled) return
         window.clearTimeout(timeoutId)
-        setGeneratedResult(result)
+        // One request returns one image. It becomes the first concept of this
+        // consultation; asking for another appends to the same set.
+        // One request returns one image. It becomes the first concept of this
+        // consultation; asking for another appends to the same set.
+        const first = (result as { image?: string }).image
+        setGeneratedResult({ ...result, images: first ? [first] : (result.images ?? []) })
         saveToHistory(result)
         navigate('/results')
       })
