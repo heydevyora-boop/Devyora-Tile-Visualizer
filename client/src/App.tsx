@@ -13,6 +13,14 @@ import Summary from './pages/Summary'
 import Loading from './pages/Loading'
 import Results from './pages/Results'
 import History from './pages/History'
+import Dashboard from './pages/Dashboard'
+import Clients from './pages/Clients'
+import RecentGenerations from './pages/RecentGenerations'
+import SavedConcepts from './pages/SavedConcepts'
+import Settings from './pages/Settings'
+import ClientSelect from './pages/ClientSelect'
+import CustomerDetail from './pages/CustomerDetail'
+import RequireClient from './components/RequireClient'
 import './App.css'
 
 /**
@@ -20,7 +28,21 @@ import './App.css'
  * a session: admins are review-only and get redirected to /history if they try
  * to reach any of them.
  */
-const PROTECTED_ROUTES = [
+const WORKSPACE_ROUTES = [
+  { path: '/dashboard', element: <Dashboard /> },
+  { path: '/clients', element: <Clients /> },
+  { path: '/clients/:customerId', element: <CustomerDetail /> },
+  { path: '/recent-generations', element: <RecentGenerations /> },
+  { path: '/saved-concepts', element: <SavedConcepts /> },
+  // Where a consultation begins: choosing whose it is.
+  { path: '/start', element: <ClientSelect /> },
+]
+
+/**
+ * The consultation itself. Every one of these additionally requires a chosen
+ * client, so concepts always have a customer to be filed against.
+ */
+const FLOW_ROUTES = [
   { path: '/home', element: <Home /> },
   { path: '/camera', element: <Camera /> },
   { path: '/crop', element: <Crop /> },
@@ -38,13 +60,34 @@ function App() {
       <FlowProvider>
         <Routes>
           <Route path="/" element={<Login />} />
-          {PROTECTED_ROUTES.map(({ path, element }) => (
+          {WORKSPACE_ROUTES.map(({ path, element }) => (
             <Route
               key={path}
               path={path}
               element={<ProtectedRoute requireRole="user">{element}</ProtectedRoute>}
             />
           ))}
+          {FLOW_ROUTES.map(({ path, element }) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <ProtectedRoute requireRole="user">
+                  <RequireClient>{element}</RequireClient>
+                </ProtectedRoute>
+              }
+            />
+          ))}
+          {/* The one screen both roles share: whoever is on this device, and
+              how to hand it over. No requireRole, so a session is enough. */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/history"
             element={

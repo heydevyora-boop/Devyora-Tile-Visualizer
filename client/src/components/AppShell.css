@@ -1,0 +1,200 @@
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0');
+
+/* The workspace frame. Mobile-first: the sidebar is hidden and reached through
+   a drawer until there is desk-width room for it to stay open. */
+.shell {
+  --shell-sidebar-width: 15rem;
+  --shell-gutter: 1.25rem;
+
+  display: flex;
+  min-height: 100dvh;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.shell .material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  font-size: 20px;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+}
+
+.shell__sidebar {
+  display: none;
+  flex-direction: column;
+  width: var(--shell-sidebar-width);
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-lowest);
+  padding: var(--shell-gutter) 0;
+}
+
+.shell__brand {
+  font-family: 'Metrophobic', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  color: var(--color-primary);
+  padding: 0 var(--shell-gutter);
+  margin-bottom: 1.5rem;
+}
+
+.shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0 0.625rem;
+}
+
+.shell__nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  /* 44px tall: a showroom tablet is used with a thumb, not a mouse. */
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-radius: 0.375rem;
+  color: var(--color-on-surface-variant);
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.shell__nav-link:hover {
+  background-color: var(--color-surface-container-low);
+  color: var(--color-on-surface);
+}
+
+.shell__nav-link--active {
+  background-color: var(--color-surface-container);
+  color: var(--color-primary);
+}
+
+.shell__nav-icon {
+  color: inherit;
+}
+
+.shell__sidebar-footer {
+  margin-top: auto;
+  padding: 0 var(--shell-gutter);
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-outline-variant);
+}
+
+.shell__who {
+  font-size: 12px;
+  color: var(--color-outline);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* --- Drawer (phone/tablet) ------------------------------------------------ */
+
+.shell__scrim {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 40;
+}
+
+.shell__drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(17rem, 82vw);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface-container-lowest);
+  border-right: 1px solid var(--color-outline-variant);
+  padding: var(--shell-gutter) 0;
+  padding-top: calc(var(--shell-gutter) + env(safe-area-inset-top, 0px));
+}
+
+.shell__drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 0.625rem;
+  margin-bottom: 1rem;
+}
+
+.shell__drawer-head .shell__brand {
+  margin-bottom: 0;
+}
+
+/* --- Main column ---------------------------------------------------------- */
+
+.shell__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.shell__topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem var(--shell-gutter);
+  padding-top: calc(0.5rem + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-lowest);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.shell__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: 'Metrophobic', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell__icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-on-surface);
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: color 150ms ease;
+}
+
+.shell__icon-button:hover {
+  color: var(--color-primary);
+}
+
+.shell__content {
+  flex: 1;
+  padding: var(--shell-gutter);
+  padding-bottom: calc(var(--shell-gutter) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Desk width: the sidebar stays open and the drawer trigger disappears. */
+@media (min-width: 1024px) {
+  .shell__sidebar {
+    display: flex;
+  }
+
+  .shell__menu-button {
+    display: none;
+  }
+}

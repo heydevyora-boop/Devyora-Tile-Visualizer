@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
+import type { Customer } from '../utils/api'
 
 export type GeneratedResult = {
   generationId: string
@@ -11,12 +12,18 @@ export type GeneratedResult = {
 }
 
 type FlowContextValue = {
+  /**
+   * Whose consultation this is. Chosen before the flow starts and kept across
+   * it, so a second visualisation for the same client never asks again.
+   */
+  customer: Customer | null
   tileImage: string | null
   croppedImage: string | null
   tileSize: string | null
   space: string | null
   style: string | null
   generatedResult: GeneratedResult | null
+  setCustomer: (customer: Customer | null) => void
   setTileImage: (tileImage: string | null) => void
   setCroppedImage: (croppedImage: string | null) => void
   setTileSize: (tileSize: string | null) => void
@@ -28,6 +35,7 @@ type FlowContextValue = {
 const FlowContext = createContext<FlowContextValue | null>(null)
 
 export function FlowProvider({ children }: { children: ReactNode }) {
+  const [customer, setCustomer] = useState<Customer | null>(null)
   const [tileImage, setTileImage] = useState<string | null>(null)
   const [croppedImage, setCroppedImage] = useState<string | null>(null)
   const [tileSize, setTileSize] = useState<string | null>(null)
@@ -38,12 +46,14 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   return (
     <FlowContext.Provider
       value={{
+        customer,
         tileImage,
         croppedImage,
         tileSize,
         space,
         style,
         generatedResult,
+        setCustomer,
         setTileImage,
         setCroppedImage,
         setTileSize,
