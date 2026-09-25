@@ -157,7 +157,7 @@ export interface SpaceNode {
   active: boolean
 }
 
-export type DesignOptionKind = 'style' | 'joint' | 'pattern'
+export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason'
 
 export interface DesignOption {
   id: string

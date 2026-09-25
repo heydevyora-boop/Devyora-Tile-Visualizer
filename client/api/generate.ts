@@ -11,6 +11,7 @@ import {
   requireJointWidth,
 } from './_lib/designOptionsStore.js'
 import { getCustomer, toOwnerScope } from './_lib/clientsStore.js'
+import { recordRevision } from './_lib/revisionsStore.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -140,6 +141,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       customerId,
       additionalRequirement,
       conceptIndex,
+      parentRevisionId,
+      reasonIds,
+      revisionNote,
     } = body as {
       tileImage?: string
       space?: string
@@ -153,6 +157,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       customerId?: string
       additionalRequirement?: string
       conceptIndex?: number
+      parentRevisionId?: string
+      reasonIds?: string[]
+      revisionNote?: string
     }
 
     const missingFields: string[] = []
@@ -219,6 +226,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const styleOption = styleOptionId
       ? await findActiveOption('style', String(styleOptionId))
       : null
+    // Reasons are looked up rather than trusted: only what the showroom
+    // configured can steer a regeneration, and a disabled reason cannot.
+    const reasons = Array.isArray(reasonIds)
+      ? (
+          await Promise.all(
+            (reasonIds as unknown[]).slice(0, 8).map((id) => findActiveOption('reason', String(id))),
+          )
+        ).filter((option): option is NonNullable<typeof option> => Boolean(option))
+      : []
+    const note =
+      typeof revisionNote === 'string' && revisionNote.trim()
+        ? revisionNote.trim().slice(0, 300)
+        : ''
     // Length-capped here as well as in the browser: the field is free text and
     // reaches the model, so an unbounded value is not accepted on trust.
     const requirement =
@@ -249,6 +269,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         layingPattern: pattern?.name ?? null,
         hasAdditionalRequirement: Boolean(requirement),
         conceptIndex: conceptIndex ?? 0,
+        revisionReasons: reasons.map((reason) => reason.name),
+        isRevision: reasons.length > 0 || Boolean(note),
       }),
     )
 
@@ -268,12 +290,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? { name: pattern.name, description: pattern.description }
           : undefined,
         additionalRequirement: requirement,
+        revisionReasons: reasons.map((reason) => ({
+          name: reason.name,
+          description: reason.description,
+        })),
+        revisionNote: note || undefined,
         conceptIndex,
         tileSize,
       }),
       INTERNAL_BUDGET_MS,
     )
-    const payload = JSON.stringify(result)
+    // Recorded after the image exists, so a failed attempt never leaves a
+    // revision claiming a concept that was never produced.
+    const revision = await recordRevision({
+      scope: toOwnerScope(session),
+      generationId: result.generationId,
+      customerId: customer?.id ?? null,
+      parentRevisionId: typeof parentRevisionId === 'string' ? parentRevisionId : null,
+      reasons: reasons.map((reason) => ({ id: reason.id, name: reason.name })),
+      note,
+      imageUrl: result.image,
+    }).catch((error: unknown) => {
+      // History must never be the reason a salesperson loses a concept they
+      // have already paid for.
+      console.error('[POST /api/generate] could not record the revision:', error)
+      return null
+    })
+    const payload = JSON.stringify({ ...result, revision })
     const payloadBytes = Buffer.byteLength(payload, 'utf8')
     console.log(
       '[POST /api/generate] done in',

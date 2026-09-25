@@ -4,15 +4,16 @@ import { randomUUID } from 'node:crypto'
 import { getCollection } from './db'
 
 /**
- * The three visual choices made after the space: the design style, how wide
- * the grout joint is, and how the tiles are laid out.
+ * The lists the showroom maintains for a consultation: the design style, the
+ * grout joint width, the laying pattern, and the reasons a salesperson gives
+ * when asking for another concept.
  *
  * They share one collection because they are the same shape — an ordered,
  * switchable list the showroom maintains — and differ only in what they mean.
  * Keeping them together means one admin screen and one set of rules rather
  * than three near-identical copies.
  */
-export type DesignOptionKind = 'style' | 'joint' | 'pattern'
+export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason'
 
 export interface DesignOption {
   id: string
@@ -50,7 +51,7 @@ export class DesignOptionsError extends Error {
 }
 
 const COLLECTION = 'designOptions'
-const KINDS: DesignOptionKind[] = ['style', 'joint', 'pattern']
+const KINDS: DesignOptionKind[] = ['style', 'joint', 'pattern', 'reason']
 
 /**
  * What a new showroom starts with.
@@ -106,6 +107,86 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     valueMm: null,
     styleId: null,
     order: 1,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Tile Placement',
+    description: 'The tile is on the wrong surface, or covers more or less of it than discussed.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 0,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Overall Look',
+    description: 'The room as a whole is not right, even though the tile itself is.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 1,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Tile Scale',
+    description: 'The tile reads too large or too small for the space.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 2,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Tile Coverage',
+    description: 'Too much or too little of the room is tiled.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 3,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Colour / Material Combination',
+    description: 'The tile does not sit well with the other materials and colours in the room.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 4,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Style',
+    description: 'The room does not read as the style that was chosen.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 5,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Composition',
+    description: 'The framing, viewpoint or arrangement of the room needs to change.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 6,
+    active: true,
+  },
+  {
+    kind: 'reason' as const,
+    name: 'Something Else',
+    description: 'Anything the reasons above do not cover — say what needs to change.',
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    order: 7,
     active: true,
   },
 ]

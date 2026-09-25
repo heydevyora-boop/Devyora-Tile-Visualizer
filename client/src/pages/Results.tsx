@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
+import { ApiError, apiGet, type DesignOption } from '../utils/api'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
 
@@ -52,6 +53,13 @@ function Results() {
   const { token, userName } = useAuth()
   const [addingConcept, setAddingConcept] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
+  // Another concept is never a blind retry: the salesperson says what was
+  // wrong first, and that is what steers the new one.
+  const [askingWhy, setAskingWhy] = useState(false)
+  const [reasons, setReasons] = useState<DesignOption[] | null>(null)
+  const [chosenReasons, setChosenReasons] = useState<string[]>([])
+  const [reasonNote, setReasonNote] = useState('')
+  const [lastRevisionId, setLastRevisionId] = useState<string | null>(null)
 
   // Only ever the images the backend actually returned. There is deliberately
   // no placeholder set: showing stand-in images would present them as the
@@ -143,6 +151,10 @@ function Results() {
           customerId: customer?.id,
           additionalRequirement: additionalRequirement.trim() || undefined,
           conceptIndex: conceptImages.length,
+          // What was wrong with the last concept, and which concept that was.
+          reasonIds: chosenReasons,
+          revisionNote: reasonNote.trim() || undefined,
+          parentRevisionId: lastRevisionId ?? undefined,
         }),
       })
       if (!response.ok) {
@@ -155,8 +167,18 @@ function Results() {
         }
         throw new Error(detail || 'That concept could not be created.')
       }
-      const result = (await response.json()) as { image?: string; tileImageUrl?: string }
+      const result = (await response.json()) as {
+        image?: string
+        tileImageUrl?: string
+        revision?: { id?: string } | null
+      }
       if (!result.image) throw new Error('No image came back. Please try again.')
+
+      if (result.revision?.id) setLastRevisionId(result.revision.id)
+      // Reset the sheet: the next correction is about the new concept.
+      setAskingWhy(false)
+      setChosenReasons([])
+      setReasonNote('')
 
       const images = [...conceptImages, result.image]
       setGeneratedResult({ ...(generatedResult as NonNullable<typeof generatedResult>), images })
@@ -190,6 +212,30 @@ function Results() {
       setAddingConcept(false)
     }
   }
+
+  useEffect(() => {
+    if (!askingWhy || reasons !== null) return
+    const controller = new AbortController()
+    void (async () => {
+      try {
+        const list = await apiGet<DesignOption[]>(
+          '/api/design-options?kind=reason',
+          token,
+          controller.signal,
+        )
+        if (!controller.signal.aborted) setReasons(list)
+      } catch (caught) {
+        if (controller.signal.aborted) return
+        setAddError(caught instanceof ApiError ? caught.message : 'Could not load the reasons.')
+      }
+    })()
+    return () => controller.abort()
+  }, [askingWhy, reasons, token])
+
+  const toggleReason = (id: string) =>
+    setChosenReasons((current) =>
+      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+    )
 
   const handleStartNew = () => {
     // Drop the finished run, so returning here before generating again shows
@@ -308,22 +354,99 @@ function Results() {
                 </div>
               </article>
             ))}
-            <div className="flex flex-col gap-space-xs">
+            <div className="flex flex-col gap-space-sm">
               {addError && (
                 <p className="font-body-sm text-body-sm text-error text-center" role="alert">
                   {addError}
                 </p>
               )}
-              <button
-                className="w-full h-[52px] rounded-lg border border-outline-variant text-on-surface hover:border-primary hover:text-primary active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-title-md text-title-md disabled:opacity-60"
-                id="anotherConceptBtn"
-                type="button"
-                disabled={addingConcept}
-                onClick={() => void handleAnotherConcept()}
-              >
-                <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
-                <span>{addingConcept ? 'Creating…' : 'Another concept'}</span>
-              </button>
+
+              {!askingWhy ? (
+                <button
+                  className="w-full h-[52px] rounded-lg border border-outline-variant text-on-surface hover:border-primary hover:text-primary active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-title-md text-title-md disabled:opacity-60"
+                  id="anotherConceptBtn"
+                  type="button"
+                  disabled={addingConcept}
+                  onClick={() => setAskingWhy(true)}
+                >
+                  <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                  <span>Want another concept?</span>
+                </button>
+              ) : (
+                <div className="bg-surface-container rounded-xl p-space-md flex flex-col gap-space-sm">
+                  <h2 className="font-title-md text-title-md text-on-surface">
+                    What would you like to change?
+                  </h2>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant">
+                    Everything you don&rsquo;t pick stays exactly as it is.
+                  </p>
+
+                  {reasons === null && (
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">Loading…</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-space-xs">
+                    {(reasons ?? []).map((reason) => {
+                      const selected = chosenReasons.includes(reason.id)
+                      return (
+                        <button
+                          key={reason.id}
+                          type="button"
+                          aria-pressed={selected}
+                          title={reason.description || undefined}
+                          className={`px-space-md h-11 rounded-full border transition-all font-body-sm text-body-sm ${
+                            selected
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'bg-surface-container-low text-on-surface border-outline-variant hover:border-primary'
+                          }`}
+                          onClick={() => toggleReason(reason.id)}
+                        >
+                          {reason.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <label className="flex flex-col gap-1">
+                    <span className="font-label-caps text-label-caps uppercase tracking-widest text-outline">
+                      Anything else to say — optional
+                    </span>
+                    <textarea
+                      className="w-full box-border p-space-sm rounded-lg bg-surface-container-low text-on-surface border border-outline-variant focus:border-primary focus:outline-none font-body-sm text-body-sm"
+                      rows={2}
+                      maxLength={300}
+                      placeholder="Jaise: tile sirf vanity ke peeche feature wall par chahiye."
+                      value={reasonNote}
+                      onChange={(event) => setReasonNote(event.target.value)}
+                    />
+                  </label>
+
+                  <div className="flex gap-space-sm">
+                    <button
+                      className="flex-1 h-[52px] rounded-lg bg-primary text-on-primary hover:bg-primary-fixed-dim active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-title-md text-title-md disabled:opacity-60"
+                      id="createConceptBtn"
+                      type="button"
+                      disabled={addingConcept || (chosenReasons.length === 0 && !reasonNote.trim())}
+                      onClick={() => void handleAnotherConcept()}
+                    >
+                      <span>{addingConcept ? 'Creating…' : 'Create concept'}</span>
+                      <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                    </button>
+                    <button
+                      className="h-[52px] px-space-md rounded-lg border border-outline-variant text-on-surface hover:border-primary transition-all font-label-caps text-label-caps uppercase tracking-widest"
+                      type="button"
+                      disabled={addingConcept}
+                      onClick={() => {
+                        setAskingWhy(false)
+                        setChosenReasons([])
+                        setReasonNote('')
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </main>
           {/* Fixed Sticky Showroom Consultation Dock */}

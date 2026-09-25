@@ -30,6 +30,13 @@ export interface PromptInput {
    * did not cover it. Optional and usually absent.
    */
   additionalRequirement?: string
+  /**
+   * Why another concept was asked for. Present only on a regeneration, and
+   * only ever reasons the showroom configured.
+   */
+  revisionReasons?: { name: string; description: string }[]
+  /** What the salesperson typed alongside the reasons. */
+  revisionNote?: string
 }
 
 export interface BuiltPrompt {
@@ -210,6 +217,7 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
       describeJointAndPattern(input.jointWidthMm, input.layingPattern),
       describeTileGeometry(input.tileSize),
       describeAdditionalRequirement(input.additionalRequirement),
+      describeRevision(input.revisionReasons, input.revisionNote),
       '',
       `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
     ].join('\n'),
@@ -315,6 +323,48 @@ function describeAdditionalRequirement(requirement: string | undefined): string 
     'the application, tile size, joint or laying pattern already specified,',
     'those take precedence and this is applied as far as it can be.',
   ].join('\n')
+}
+
+/**
+ * A correction, stated as a correction.
+ *
+ * A salesperson asks for another concept because something specific was
+ * wrong — the tile was on the wrong wall, the scale read badly, too much of
+ * the room was covered. Everything else was right, and was agreed with the
+ * customer. A model told only "try again" will helpfully change the tile
+ * colour, the furniture and the viewpoint at once, and the one thing that was
+ * wrong may survive untouched.
+ *
+ * So the fault is named, and everything else is pinned: the tile, its size,
+ * the space and application, the style, the joint and the laying pattern are
+ * all repeated above and must come back identical.
+ */
+function describeRevision(
+  reasons: { name: string; description: string }[] | undefined,
+  note: string | undefined,
+): string {
+  if (!reasons?.length && !note?.trim()) return ''
+
+  const lines = ['REVISION — this is a correction of a previous concept:']
+  if (reasons?.length) {
+    lines.push('What was wrong with it:')
+    for (const reason of reasons) {
+      lines.push(`- ${reason.name}${reason.description ? `: ${reason.description}` : ''}`)
+    }
+  }
+  if (note?.trim()) {
+    lines.push('', 'In the salesperson\'s words:', note.trim())
+  }
+  lines.push(
+    '',
+    'Fix exactly that. Everything else about the previous concept was correct',
+    'and was agreed with the customer, so keep it: the same tile with the same',
+    'colour, pattern and finish, the same tile size, the same space and',
+    'application, the same style, the same joint width and the same laying',
+    'pattern, all as specified above. Do not take this as licence to reinterpret',
+    'the room. Change what was named, and leave the rest alone.',
+  )
+  return lines.join('\n')
 }
 
 /** Greatest common divisor, for reducing a size to its simplest ratio. */
