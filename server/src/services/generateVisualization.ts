@@ -8,6 +8,8 @@ export interface GenerateVisualizationInput {
   space: string
   style: string
   tileSize?: string
+  /** The verified application chain, root category first. */
+  application?: { name: string; description: string }[]
 }
 
 export interface GenerateVisualizationResult {
@@ -280,6 +282,7 @@ export async function generateVisualization(
   const tile = await downscaleForInput(parseTileImage(input.tileImage))
   const prompts = buildGenerationPrompts({
     space: input.space,
+    application: input.application,
     style: input.style,
     tileSize: input.tileSize,
   })

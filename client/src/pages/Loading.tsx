@@ -17,7 +17,7 @@ const REQUEST_TIMEOUT_MS = 75_000
 
 function Loading() {
   const navigate = useNavigate()
-  const { customer, croppedImage, space, style, tileSize, setGeneratedResult } = useFlow()
+  const { customer, croppedImage, space, spacePath, style, tileSize, setGeneratedResult } = useFlow()
   const { userName, token } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -47,6 +47,8 @@ function Loading() {
           body: JSON.stringify({
             tileImage: croppedImage,
             space,
+            // The ids of the chosen application, re-checked server-side.
+            spacePath: spacePath.map((node) => node.id),
             style,
             tileSize,
           }),
@@ -78,7 +80,7 @@ function Loading() {
         throw new Error('The server sent a response we could not read. Please try again.')
       }
     },
-    [croppedImage, space, style, tileSize, token],
+    [croppedImage, space, spacePath, style, tileSize, token],
   )
 
   /**

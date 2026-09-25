@@ -146,6 +146,17 @@ export interface TileFormat {
   order: number
 }
 
+export interface SpaceNode {
+  id: string
+  parentId: string | null
+  name: string
+  description: string
+  imageUrl: string | null
+  spaceId: string | null
+  order: number
+  active: boolean
+}
+
 export interface SavedVisualisation {
   generationId: string
   userName: string

@@ -4,6 +4,7 @@ import { IMAGE_MODEL } from './_lib/imageModel.js'
 import { getSpaceConfig } from './_lib/spaces.js'
 import { getStyleConfig, isSurpriseStyle } from './_lib/styles.js'
 import { verifyAuthHeader } from './_lib/auth.js'
+import { SpaceNodesError, resolveApplicationPath } from './_lib/spaceNodesStore.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -119,11 +120,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body = req.body as Record<string, unknown>
     }
 
-    const { tileImage, space, style, tileSize } = body as {
+    const { tileImage, space, style, tileSize, spacePath } = body as {
       tileImage?: string
       space?: string
       style?: string
       tileSize?: string
+      spacePath?: string[]
     }
 
     const missingFields: string[] = []
@@ -172,11 +174,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tileSize,
     })
 
+    // The browser sends the ids it was shown; the chain is re-checked against
+    // the catalogue here, so a stale or hand-edited selection cannot instruct
+    // the model with an application the showroom never configured.
+    const resolved = spacePath ? await resolveApplicationPath(spacePath) : null
+
     const startedAt = Date.now()
     const result = await withTimeout(
       generateVisualization({
         tileImage: tileImage as string,
-        space: space as string,
+        space: (resolved?.spaceId ?? space) as string,
+        application: resolved?.path.map((node) => ({
+          name: node.name,
+          description: node.description,
+        })),
         style: style as string,
         tileSize,
       }),
@@ -207,7 +218,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Type', 'application/json')
     res.status(200).send(payload)
   } catch (error) {
-    const status = error instanceof GenerationError ? error.status : 502
+    // A rejected application is the caller's mistake, not a generation
+    // failure, so it keeps its own status rather than being reported as 502.
+    const status =
+      error instanceof SpaceNodesError
+        ? error.status
+        : error instanceof GenerationError
+          ? error.status
+          : 502
     const message =
       error instanceof Error && error.message
         ? error.message

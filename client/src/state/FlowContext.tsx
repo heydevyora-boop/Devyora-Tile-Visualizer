@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import type { Customer } from '../utils/api'
+import type { Customer, SpaceNode } from '../utils/api'
 
 export type GeneratedResult = {
   generationId: string
@@ -21,6 +21,12 @@ type FlowContextValue = {
   croppedImage: string | null
   tileSize: string | null
   space: string | null
+  /**
+   * The application chosen, root category first — Bathroom -> Powder Washroom
+   * -> Half Height. The ids go to the server, which re-checks the chain before
+   * it instructs the model.
+   */
+  spacePath: SpaceNode[]
   style: string | null
   generatedResult: GeneratedResult | null
   setCustomer: (customer: Customer | null) => void
@@ -28,6 +34,7 @@ type FlowContextValue = {
   setCroppedImage: (croppedImage: string | null) => void
   setTileSize: (tileSize: string | null) => void
   setSpace: (space: string | null) => void
+  setSpacePath: (spacePath: SpaceNode[]) => void
   setStyle: (style: string | null) => void
   setGeneratedResult: (generatedResult: GeneratedResult | null) => void
 }
@@ -40,6 +47,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const [croppedImage, setCroppedImage] = useState<string | null>(null)
   const [tileSize, setTileSize] = useState<string | null>(null)
   const [space, setSpace] = useState<string | null>(null)
+  const [spacePath, setSpacePath] = useState<SpaceNode[]>([])
   const [style, setStyle] = useState<string | null>(null)
   const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null)
 
@@ -51,6 +59,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         croppedImage,
         tileSize,
         space,
+        spacePath,
         style,
         generatedResult,
         setCustomer,
@@ -58,6 +67,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         setCroppedImage,
         setTileSize,
         setSpace,
+        setSpacePath,
         setStyle,
         setGeneratedResult,
       }}

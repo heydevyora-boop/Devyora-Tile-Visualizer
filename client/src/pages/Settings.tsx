@@ -36,6 +36,10 @@ function Settings() {
               <span className="material-symbols-outlined">grid_on</span>
               <span>Tile formats</span>
             </Link>
+            <Link className="ws__action" to="/space-catalogue">
+              <span className="material-symbols-outlined">category</span>
+              <span>Space catalogue</span>
+            </Link>
           </div>
         </>
       )}

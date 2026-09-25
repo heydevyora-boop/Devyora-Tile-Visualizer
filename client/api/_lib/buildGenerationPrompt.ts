@@ -10,6 +10,12 @@ export interface PromptInput {
   /** May be "surprise" — resolved to a concrete style before prompts are built. */
   style: string
   tileSize?: string
+  /**
+   * The application the salesperson chose, root category first — for example
+   * Bathroom -> Powder Washroom -> Half Height. Resolved and verified against
+   * the showroom's catalogue before it reaches here.
+   */
+  application?: { name: string; description: string }[]
 }
 
 export interface BuiltPrompt {
@@ -146,11 +152,44 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
       '',
       describeStyle(styleConfig, resolvedStyle),
       '',
+      describeApplication(input.application),
       describeTileGeometry(input.tileSize),
       '',
       `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
     ].join('\n'),
   }))
+}
+
+/**
+ * The exact application, stated as a constraint rather than a preference.
+ *
+ * The salesperson has chosen where the tile goes and, where the showroom
+ * configured it, precisely how far it runs — half height rather than full
+ * height, a dado rather than a whole wall. That choice was made in front of a
+ * customer and may already have been quoted on. A model left to its own
+ * judgement will reliably prefer the more photogenic option, so the choice is
+ * given as something that cannot be traded against how good the picture
+ * looks.
+ */
+function describeApplication(application: { name: string; description: string }[] | undefined): string {
+  if (!application?.length) return ''
+  const chain = application.map((step) => step.name).join(' -> ')
+  const detail = application
+    .filter((step) => step.description)
+    .map((step) => `- ${step.name}: ${step.description}`)
+
+  return [
+    'CHOSEN APPLICATION — follow this exactly:',
+    chain,
+    ...(detail.length ? ['', ...detail] : []),
+    '',
+    'This is the application the customer selected. Apply the tile to that',
+    'surface, to that extent, and nowhere else it was not asked for. Do not',
+    'substitute a different surface, and do not extend or reduce the tiled area',
+    'because another arrangement would look better in the image. If a height or',
+    'extent is named above, that height is a hard requirement: tile up to it',
+    'exactly, and finish the wall above it in plain painted plaster.',
+  ].join('\n')
 }
 
 /** Greatest common divisor, for reducing a size to its simplest ratio. */
