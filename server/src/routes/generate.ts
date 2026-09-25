@@ -10,6 +10,7 @@ import {
   requireJointWidth,
 } from '../services/designOptionsStore'
 import { getCustomer, toOwnerScope } from '../services/clientsStore'
+import { recordRevision } from '../services/revisionsStore'
 
 const router = Router()
 
@@ -37,6 +38,9 @@ router.post('/generate', async (req, res) => {
     customerId,
     additionalRequirement,
     conceptIndex,
+    parentRevisionId,
+    reasonIds,
+    revisionNote,
   } = req.body ?? {}
 
   const missingFields: string[] = []
@@ -82,6 +86,19 @@ router.post('/generate', async (req, res) => {
     const styleOption = styleOptionId
       ? await findActiveOption('style', String(styleOptionId))
       : null
+    // Reasons are looked up rather than trusted: only what the showroom
+    // configured can steer a regeneration, and a disabled reason cannot.
+    const reasons = Array.isArray(reasonIds)
+      ? (
+          await Promise.all(
+            (reasonIds as unknown[]).slice(0, 8).map((id) => findActiveOption('reason', String(id))),
+          )
+        ).filter((option): option is NonNullable<typeof option> => Boolean(option))
+      : []
+    const note =
+      typeof revisionNote === 'string' && revisionNote.trim()
+        ? revisionNote.trim().slice(0, 300)
+        : ''
     // Length-capped here as well as in the browser: the field is free text and
     // reaches the model, so an unbounded value is not accepted on trust.
     const requirement =
@@ -112,6 +129,8 @@ router.post('/generate', async (req, res) => {
         layingPattern: pattern?.name ?? null,
         hasAdditionalRequirement: Boolean(requirement),
         conceptIndex: conceptIndex ?? 0,
+        revisionReasons: reasons.map((reason) => reason.name),
+        isRevision: reasons.length > 0 || Boolean(note),
       }),
     )
     const result = await generateVisualization({
@@ -126,10 +145,31 @@ router.post('/generate', async (req, res) => {
       jointWidthMm: joint,
       layingPattern: pattern ? { name: pattern.name, description: pattern.description } : undefined,
       additionalRequirement: requirement,
+      revisionReasons: reasons.map((reason) => ({
+        name: reason.name,
+        description: reason.description,
+      })),
+      revisionNote: note || undefined,
       conceptIndex,
       tileSize,
     })
-    res.json(result)
+    // Recorded after the image exists, so a failed attempt never leaves a
+    // revision claiming a concept that was never produced.
+    const revision = await recordRevision({
+      scope: toOwnerScope(session),
+      generationId: result.generationId,
+      customerId: customer?.id ?? null,
+      parentRevisionId: typeof parentRevisionId === 'string' ? parentRevisionId : null,
+      reasons: reasons.map((reason) => ({ id: reason.id, name: reason.name })),
+      note,
+      imageUrl: result.image,
+    }).catch((error: unknown) => {
+      // History must never be the reason a salesperson loses a concept they
+      // have already paid for.
+      console.error('[POST /api/generate] could not record the revision:', error)
+      return null
+    })
+    res.json({ ...result, revision })
   } catch (error) {
     // Generation failures must not take the server down.
     const status =

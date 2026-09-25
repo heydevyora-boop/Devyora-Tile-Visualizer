@@ -21,6 +21,8 @@ export interface GenerateVisualizationInput {
    * different viewpoint of the same room.
    */
   conceptIndex?: number
+  revisionReasons?: { name: string; description: string }[]
+  revisionNote?: string
 }
 
 export interface GenerateVisualizationResult {
@@ -401,6 +403,8 @@ export async function generateVisualization(
     layingPattern: input.layingPattern,
     styleDescription: input.styleDescription,
     additionalRequirement: input.additionalRequirement,
+    revisionReasons: input.revisionReasons,
+    revisionNote: input.revisionNote,
     style: input.style,
     tileSize: input.tileSize,
   }, conceptIndex)

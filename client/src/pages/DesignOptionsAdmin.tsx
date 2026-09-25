@@ -20,6 +20,11 @@ const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
     label: 'Laying patterns',
     lede: 'How the tiles are set out. The description is what the generation is told to follow.',
   },
+  {
+    kind: 'reason',
+    label: 'Revision reasons',
+    lede: 'Why a salesperson asks for another concept. These are faults to correct, not alternative looks — the description tells the generation what to fix.',
+  },
 ]
 
 /**
