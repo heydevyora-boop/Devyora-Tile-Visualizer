@@ -6,6 +6,7 @@ import generateRouter from './routes/generate'
 import generationsRouter from './routes/generations'
 import loginRouter from './routes/login'
 import clientsRouter from './routes/clients'
+import tileFormatsRouter from './routes/tileFormats'
 
 const app = express()
 
@@ -19,6 +20,7 @@ app.use('/api', generateRouter)
 app.use('/api', generationsRouter)
 app.use('/api', loginRouter)
 app.use('/api', clientsRouter)
+app.use('/api', tileFormatsRouter)
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001
 

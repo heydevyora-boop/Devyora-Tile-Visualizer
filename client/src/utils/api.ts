@@ -90,6 +90,38 @@ export async function apiPost<T>(path: string, token: string | null, body: unkno
   }
 }
 
+/** A PATCH against the API as the signed-in user. */
+export async function apiPatch<T>(path: string, token: string | null, body: unknown): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new ApiError('We could not reach the server. Please check your connection.', 0)
+  }
+  if (!response.ok) {
+    let detail = ''
+    try {
+      const failure = (await response.json()) as { error?: unknown }
+      detail = typeof failure?.error === 'string' ? failure.error : ''
+    } catch {
+      detail = ''
+    }
+    throw new ApiError(detail || `Request failed with status ${response.status}`, response.status)
+  }
+  try {
+    return (await response.json()) as T
+  } catch {
+    throw new ApiError('The server sent a response we could not read.', response.status)
+  }
+}
+
 /** Shapes returned by the API, mirrored from the server-side stores. */
 export interface Customer {
   id: string
@@ -104,6 +136,14 @@ export interface Architect {
   name: string
   mobile: string
   createdAt: string
+}
+
+export interface TileFormat {
+  id: string
+  lengthMm: number
+  breadthMm: number
+  active: boolean
+  order: number
 }
 
 export interface SavedVisualisation {

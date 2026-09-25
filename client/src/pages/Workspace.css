@@ -314,3 +314,16 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* Row controls for the admin lists. Each stays a 44px target on a tablet. */
+.ws__row-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.ws__row-tools .shell__icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

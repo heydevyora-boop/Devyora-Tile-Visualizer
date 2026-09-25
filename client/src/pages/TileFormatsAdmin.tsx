@@ -1,0 +1,224 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../state/AuthContext'
+import { ApiError, apiGet, apiPatch, apiPost, type TileFormat } from '../utils/api'
+import './Workspace.css'
+
+/**
+ * The showroom's standard tile formats.
+ *
+ * These drive the size step of every consultation, so they belong to the
+ * showroom rather than to the code: a format can be added when a new line
+ * arrives, corrected when it was entered wrong, retired when it stops being
+ * stocked, and moved so the ones sold most sit at the top. Disabling rather
+ * than deleting keeps sizes already recorded against past work meaningful.
+ *
+ * Millimetres only, and no thickness: thickness does not change how a tile
+ * lays out, which is all this measurement is used for.
+ */
+function TileFormatsAdmin() {
+  const navigate = useNavigate()
+  const { token } = useAuth()
+  const [formats, setFormats] = useState<TileFormat[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const [lengthMm, setLengthMm] = useState('')
+  const [breadthMm, setBreadthMm] = useState('')
+
+  const load = async (signal?: AbortSignal) => {
+    try {
+      // ?all=1 includes disabled formats — this screen manages them, the
+      // consultation flow only ever sees the active ones.
+      const list = await apiGet<TileFormat[]>('/api/tile-formats?all=1', token, signal)
+      if (!signal?.aborted) setFormats(list)
+    } catch (caught) {
+      if (signal?.aborted) return
+      setError(caught instanceof ApiError ? caught.message : 'Could not load the tile formats.')
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void load(controller.signal)
+    return () => controller.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  const run = async (work: () => Promise<TileFormat | TileFormat[]>) => {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await work()
+      setFormats(Array.isArray(result) ? result : null)
+      if (!Array.isArray(result)) await load()
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'That change could not be saved.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleAdd = (event: FormEvent) => {
+    event.preventDefault()
+    void run(async () => {
+      const created = await apiPost<TileFormat>('/api/tile-formats', token, {
+        lengthMm: Number(lengthMm),
+        breadthMm: Number(breadthMm),
+      })
+      setLengthMm('')
+      setBreadthMm('')
+      return created
+    })
+  }
+
+  const toggleActive = (format: TileFormat) =>
+    void run(() =>
+      apiPatch<TileFormat>('/api/tile-formats', token, { id: format.id, active: !format.active }),
+    )
+
+  const edit = (format: TileFormat) => {
+    const next = window.prompt(
+      'Size in millimetres, as length x breadth',
+      `${format.lengthMm}x${format.breadthMm}`,
+    )
+    const match = next?.trim().match(/^(\d+)\s*[x×]\s*(\d+)$/i)
+    if (!match) return
+    void run(() =>
+      apiPatch<TileFormat>('/api/tile-formats', token, {
+        id: format.id,
+        lengthMm: Number(match[1]),
+        breadthMm: Number(match[2]),
+      }),
+    )
+  }
+
+  /** Moves one format up or down and sends the whole order back. */
+  const move = (index: number, delta: number) => {
+    if (!formats) return
+    const next = [...formats]
+    const target = index + delta
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setFormats(next)
+    void run(() =>
+      apiPatch<TileFormat[]>('/api/tile-formats', token, { order: next.map((f) => f.id) }),
+    )
+  }
+
+  return (
+    <div className="shell">
+      <div className="shell__main">
+        <header className="shell__topbar">
+          <button
+            type="button"
+            className="shell__icon-button"
+            aria-label="Back to history"
+            onClick={() => navigate('/history')}
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <h1 className="shell__title">Tile Formats</h1>
+        </header>
+        <main className="shell__content">
+          <p className="ws__lede">
+            The sizes offered at the start of a consultation, in the order they appear. Millimetres
+            only.
+          </p>
+
+          {error && (
+            <p className="ws__error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <h2 className="ws__section-title">Add a format</h2>
+          <form onSubmit={handleAdd}>
+            <label className="ws__field">
+              <span className="ws__field-label">Length (mm)</span>
+              <input
+                className="ws__search"
+                inputMode="numeric"
+                value={lengthMm}
+                onChange={(event) => setLengthMm(event.target.value.replace(/\D/g, ''))}
+                required
+              />
+            </label>
+            <label className="ws__field">
+              <span className="ws__field-label">Breadth (mm)</span>
+              <input
+                className="ws__search"
+                inputMode="numeric"
+                value={breadthMm}
+                onChange={(event) => setBreadthMm(event.target.value.replace(/\D/g, ''))}
+                required
+              />
+            </label>
+            <button className="ws__action ws__action--primary ws__action--submit" type="submit" disabled={busy}>
+              <span className="material-symbols-outlined">add</span>
+              <span>Add format</span>
+            </button>
+          </form>
+
+          <h2 className="ws__section-title">Current formats</h2>
+          {formats === null && !error && <p className="ws__loading">Loading…</p>}
+          {formats?.length === 0 && <p className="ws__empty">No formats yet.</p>}
+          <ul className="ws__list">
+            {(formats ?? []).map((format, index) => (
+              <li className="ws__row" key={format.id}>
+                <div className="ws__row-body">
+                  <span className="ws__row-title">
+                    {format.lengthMm} × {format.breadthMm} mm
+                  </span>
+                  <span className="ws__row-meta">{format.active ? 'Offered' : 'Disabled'}</span>
+                </div>
+                <div className="ws__row-tools">
+                  <button
+                    type="button"
+                    className="shell__icon-button"
+                    aria-label="Move up"
+                    disabled={busy || index === 0}
+                    onClick={() => move(index, -1)}
+                  >
+                    <span className="material-symbols-outlined">arrow_upward</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="shell__icon-button"
+                    aria-label="Move down"
+                    disabled={busy || index === (formats?.length ?? 0) - 1}
+                    onClick={() => move(index, 1)}
+                  >
+                    <span className="material-symbols-outlined">arrow_downward</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="shell__icon-button"
+                    aria-label="Edit size"
+                    disabled={busy}
+                    onClick={() => edit(format)}
+                  >
+                    <span className="material-symbols-outlined">edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="shell__icon-button"
+                    aria-label={format.active ? 'Disable' : 'Enable'}
+                    disabled={busy}
+                    onClick={() => toggleActive(format)}
+                  >
+                    <span className="material-symbols-outlined">
+                      {format.active ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </main>
+      </div>
+    </div>
+  )
+}
+
+export default TileFormatsAdmin
