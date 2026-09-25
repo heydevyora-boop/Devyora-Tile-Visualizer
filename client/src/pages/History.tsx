@@ -6,12 +6,39 @@ import './History.css'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const GENERATIONS_ENDPOINT = `${API_BASE_URL}/api/generations`
 
+/** What this screen draws: one saved concept, flattened to what a card needs. */
 type GenerationRecord = {
   generationId: string
   userName: string
   croppedImage: string
   generatedImages: string[]
   timestamp: string
+}
+
+/** The saved record as the API returns it — one kept concept, with its context. */
+type SavedRecord = {
+  id: string
+  salespersonName?: string
+  croppedTileImage?: string | null
+  image: string
+  savedAt: string
+}
+
+/**
+ * A saved concept is one image, not a set, so each becomes its own card.
+ *
+ * This screen used to show every generation as it happened. It now shows what
+ * was kept: rejected experiments never reach the client's record, and so never
+ * reach here either.
+ */
+function toCard(saved: SavedRecord): GenerationRecord {
+  return {
+    generationId: saved.id,
+    userName: saved.salespersonName ?? 'Unknown',
+    croppedImage: saved.croppedTileImage ?? saved.image,
+    generatedImages: [saved.image],
+    timestamp: saved.savedAt,
+  }
 }
 
 /** Open lightbox target: which record, and which image within it. */
@@ -55,7 +82,7 @@ function History() {
         }
         if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
         const data: unknown = await response.json()
-        setRecords(Array.isArray(data) ? (data as GenerationRecord[]) : [])
+        setRecords(Array.isArray(data) ? (data as SavedRecord[]).map(toCard) : [])
       } catch (loadError) {
         if (signal?.aborted) return
         setRecords([])
@@ -184,9 +211,9 @@ function History() {
           {records !== null && records.length === 0 && !error && (
             <div className="history-empty" id="historyEmpty">
               <span className="material-symbols-outlined history-empty-icon">inventory_2</span>
-              <p className="history-empty-title">No generations yet</p>
+              <p className="history-empty-title">Nothing saved yet</p>
               <p className="history-empty-text">
-                Completed consultations will appear here automatically.
+                Concepts appear here once a salesperson saves one to a client.
               </p>
             </div>
           )}

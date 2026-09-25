@@ -58,7 +58,7 @@ function Dashboard() {
         </div>
         <div className="ws__stat">
           <span className="ws__stat-value">{saved?.length ?? '—'}</span>
-          <span className="ws__stat-label">Visualizations</span>
+          <span className="ws__stat-label">Saved concepts</span>
         </div>
         <div className="ws__stat">
           <span className="ws__stat-value">{saved ? areaCount : '—'}</span>

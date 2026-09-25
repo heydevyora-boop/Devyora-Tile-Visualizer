@@ -8,6 +8,14 @@ export type GeneratedResult = {
    * request makes one image; asking for another appends to this.
    */
   images: string[]
+  /**
+   * The revision each concept came from, in the same order.
+   *
+   * Saving names a concept rather than uploading one, so the server files it
+   * under the customer, style and application it was really generated for. A
+   * concept with no revision id could not be recorded and cannot be saved.
+   */
+  revisionIds?: (string | null)[]
   /** The uploaded tile photo's URL (Google Drive, or a base64 fallback). */
   tileImageUrl?: string
   space?: string

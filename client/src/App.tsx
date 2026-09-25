@@ -23,6 +23,7 @@ import TileFormatsAdmin from './pages/TileFormatsAdmin'
 import SpaceCatalogueAdmin from './pages/SpaceCatalogueAdmin'
 import DesignOptionsAdmin from './pages/DesignOptionsAdmin'
 import CustomerDetail from './pages/CustomerDetail'
+import SavedConceptDetail from './pages/SavedConceptDetail'
 import RequireClient from './components/RequireClient'
 import './App.css'
 
@@ -37,6 +38,7 @@ const WORKSPACE_ROUTES = [
   { path: '/clients/:customerId', element: <CustomerDetail /> },
   { path: '/recent-generations', element: <RecentGenerations /> },
   { path: '/saved-concepts', element: <SavedConcepts /> },
+  { path: '/saved-concepts/:savedId', element: <SavedConceptDetail /> },
   // Where a consultation begins: choosing whose it is.
   { path: '/start', element: <ClientSelect /> },
 ]
