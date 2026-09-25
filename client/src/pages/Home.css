@@ -305,33 +305,6 @@
   color: var(--color-primary);
 }
 
-.home__metrics {
-  display: flex;
-  align-items: center;
-  gap: var(--home-space-md);
-  margin-top: var(--home-space-md);
-  color: var(--color-on-surface-variant);
-}
-
-.home__metric {
-  display: flex;
-  align-items: center;
-}
-
-.home__metric-label {
-  font-family: var(--home-font-heading);
-  font-size: 11px;
-  line-height: 14px;
-  letter-spacing: 0.14em;
-  font-weight: 400;
-  color: var(--color-outline);
-  text-transform: uppercase;
-}
-
-.home__metric-dot {
-  color: var(--color-surface-container-highest);
-}
-
 .home__footer {
   width: 100%;
   padding-top: var(--home-space-sm);
