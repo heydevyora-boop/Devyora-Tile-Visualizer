@@ -26,6 +26,11 @@ function TileFormatsAdmin() {
   const [lengthMm, setLengthMm] = useState('')
   const [breadthMm, setBreadthMm] = useState('')
 
+  // The row being edited, with its working values. Held here rather than in
+  // each row so only one can be open at a time — two half-finished edits in
+  // an ordered list is how the wrong one gets saved.
+  const [editing, setEditing] = useState<{ id: string; lengthMm: string; breadthMm: string } | null>(null)
+
   const load = async (signal?: AbortSignal) => {
     try {
       // ?all=1 includes disabled formats — this screen manages them, the
@@ -77,20 +82,17 @@ function TileFormatsAdmin() {
       apiPatch<TileFormat>('/api/tile-formats', token, { id: format.id, active: !format.active }),
     )
 
-  const edit = (format: TileFormat) => {
-    const next = window.prompt(
-      'Size in millimetres, as length x breadth',
-      `${format.lengthMm}x${format.breadthMm}`,
-    )
-    const match = next?.trim().match(/^(\d+)\s*[x×]\s*(\d+)$/i)
-    if (!match) return
-    void run(() =>
-      apiPatch<TileFormat>('/api/tile-formats', token, {
-        id: format.id,
-        lengthMm: Number(match[1]),
-        breadthMm: Number(match[2]),
-      }),
-    )
+  const saveEdit = () => {
+    if (!editing) return
+    void run(async () => {
+      const saved = await apiPatch<TileFormat>('/api/tile-formats', token, {
+        id: editing.id,
+        lengthMm: Number(editing.lengthMm),
+        breadthMm: Number(editing.breadthMm),
+      })
+      setEditing(null)
+      return saved
+    })
   }
 
   /** Moves one format up or down and sends the whole order back. */
@@ -164,7 +166,55 @@ function TileFormatsAdmin() {
           {formats === null && !error && <p className="ws__loading">Loading…</p>}
           {formats?.length === 0 && <p className="ws__empty">No formats yet.</p>}
           <ul className="ws__list">
-            {(formats ?? []).map((format, index) => (
+            {(formats ?? []).map((format, index) =>
+              editing?.id === format.id ? (
+                <li className="ws__row ws__row--editing" key={format.id}>
+                  <div className="ws__edit-fields ws__edit-fields--pair">
+                    <label className="ws__field">
+                      <span className="ws__field-label">Length (mm)</span>
+                      <input
+                        className="ws__search"
+                        inputMode="numeric"
+                        autoFocus
+                        value={editing.lengthMm}
+                        onChange={(event) =>
+                          setEditing({ ...editing, lengthMm: event.target.value.replace(/\D/g, '') })
+                        }
+                      />
+                    </label>
+                    <label className="ws__field">
+                      <span className="ws__field-label">Breadth (mm)</span>
+                      <input
+                        className="ws__search"
+                        inputMode="numeric"
+                        value={editing.breadthMm}
+                        onChange={(event) =>
+                          setEditing({ ...editing, breadthMm: event.target.value.replace(/\D/g, '') })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="ws__edit-actions">
+                    <button
+                      type="button"
+                      className="ws__action ws__action--primary"
+                      disabled={busy || !editing.lengthMm || !editing.breadthMm}
+                      onClick={saveEdit}
+                    >
+                      <span className="material-symbols-outlined">check</span>
+                      <span>Save</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="ws__action"
+                      disabled={busy}
+                      onClick={() => setEditing(null)}
+                    >
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                </li>
+              ) : (
               <li className="ws__row" key={format.id}>
                 <div className="ws__row-body">
                   <span className="ws__row-title">
@@ -196,7 +246,13 @@ function TileFormatsAdmin() {
                     className="shell__icon-button"
                     aria-label="Edit size"
                     disabled={busy}
-                    onClick={() => edit(format)}
+                    onClick={() =>
+                      setEditing({
+                        id: format.id,
+                        lengthMm: String(format.lengthMm),
+                        breadthMm: String(format.breadthMm),
+                      })
+                    }
                   >
                     <span className="material-symbols-outlined">edit</span>
                   </button>
@@ -213,7 +269,8 @@ function TileFormatsAdmin() {
                   </button>
                 </div>
               </li>
-            ))}
+              ),
+            )}
           </ul>
         </main>
       </div>

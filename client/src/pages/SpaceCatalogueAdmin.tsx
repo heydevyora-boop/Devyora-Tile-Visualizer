@@ -27,6 +27,11 @@ function SpaceCatalogueAdmin() {
   const [imageUrl, setImageUrl] = useState('')
   const [parentId, setParentId] = useState('')
 
+  // One row open at a time, with its working values.
+  const [editing, setEditing] = useState<
+    { id: string; name: string; description: string; imageUrl: string; parentId: string } | null
+  >(null)
+
   const load = async (signal?: AbortSignal) => {
     try {
       const list = await apiGet<SpaceNode[]>('/api/space-nodes?all=1', token, signal)
@@ -94,10 +99,19 @@ function SpaceCatalogueAdmin() {
     })
   }
 
-  const editField = (node: SpaceNode, field: 'name' | 'description' | 'imageUrl', label: string) => {
-    const next = window.prompt(label, node[field] ?? '')
-    if (next === null) return
-    void run(() => apiPatch<SpaceNode>('/api/space-nodes', token, { id: node.id, [field]: next }))
+  const saveEdit = () => {
+    if (!editing) return
+    void run(async () => {
+      const saved = await apiPatch<SpaceNode>('/api/space-nodes', token, {
+        id: editing.id,
+        name: editing.name,
+        description: editing.description,
+        imageUrl: editing.imageUrl,
+        parentId: editing.parentId || null,
+      })
+      setEditing(null)
+      return saved
+    })
   }
 
   const move = (row: { node: SpaceNode; siblings: SpaceNode[]; index: number }, delta: number) => {
@@ -192,7 +206,81 @@ function SpaceCatalogueAdmin() {
           <h2 className="ws__section-title">Catalogue</h2>
           {nodes === null && !error && <p className="ws__loading">Loading…</p>}
           <ul className="ws__list">
-            {rows.map((row) => (
+            {rows.map((row) =>
+              editing?.id === row.node.id ? (
+                <li
+                  className="ws__row ws__row--editing"
+                  key={row.node.id}
+                  style={{ marginLeft: `${row.depth * 1.25}rem` }}
+                >
+                  <div className="ws__edit-fields">
+                    <label className="ws__field">
+                      <span className="ws__field-label">Name</span>
+                      <input
+                        className="ws__search"
+                        autoFocus
+                        value={editing.name}
+                        onChange={(event) => setEditing({ ...editing, name: event.target.value })}
+                      />
+                    </label>
+                    <label className="ws__field">
+                      <span className="ws__field-label">Description — what this application means</span>
+                      <input
+                        className="ws__search"
+                        value={editing.description}
+                        onChange={(event) =>
+                          setEditing({ ...editing, description: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="ws__field">
+                      <span className="ws__field-label">Image URL</span>
+                      <input
+                        className="ws__search"
+                        value={editing.imageUrl}
+                        onChange={(event) => setEditing({ ...editing, imageUrl: event.target.value })}
+                      />
+                    </label>
+                    <label className="ws__field">
+                      <span className="ws__field-label">Sits under</span>
+                      <select
+                        className="ws__search"
+                        value={editing.parentId}
+                        onChange={(event) => setEditing({ ...editing, parentId: event.target.value })}
+                      >
+                        <option value="">Top level — a category</option>
+                        {rows
+                          .filter((candidate) => candidate.node.id !== row.node.id)
+                          .map((candidate) => (
+                            <option key={candidate.node.id} value={candidate.node.id}>
+                              {'— '.repeat(candidate.depth)}
+                              {candidate.node.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="ws__edit-actions">
+                    <button
+                      type="button"
+                      className="ws__action ws__action--primary"
+                      disabled={busy || !editing.name.trim()}
+                      onClick={saveEdit}
+                    >
+                      <span className="material-symbols-outlined">check</span>
+                      <span>Save</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="ws__action"
+                      disabled={busy}
+                      onClick={() => setEditing(null)}
+                    >
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                </li>
+              ) : (
               <li
                 className="ws__row"
                 key={row.node.id}
@@ -230,29 +318,19 @@ function SpaceCatalogueAdmin() {
                   <button
                     type="button"
                     className="shell__icon-button"
-                    aria-label="Rename"
+                    aria-label="Edit"
                     disabled={busy}
-                    onClick={() => editField(row.node, 'name', 'Name')}
+                    onClick={() =>
+                      setEditing({
+                        id: row.node.id,
+                        name: row.node.name,
+                        description: row.node.description,
+                        imageUrl: row.node.imageUrl ?? '',
+                        parentId: row.node.parentId ?? '',
+                      })
+                    }
                   >
                     <span className="material-symbols-outlined">edit</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="shell__icon-button"
-                    aria-label="Edit description"
-                    disabled={busy}
-                    onClick={() => editField(row.node, 'description', 'What this application means')}
-                  >
-                    <span className="material-symbols-outlined">notes</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="shell__icon-button"
-                    aria-label="Edit image"
-                    disabled={busy}
-                    onClick={() => editField(row.node, 'imageUrl', 'Image URL')}
-                  >
-                    <span className="material-symbols-outlined">image</span>
                   </button>
                   <button
                     type="button"
@@ -274,7 +352,8 @@ function SpaceCatalogueAdmin() {
                   </button>
                 </div>
               </li>
-            ))}
+              ),
+            )}
           </ul>
         </main>
       </div>

@@ -42,6 +42,11 @@ function DesignOptionsAdmin() {
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
 
+  // One row open at a time, with its working values.
+  const [editing, setEditing] = useState<
+    { id: string; kind: DesignOptionKind; name: string; description: string; imageUrl: string } | null
+  >(null)
+
   const load = async (signal?: AbortSignal) => {
     try {
       const list = await apiGet<DesignOption[]>('/api/design-options?all=1', token, signal)
@@ -93,12 +98,23 @@ function DesignOptionsAdmin() {
     })
   }
 
-  const editField = (option: DesignOption, field: 'name' | 'description' | 'imageUrl', label: string) => {
-    const next = window.prompt(label, option[field] ?? '')
-    if (next === null) return
-    void run(() =>
-      apiPatch<DesignOption>('/api/design-options', token, { id: option.id, [field]: next }),
-    )
+  const saveEdit = () => {
+    if (!editing) return
+    void run(async () => {
+      const saved = await apiPatch<DesignOption>('/api/design-options', token, {
+        id: editing.id,
+        // A joint carries only its width; its name is derived from it server-side.
+        ...(editing.kind === 'joint'
+          ? { valueMm: Number(editing.name) }
+          : {
+              name: editing.name,
+              description: editing.description,
+              imageUrl: editing.imageUrl,
+            }),
+      })
+      setEditing(null)
+      return saved
+    })
   }
 
   const move = (index: number, delta: number) => {
@@ -204,7 +220,76 @@ function DesignOptionsAdmin() {
           {options === null && !error && <p className="ws__loading">Loading…</p>}
           {options !== null && rows.length === 0 && <p className="ws__empty">Nothing here yet.</p>}
           <ul className="ws__list">
-            {rows.map((option, index) => (
+            {rows.map((option, index) =>
+              editing?.id === option.id ? (
+                <li className="ws__row ws__row--editing" key={option.id}>
+                  <div className="ws__edit-fields">
+                    <label className="ws__field">
+                      <span className="ws__field-label">
+                        {editing.kind === 'joint' ? 'Joint width (mm)' : 'Name'}
+                      </span>
+                      <input
+                        className="ws__search"
+                        autoFocus
+                        inputMode={editing.kind === 'joint' ? 'decimal' : 'text'}
+                        value={editing.name}
+                        onChange={(event) =>
+                          setEditing({
+                            ...editing,
+                            name:
+                              editing.kind === 'joint'
+                                ? event.target.value.replace(/[^\d.]/g, '')
+                                : event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                    {editing.kind !== 'joint' && (
+                      <>
+                        <label className="ws__field">
+                          <span className="ws__field-label">Description</span>
+                          <input
+                            className="ws__search"
+                            value={editing.description}
+                            onChange={(event) =>
+                              setEditing({ ...editing, description: event.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="ws__field">
+                          <span className="ws__field-label">Image URL</span>
+                          <input
+                            className="ws__search"
+                            value={editing.imageUrl}
+                            onChange={(event) =>
+                              setEditing({ ...editing, imageUrl: event.target.value })
+                            }
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
+                  <div className="ws__edit-actions">
+                    <button
+                      type="button"
+                      className="ws__action ws__action--primary"
+                      disabled={busy || !editing.name.trim()}
+                      onClick={saveEdit}
+                    >
+                      <span className="material-symbols-outlined">check</span>
+                      <span>Save</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="ws__action"
+                      disabled={busy}
+                      onClick={() => setEditing(null)}
+                    >
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                </li>
+              ) : (
               <li className="ws__row" key={option.id}>
                 {option.imageUrl && (
                   <img className="ws__thumb" src={option.imageUrl} alt="" loading="lazy" />
@@ -238,47 +323,20 @@ function DesignOptionsAdmin() {
                   <button
                     type="button"
                     className="shell__icon-button"
-                    aria-label={option.kind === 'joint' ? 'Edit width' : 'Rename'}
+                    aria-label="Edit"
                     disabled={busy}
                     onClick={() =>
-                      option.kind === 'joint'
-                        ? (() => {
-                            const next = window.prompt('Joint width in millimetres', String(option.valueMm ?? ''))
-                            if (next === null) return
-                            void run(() =>
-                              apiPatch<DesignOption>('/api/design-options', token, {
-                                id: option.id,
-                                valueMm: Number(next),
-                              }),
-                            )
-                          })()
-                        : editField(option, 'name', 'Name')
+                      setEditing({
+                        id: option.id,
+                        kind: option.kind,
+                        name: option.kind === 'joint' ? String(option.valueMm ?? '') : option.name,
+                        description: option.description,
+                        imageUrl: option.imageUrl ?? '',
+                      })
                     }
                   >
                     <span className="material-symbols-outlined">edit</span>
                   </button>
-                  {option.kind !== 'joint' && (
-                    <>
-                      <button
-                        type="button"
-                        className="shell__icon-button"
-                        aria-label="Edit description"
-                        disabled={busy}
-                        onClick={() => editField(option, 'description', 'Description')}
-                      >
-                        <span className="material-symbols-outlined">notes</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="shell__icon-button"
-                        aria-label="Edit image"
-                        disabled={busy}
-                        onClick={() => editField(option, 'imageUrl', 'Image URL')}
-                      >
-                        <span className="material-symbols-outlined">image</span>
-                      </button>
-                    </>
-                  )}
                   <button
                     type="button"
                     className="shell__icon-button"
@@ -299,7 +357,8 @@ function DesignOptionsAdmin() {
                   </button>
                 </div>
               </li>
-            ))}
+              ),
+            )}
           </ul>
         </main>
       </div>

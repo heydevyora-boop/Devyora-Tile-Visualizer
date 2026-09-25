@@ -327,3 +327,55 @@
   opacity: 0.35;
   cursor: default;
 }
+
+/* --- Inline editing ------------------------------------------------------- */
+
+/* A row being edited becomes the form, in place. Nothing moves and nothing
+   opens over the list, so the admin keeps sight of the entries around the one
+   they are changing — which is the whole point of editing an ordered list. */
+.ws__row--editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  border-color: var(--color-primary);
+}
+
+.ws__edit-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* Two short fields sit side by side where there is room, and stack on a
+   phone rather than being squeezed. */
+.ws__edit-fields--pair {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 30rem) {
+  .ws__edit-fields--pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ws__edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ws__edit-actions .ws__action {
+  flex: 1;
+  min-height: 44px;
+  justify-content: center;
+  border: 1px solid var(--color-outline-variant);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ws__edit-actions .ws__action--primary {
+  border-color: var(--color-primary);
+}
+
+.ws__edit-actions .ws__action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
