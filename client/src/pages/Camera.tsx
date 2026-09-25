@@ -35,6 +35,15 @@ function Camera() {
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraBusy, setCameraBusy] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
+  /**
+   * Which lens the viewfinder is on. 0.5x only appears when the device really
+   * has an ultra-wide to switch to — a button that claimed a wider field of
+   * view without delivering one would have the salesperson framing a tile that
+   * is not in the shot.
+   */
+  const [lens, setLens] = useState<0.5 | 1>(1)
+  const ultraWideIdRef = useRef<string | null>(null)
+  const [ultraWideAvailable, setUltraWideAvailable] = useState(false)
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -73,7 +82,32 @@ function Camera() {
     navigate('/')
   }
 
-  const startCamera = async () => {
+  /**
+   * Looks for a real ultra-wide camera.
+   *
+   * Device labels are only readable once permission has been granted, which is
+   * why this runs after the first stream rather than before it. Phones name the
+   * lens inconsistently, so the match is deliberately loose, and finding
+   * nothing simply means 0.5x is never offered.
+   */
+  const detectUltraWide = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const match = devices.find(
+        (device) =>
+          device.kind === 'videoinput' &&
+          /ultra.?wide|0\.5/i.test(device.label) &&
+          !/front|face/i.test(device.label),
+      )
+      ultraWideIdRef.current = match?.deviceId ?? null
+      if (mountedRef.current) setUltraWideAvailable(Boolean(match))
+    } catch {
+      // Enumeration is a nicety; failing it just means one lens.
+      ultraWideIdRef.current = null
+    }
+  }, [])
+
+  const startCamera = async (requested: 0.5 | 1 = lens) => {
     setCameraError(null)
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError(CAMERA_UNAVAILABLE_MESSAGE)
@@ -82,12 +116,24 @@ function Camera() {
 
     setCameraBusy(true)
     try {
+      // Only one camera may be open at a time on most phones, so the current
+      // stream is released before asking for the next lens.
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+
+      const ultraWideId = ultraWideIdRef.current
       let stream: MediaStream
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        })
+        stream =
+          requested === 0.5 && ultraWideId
+            ? await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: ultraWideId } },
+                audio: false,
+              })
+            : await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false,
+              })
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
       }
@@ -101,7 +147,11 @@ function Camera() {
         return
       }
       streamRef.current = stream
+      setLens(requested)
       setCameraActive(true)
+      // Labels only become readable after permission, so the lens list is
+      // discovered off the back of the first successful stream.
+      if (!ultraWideIdRef.current) void detectUltraWide()
     } catch {
       setCameraError(CAMERA_DENIED_MESSAGE)
       stopCamera()
@@ -257,6 +307,32 @@ function Camera() {
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-surface-container-lowest/50 via-transparent to-surface-container-lowest/70 pointer-events-none"></div>
+              {/* Lens switch. Only rendered when the device actually has an
+                  ultra-wide, so the control never promises a framing the
+                  camera cannot give. */}
+              {cameraActive && ultraWideAvailable && (
+                <div className="absolute top-3 inset-x-0 mx-auto w-fit z-10 flex items-center gap-1 bg-surface-container-highest/85 backdrop-blur-md p-1 rounded-full shadow-lg">
+                  {([0.5, 1] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-label={`${option}x lens`}
+                      aria-pressed={lens === option}
+                      disabled={cameraBusy}
+                      className={`min-w-[44px] h-9 px-3 rounded-full text-body-sm font-body-sm transition-all active:scale-95 disabled:opacity-60 ${
+                        lens === option
+                          ? 'bg-primary text-on-primary'
+                          : 'text-on-surface-variant hover:text-primary'
+                      }`}
+                      onClick={() => {
+                        if (lens !== option) void startCamera(option)
+                      }}
+                    >
+                      {option}×
+                    </button>
+                  ))}
+                </div>
+              )}
               <div
                 className="absolute inset-4 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-40 transition-opacity duration-300"
                 id="gridOverlay"

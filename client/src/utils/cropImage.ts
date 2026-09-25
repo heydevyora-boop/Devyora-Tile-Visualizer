@@ -1,4 +1,14 @@
-import type { Area } from 'react-easy-crop'
+/**
+ * A crop rectangle in the source photo's own pixels, which is what FreeCrop
+ * produces. Declared here rather than imported from the component so this
+ * utility stays independent of whatever draws the selection.
+ */
+export interface Area {
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
 function createImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
