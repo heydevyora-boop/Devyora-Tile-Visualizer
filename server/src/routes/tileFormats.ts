@@ -7,7 +7,7 @@ import {
   updateTileFormat,
 } from '../services/tileFormatsStore'
 import { verifyAuthHeader } from '../config/auth'
-import { DbConfigError } from '../services/db'
+import { DbError, asDbError } from '../services/db'
 
 /**
  * The standard tile formats. Reading is open to any signed-in account because
@@ -19,11 +19,15 @@ import { DbConfigError } from '../services/db'
 const router = Router()
 
 function fail(res: Response, label: string, error: unknown): void {
+  // A driver failure is the datastore's fault, not the request's. Classifying it
+  // here means the screen says what is actually wrong instead of showing a bare
+  // 500 that could equally be a bug in this route.
+  const failure = asDbError(error) ?? error
   const status =
-    error instanceof TileFormatsError || error instanceof DbConfigError ? error.status : 500
+    failure instanceof TileFormatsError || failure instanceof DbError ? failure.status : 500
   const message =
-    error instanceof TileFormatsError || error instanceof DbConfigError
-      ? error.message
+    failure instanceof TileFormatsError || failure instanceof DbError
+      ? failure.message
       : 'Could not load the tile formats.'
   console.error(`[${label}] failed:`, error)
   res.status(status).json({ error: message })

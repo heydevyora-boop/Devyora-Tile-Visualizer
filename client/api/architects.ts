@@ -6,7 +6,7 @@ import {
   toOwnerScope,
 } from './_lib/clientsStore.js'
 import { verifyAuthHeader } from './_lib/auth.js'
-import { DbConfigError } from './_lib/db.js'
+import { DbError, asDbError } from './_lib/db.js'
 
 /**
  * The salesperson's architects and contractors.
@@ -50,11 +50,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'GET, POST')
     res.status(405).json({ error: 'Method not allowed. Use GET or POST.' })
   } catch (error) {
+    // A driver failure is the datastore's fault, not the request's. Classifying
+    // it here means the screen says what is actually wrong instead of showing a
+    // bare 500 that could equally be a bug in this route.
+    const failure = asDbError(error) ?? error
     const status =
-      error instanceof ClientsStoreError || error instanceof DbConfigError ? error.status : 500
+      failure instanceof ClientsStoreError || failure instanceof DbError ? failure.status : 500
     const message =
-      error instanceof ClientsStoreError || error instanceof DbConfigError
-        ? error.message
+      failure instanceof ClientsStoreError || failure instanceof DbError
+        ? failure.message
         : 'Could not load your architects. Please try again.'
     console.error(`[${req.method} /api/architects] failed:`, error)
     res.status(status).json({ error: message })

@@ -11,6 +11,7 @@ import {
 } from '../services/designOptionsStore'
 import { getCustomer, toOwnerScope } from '../services/clientsStore'
 import { recordRevision } from '../services/revisionsStore'
+import { DbError, asDbError } from '../services/db'
 
 const router = Router()
 
@@ -172,15 +173,25 @@ router.post('/generate', async (req, res) => {
     res.json({ ...result, revision })
   } catch (error) {
     // Generation failures must not take the server down.
+    // A database that cannot be reached is not a generation failure, and saying
+    // so as a 502 sends the admin looking in the wrong place.
+    const failure = asDbError(error) ?? error
     const status =
-      error instanceof SpaceNodesError || error instanceof DesignOptionsError
-        ? error.status
-        : error instanceof GenerationError
-          ? error.status
+      failure instanceof SpaceNodesError ||
+      failure instanceof DesignOptionsError ||
+      failure instanceof DbError
+        ? failure.status
+        : failure instanceof GenerationError
+          ? failure.status
           : 502
+    // Only errors this code raised are safe to repeat back: a driver or SDK
+    // message can carry a host, a key fragment or a stack.
     const message =
-      error instanceof Error && error.message
-        ? error.message
+      failure instanceof SpaceNodesError ||
+      failure instanceof DesignOptionsError ||
+      failure instanceof DbError ||
+      failure instanceof GenerationError
+        ? failure.message
         : 'We could not create your concepts. Please try again.'
     console.error('[POST /api/generate] generation failed:', error)
     res.status(status).json({ error: message })

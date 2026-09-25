@@ -11,6 +11,7 @@ import {
   requireJointWidth,
 } from './_lib/designOptionsStore.js'
 import { getCustomer, toOwnerScope } from './_lib/clientsStore.js'
+import { DbError, asDbError } from './_lib/db.js'
 import { recordRevision } from './_lib/revisionsStore.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
@@ -343,15 +344,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     // A rejected application is the caller's mistake, not a generation
     // failure, so it keeps its own status rather than being reported as 502.
+    // A database that cannot be reached is not a generation failure, and saying
+    // so as a 502 sends the admin looking in the wrong place.
+    const failure = asDbError(error) ?? error
     const status =
-      error instanceof SpaceNodesError || error instanceof DesignOptionsError
-        ? error.status
-        : error instanceof GenerationError
-          ? error.status
+      failure instanceof SpaceNodesError ||
+      failure instanceof DesignOptionsError ||
+      failure instanceof DbError
+        ? failure.status
+        : failure instanceof GenerationError
+          ? failure.status
           : 502
+    // Only errors this code raised are safe to repeat back: a driver or SDK
+    // message can carry a host, a key fragment or a stack.
     const message =
-      error instanceof Error && error.message
-        ? error.message
+      failure instanceof SpaceNodesError ||
+      failure instanceof DesignOptionsError ||
+      failure instanceof DbError ||
+      failure instanceof GenerationError
+        ? failure.message
         : 'We could not create your concepts. Please try again.'
     const detail = describeError(error)
 

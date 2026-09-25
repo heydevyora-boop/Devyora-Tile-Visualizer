@@ -3,7 +3,7 @@
 // Directory (client/), so this cannot import from ../../server/src.
 // KEEP IN SYNC with the local-dev Express copy in server/src/services/.
 import { randomUUID } from 'node:crypto'
-import { getCollection } from './db.js'
+import { describeDbError, getCollection } from './db.js'
 
 /**
  * The showroom's client book.
@@ -96,11 +96,18 @@ async function ensureIndexes(): Promise<void> {
         customers.createIndex({ salesperson: 1, architectId: 1 }),
       ])
     })().catch((error: unknown) => {
+      // Retry on a later request rather than caching the failure.
       indexesReady = null
-      throw error
+      // An index is how these reads stay fast; it is not what makes them
+      // correct. A database that refuses to create one — a read-only user, a
+      // cluster mid-failover — would otherwise take every screen down with it,
+      // so the failure is recorded and the query goes ahead. A genuine
+      // connection problem still surfaces, with its own cause, on the query
+      // itself a moment later.
+      console.error(`[${'clients'}] index setup skipped:`, describeDbError(error))
     })
   }
-  return indexesReady
+  await indexesReady
 }
 
 /** Restricts a query to what this caller may read. */

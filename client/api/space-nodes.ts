@@ -8,7 +8,7 @@ import {
   updateSpaceNode,
 } from './_lib/spaceNodesStore.js'
 import { verifyAuthHeader } from './_lib/auth.js'
-import { DbConfigError } from './_lib/db.js'
+import { DbError, asDbError } from './_lib/db.js'
 
 /**
  * The space catalogue: categories, their applications, and any deeper choices.
@@ -76,11 +76,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Allow', 'GET, POST, PATCH')
     res.status(405).json({ error: 'Method not allowed.' })
   } catch (error) {
+    // A driver failure is the datastore's fault, not the request's. Classifying
+    // it here means the screen says what is actually wrong instead of showing a
+    // bare 500 that could equally be a bug in this route.
+    const failure = asDbError(error) ?? error
     const status =
-      error instanceof SpaceNodesError || error instanceof DbConfigError ? error.status : 500
+      failure instanceof SpaceNodesError || failure instanceof DbError ? failure.status : 500
     const message =
-      error instanceof SpaceNodesError || error instanceof DbConfigError
-        ? error.message
+      failure instanceof SpaceNodesError || failure instanceof DbError
+        ? failure.message
         : 'Could not load the space catalogue.'
     console.error(`[${req.method} /api/space-nodes] failed:`, error)
     res.status(status).json({ error: message })
