@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import './Workspace.css'
@@ -27,6 +27,26 @@ function Settings() {
         <dt>Access</dt>
         <dd>{role === 'admin' ? 'Administrator' : 'Salesperson'}</dd>
       </dl>
+
+      {role === 'admin' && (
+        <>
+          <h2 className="ws__section-title">Showroom setup</h2>
+          <div className="ws__actions">
+            <Link className="ws__action" to="/tile-formats">
+              <span className="material-symbols-outlined">grid_on</span>
+              <span>Tile formats</span>
+            </Link>
+            <Link className="ws__action" to="/space-catalogue">
+              <span className="material-symbols-outlined">category</span>
+              <span>Space catalogue</span>
+            </Link>
+            <Link className="ws__action" to="/design-options">
+              <span className="material-symbols-outlined">palette</span>
+              <span>Design options</span>
+            </Link>
+          </div>
+        </>
+      )}
 
       <h2 className="ws__section-title">Handover</h2>
       <p className="ws__lede">

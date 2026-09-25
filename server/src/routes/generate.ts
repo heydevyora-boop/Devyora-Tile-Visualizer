@@ -3,6 +3,12 @@ import { GenerationError, generateVisualization } from '../services/generateVisu
 import { getSpaceConfig } from '../config/spaces'
 import { getStyleConfig, isSurpriseStyle } from '../config/styles'
 import { verifyAuthHeader } from '../config/auth'
+import { SpaceNodesError, resolveApplicationPath } from '../services/spaceNodesStore'
+import {
+  DesignOptionsError,
+  findActiveOption,
+  requireJointWidth,
+} from '../services/designOptionsStore'
 
 const router = Router()
 
@@ -16,7 +22,17 @@ router.post('/generate', async (req, res) => {
     return
   }
 
-  const { tileImage, space, style, tileSize } = req.body ?? {}
+  const {
+    tileImage,
+    space,
+    style,
+    tileSize,
+    spacePath,
+    styleOptionId,
+    jointOptionId,
+    jointWidthMm,
+    patternOptionId,
+  } = req.body ?? {}
 
   const missingFields: string[] = []
   if (!tileImage) missingFields.push('tileImage')
@@ -43,11 +59,46 @@ router.post('/generate', async (req, res) => {
   }
 
   try {
-    const result = await generateVisualization({ tileImage, space, style, tileSize })
+    // The browser sends the ids it was shown; the chain is re-checked against
+    // the catalogue here, so a stale or hand-edited selection cannot instruct
+    // the model with an application the showroom never configured.
+    const resolved = spacePath ? await resolveApplicationPath(spacePath) : null
+    // The joint width may be one of the showroom's presets or typed in, so it
+    // is validated as a measurement either way. The style and pattern are
+    // looked up by id, so a disabled or invented option cannot reach the model.
+    const joint = jointOptionId
+      ? (await findActiveOption('joint', String(jointOptionId)))?.valueMm ?? undefined
+      : jointWidthMm !== undefined
+        ? requireJointWidth(jointWidthMm)
+        : undefined
+    const pattern = patternOptionId
+      ? await findActiveOption('pattern', String(patternOptionId))
+      : null
+    const styleOption = styleOptionId
+      ? await findActiveOption('style', String(styleOptionId))
+      : null
+    const result = await generateVisualization({
+      tileImage,
+      space: resolved?.spaceId ?? space,
+      application: resolved?.path.map((node) => ({
+        name: node.name,
+        description: node.description,
+      })),
+      style: styleOption?.styleId ?? styleOption?.name ?? style,
+      styleDescription: styleOption?.styleId ? undefined : styleOption?.description,
+      jointWidthMm: joint,
+      layingPattern: pattern ? { name: pattern.name, description: pattern.description } : undefined,
+      tileSize,
+    })
     res.json(result)
   } catch (error) {
     // Generation failures must not take the server down.
-    const status = error instanceof GenerationError ? error.status : 502
+    const status =
+      error instanceof SpaceNodesError || error instanceof DesignOptionsError
+        ? error.status
+        : error instanceof GenerationError
+          ? error.status
+          : 502
     const message =
       error instanceof Error && error.message
         ? error.message

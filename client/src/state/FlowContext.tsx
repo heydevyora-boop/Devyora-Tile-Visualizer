@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import type { Customer } from '../utils/api'
+import type { Customer, DesignOption, SpaceNode } from '../utils/api'
 
 export type GeneratedResult = {
   generationId: string
@@ -21,14 +21,31 @@ type FlowContextValue = {
   croppedImage: string | null
   tileSize: string | null
   space: string | null
+  /**
+   * The application chosen, root category first — Bathroom -> Powder Washroom
+   * -> Half Height. The ids go to the server, which re-checks the chain before
+   * it instructs the model.
+   */
+  spacePath: SpaceNode[]
   style: string | null
+  /** The chosen design style, joint width and laying pattern. */
+  styleOption: DesignOption | null
+  /** Millimetres — from a preset or typed in. */
+  jointWidthMm: number | null
+  jointOption: DesignOption | null
+  patternOption: DesignOption | null
   generatedResult: GeneratedResult | null
   setCustomer: (customer: Customer | null) => void
   setTileImage: (tileImage: string | null) => void
   setCroppedImage: (croppedImage: string | null) => void
   setTileSize: (tileSize: string | null) => void
   setSpace: (space: string | null) => void
+  setSpacePath: (spacePath: SpaceNode[]) => void
   setStyle: (style: string | null) => void
+  setStyleOption: (styleOption: DesignOption | null) => void
+  setJointWidthMm: (jointWidthMm: number | null) => void
+  setJointOption: (jointOption: DesignOption | null) => void
+  setPatternOption: (patternOption: DesignOption | null) => void
   setGeneratedResult: (generatedResult: GeneratedResult | null) => void
 }
 
@@ -40,7 +57,12 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const [croppedImage, setCroppedImage] = useState<string | null>(null)
   const [tileSize, setTileSize] = useState<string | null>(null)
   const [space, setSpace] = useState<string | null>(null)
+  const [spacePath, setSpacePath] = useState<SpaceNode[]>([])
   const [style, setStyle] = useState<string | null>(null)
+  const [styleOption, setStyleOption] = useState<DesignOption | null>(null)
+  const [jointWidthMm, setJointWidthMm] = useState<number | null>(null)
+  const [jointOption, setJointOption] = useState<DesignOption | null>(null)
+  const [patternOption, setPatternOption] = useState<DesignOption | null>(null)
   const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null)
 
   return (
@@ -51,14 +73,24 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         croppedImage,
         tileSize,
         space,
+        spacePath,
         style,
+        styleOption,
+        jointWidthMm,
+        jointOption,
+        patternOption,
         generatedResult,
         setCustomer,
         setTileImage,
         setCroppedImage,
         setTileSize,
         setSpace,
+        setSpacePath,
         setStyle,
+        setStyleOption,
+        setJointWidthMm,
+        setJointOption,
+        setPatternOption,
         setGeneratedResult,
       }}
     >

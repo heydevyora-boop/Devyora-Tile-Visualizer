@@ -85,20 +85,6 @@ function Home() {
               </div>
             </div>
           </div>
-
-          <div className="home__metrics">
-            <div className="home__metric">
-              <span className="home__metric-label">Matte Honed</span>
-            </div>
-            <span className="home__metric-dot">•</span>
-            <div className="home__metric">
-              <span className="home__metric-label">10.5 mm</span>
-            </div>
-            <span className="home__metric-dot">•</span>
-            <div className="home__metric">
-              <span className="home__metric-label">R10 A+B</span>
-            </div>
-          </div>
         </section>
 
         <footer className="home__footer">

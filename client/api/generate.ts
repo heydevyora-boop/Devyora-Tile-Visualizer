@@ -4,6 +4,12 @@ import { IMAGE_MODEL } from './_lib/imageModel.js'
 import { getSpaceConfig } from './_lib/spaces.js'
 import { getStyleConfig, isSurpriseStyle } from './_lib/styles.js'
 import { verifyAuthHeader } from './_lib/auth.js'
+import { SpaceNodesError, resolveApplicationPath } from './_lib/spaceNodesStore.js'
+import {
+  DesignOptionsError,
+  findActiveOption,
+  requireJointWidth,
+} from './_lib/designOptionsStore.js'
 
 // A real 3-concept generation takes roughly 15-25s. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
@@ -119,11 +125,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body = req.body as Record<string, unknown>
     }
 
-    const { tileImage, space, style, tileSize } = body as {
+    const {
+      tileImage,
+      space,
+      style,
+      tileSize,
+      spacePath,
+      styleOptionId,
+      jointOptionId,
+      jointWidthMm,
+      patternOptionId,
+    } = body as {
       tileImage?: string
       space?: string
       style?: string
       tileSize?: string
+      spacePath?: string[]
+      styleOptionId?: string
+      jointOptionId?: string
+      jointWidthMm?: number
+      patternOptionId?: string
     }
 
     const missingFields: string[] = []
@@ -172,12 +193,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tileSize,
     })
 
+    // The browser sends the ids it was shown; the chain is re-checked against
+    // the catalogue here, so a stale or hand-edited selection cannot instruct
+    // the model with an application the showroom never configured.
+    const resolved = spacePath ? await resolveApplicationPath(spacePath) : null
+    // The joint width may be one of the showroom's presets or typed in, so it
+    // is validated as a measurement either way. The style and pattern are
+    // looked up by id, so a disabled or invented option cannot reach the model.
+    const joint = jointOptionId
+      ? (await findActiveOption('joint', String(jointOptionId)))?.valueMm ?? undefined
+      : jointWidthMm !== undefined
+        ? requireJointWidth(jointWidthMm)
+        : undefined
+    const pattern = patternOptionId
+      ? await findActiveOption('pattern', String(patternOptionId))
+      : null
+    const styleOption = styleOptionId
+      ? await findActiveOption('style', String(styleOptionId))
+      : null
+
     const startedAt = Date.now()
     const result = await withTimeout(
       generateVisualization({
         tileImage: tileImage as string,
-        space: space as string,
-        style: style as string,
+        space: (resolved?.spaceId ?? space) as string,
+        application: resolved?.path.map((node) => ({
+          name: node.name,
+          description: node.description,
+        })),
+        style: (styleOption?.styleId ?? styleOption?.name ?? style) as string,
+        styleDescription: styleOption?.styleId ? undefined : styleOption?.description,
+        jointWidthMm: joint,
+        layingPattern: pattern
+          ? { name: pattern.name, description: pattern.description }
+          : undefined,
         tileSize,
       }),
       INTERNAL_BUDGET_MS,
@@ -207,7 +256,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Content-Type', 'application/json')
     res.status(200).send(payload)
   } catch (error) {
-    const status = error instanceof GenerationError ? error.status : 502
+    // A rejected application is the caller's mistake, not a generation
+    // failure, so it keeps its own status rather than being reported as 502.
+    const status =
+      error instanceof SpaceNodesError || error instanceof DesignOptionsError
+        ? error.status
+        : error instanceof GenerationError
+          ? error.status
+          : 502
     const message =
       error instanceof Error && error.message
         ? error.message

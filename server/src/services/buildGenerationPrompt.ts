@@ -6,6 +6,21 @@ export interface PromptInput {
   /** May be "surprise" — resolved to a concrete style before prompts are built. */
   style: string
   tileSize?: string
+  /**
+   * The application the salesperson chose, root category first — for example
+   * Bathroom -> Powder Washroom -> Half Height. Resolved and verified against
+   * the showroom's catalogue before it reaches here.
+   */
+  application?: { name: string; description: string }[]
+  /** Grout joint width in millimetres, chosen from the list or typed in. */
+  jointWidthMm?: number
+  /** How the tiles are laid out, e.g. a straight grid or a running bond. */
+  layingPattern?: { name: string; description: string }
+  /**
+   * A style the showroom added that has no curated config. Its description is
+   * used in place of one.
+   */
+  styleDescription?: string
 }
 
 export interface BuiltPrompt {
@@ -91,9 +106,17 @@ export const SYSTEM_INSTRUCTION = [
   'tile is applied.',
 ].join('\n')
 
-function describeStyle(style: StyleConfig | undefined, rawStyle: string): string {
+function describeStyle(
+  style: StyleConfig | undefined,
+  rawStyle: string,
+  showroomDescription?: string,
+): string {
   if (!style) {
-    return `Design style: ${rawStyle}.`
+    // A style the showroom added itself has no curated cues, so its own
+    // description is the brief.
+    return showroomDescription
+      ? `Design style: ${rawStyle} — ${showroomDescription}`
+      : `Design style: ${rawStyle}.`
   }
   return [
     `Design style: ${style.label} — ${style.description}.`,
@@ -122,7 +145,6 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
   const resolvedStyle = resolveStyleValue(input.style)
   const spaceConfig = getSpaceConfig(input.space)
   const styleConfig = getStyleConfig(resolvedStyle)
-  const tileSizeLabel = input.tileSize ? formatTileSize(input.tileSize) : 'the size specified by the showroom'
 
   const variations: string[] = spaceConfig
     ? [...spaceConfig.variationStrategy]
@@ -141,13 +163,159 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
       '',
       describeSpace(spaceConfig, input.space),
       '',
-      describeStyle(styleConfig, resolvedStyle),
+      describeStyle(styleConfig, resolvedStyle, input.styleDescription),
       '',
-      `Tile real-world size: ${tileSizeLabel}. The number of tiles visible must be consistent with that size relative to the room, fixtures and any human-scale elements.`,
+      describeApplication(input.application),
+      describeJointAndPattern(input.jointWidthMm, input.layingPattern),
+      describeTileGeometry(input.tileSize),
       '',
       `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
     ].join('\n'),
   }))
+}
+
+/**
+ * The exact application, stated as a constraint rather than a preference.
+ *
+ * The salesperson has chosen where the tile goes and, where the showroom
+ * configured it, precisely how far it runs — half height rather than full
+ * height, a dado rather than a whole wall. That choice was made in front of a
+ * customer and may already have been quoted on. A model left to its own
+ * judgement will reliably prefer the more photogenic option, so the choice is
+ * given as something that cannot be traded against how good the picture
+ * looks.
+ */
+function describeApplication(application: { name: string; description: string }[] | undefined): string {
+  if (!application?.length) return ''
+  const chain = application.map((step) => step.name).join(' -> ')
+  const detail = application
+    .filter((step) => step.description)
+    .map((step) => `- ${step.name}: ${step.description}`)
+
+  return [
+    'CHOSEN APPLICATION — follow this exactly:',
+    chain,
+    ...(detail.length ? ['', ...detail] : []),
+    '',
+    'This is the application the customer selected. Apply the tile to that',
+    'surface, to that extent, and nowhere else it was not asked for. Do not',
+    'substitute a different surface, and do not extend or reduce the tiled area',
+    'because another arrangement would look better in the image. If a height or',
+    'extent is named above, that height is a hard requirement: tile up to it',
+    'exactly, and finish the wall above it in plain painted plaster.',
+  ].join('\n')
+}
+
+/**
+ * The joint width and the laying pattern, as things to draw rather than notes.
+ *
+ * Both are decisions a customer makes and a fitter is then held to. A 2 mm
+ * joint and a 5 mm joint produce visibly different rooms, and a running bond
+ * is not a grid — left unstated, the model settles into a generic medium
+ * joint on a straight grid every time, and the customer's choice never
+ * reaches the picture they are shown.
+ */
+function describeJointAndPattern(
+  jointWidthMm: number | undefined,
+  layingPattern: { name: string; description: string } | undefined,
+): string {
+  const lines: string[] = []
+
+  if (jointWidthMm) {
+    // Said in relation to the tile as well as absolutely: the model has no
+    // ruler, but it can judge a joint against the tile beside it.
+    const character =
+      jointWidthMm <= 1.5
+        ? 'a very fine joint — the tiles read as almost butt-jointed, and the grid is subtle'
+        : jointWidthMm <= 3
+          ? 'a fine, conventional joint — clearly visible but not a feature'
+          : 'a wide, deliberate joint — the grid is part of the look'
+    lines.push(
+      'GROUT JOINT:',
+      `Grout joints approximately ${jointWidthMm} mm wide. This is ${character}.`,
+      'Keep the width even everywhere, on every joint, in both directions, and',
+      'consistent in perspective — joints further from the camera appear',
+      'narrower, but are the same real width. Judge the joint against the tile',
+      'next to it rather than drawing a generic gap.',
+    )
+  }
+
+  if (layingPattern) {
+    if (lines.length) lines.push('')
+    lines.push(
+      'LAYING PATTERN:',
+      `${layingPattern.name}.${layingPattern.description ? ` ${layingPattern.description}` : ''}`,
+      'Follow this pattern across the whole tiled surface, including where it',
+      'meets edges and corners. Do not fall back to a plain grid because it is',
+      'simpler to draw.',
+    )
+  }
+
+  return lines.join('\n')
+}
+
+/** Greatest common divisor, for reducing a size to its simplest ratio. */
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b)
+}
+
+/**
+ * Turns a physical tile size into instructions the model can lay out.
+ *
+ * A size is not a caption. It decides how many tiles fit a wall, where the
+ * joints fall, which tiles get cut at the edges and how the grid converges in
+ * perspective. Stating the millimetres alone left the model free to paint one
+ * stretched copy of the photograph across a floor, which is the single most
+ * obvious way a concept stops looking like a real installation. So the size is
+ * converted here into the geometry it implies, in the model's own terms.
+ */
+function describeTileGeometry(tileSize: string | undefined): string {
+  const match = tileSize?.trim().match(/^(\d+)\s*[x×]\s*(\d+)$/i)
+  if (!match) {
+    return [
+      'TILE GEOMETRY:',
+      'Lay the tile as a repeating module of consistent, believable size, with',
+      'regular grout joints. Never stretch a single tile across a surface.',
+    ].join('\n')
+  }
+
+  const a = Number(match[1])
+  const b = Number(match[2])
+  const shortSide = Math.min(a, b)
+  const longSide = Math.max(a, b)
+  const divisor = gcd(longSide, shortSide) || 1
+  const ratio = `${shortSide / divisor}:${longSide / divisor}`
+
+  // How a tile of this size reads in a room, in the terms a fitter would use.
+  const character =
+    longSide >= 1800
+      ? 'a large-format slab: few units cover a wall or floor, joints are sparse and every one is conspicuous'
+      : longSide >= 1200
+        ? 'a large-format tile: joints are widely spaced and the surface reads as broad, calm planes'
+        : longSide >= 600
+          ? 'a standard architectural format: an even, clearly readable grid'
+          : longSide >= 300
+            ? 'a small format: joints are frequent and the grid is visually busy'
+            : 'a mosaic-scale format: a dense, fine grid of many small units'
+
+  const shape =
+    shortSide === longSide
+      ? 'Square. The grid is equal in both directions.'
+      : `Rectangular, ${ratio}. The long edge is ${longSide} mm and the short edge ${shortSide} mm; keep that proportion exactly in every tile.`
+
+  return [
+    'TILE GEOMETRY — the tile is a physical object of a fixed size:',
+    `One tile measures ${a} mm x ${b} mm. ${shape}`,
+    `At this size it reads as ${character}.`,
+    'Consequences you must render:',
+    `- Repetition: cover each tiled surface with whole tiles of this size, repeated. Work out how many fit the wall or floor at ${longSide} mm x ${shortSide} mm and show that many. Never enlarge one tile to fill the surface, and never stretch, squash or skew the photograph to make it fit.`,
+    '- Grout: a continuous joint between every pair of tiles, forming a regular grid at exactly those intervals. Joint width consistent everywhere.',
+    '- Edges and cuts: where the surface does not divide evenly, cut tiles at the perimeter, at internal corners and around fixtures, exactly as a fitter would.',
+    '- Corners: joints meet cleanly; the pattern continues around a corner as two cut tiles, not as one bent tile.',
+    '- Alignment: a consistent lay pattern across the whole surface, joints running true.',
+    '- Perspective: the grid converges with the room geometry. Tiles further away appear smaller and their joints closer together.',
+    '- Scale: judge the tile against the fixtures and any human-scale element in the room. A viewer must be able to tell this tile from one twice its size.',
+  ].join('\n')
 }
 
 /** Turns a stored tile size id such as "1200x600" into "1200 × 600 mm". */
