@@ -75,9 +75,14 @@ function AdminShell({ children }: { children?: ReactNode }) {
   }
 
   /**
-   * One button, two jobs, because there is only ever one sidebar to reveal.
-   * Where the sidebar is on screen it collapses it; where it is not, the same
-   * gesture opens the drawer that stands in for it.
+   * One handler for both copies of the button — the one in the sidebar header
+   * and the one in the top bar. Where the sidebar is on screen it collapses
+   * it; where it is not, the same gesture opens the drawer that stands in for
+   * it.
+   *
+   * Two copies rather than one because the sidebar's own button disappears
+   * with the sidebar. Something outside it has to be able to bring it back,
+   * and at phone width there is no sidebar to put a button in at all.
    */
   const handleMenu = () => {
     if (window.matchMedia(DESK_WIDTH).matches) {
@@ -113,7 +118,18 @@ function AdminShell({ children }: { children?: ReactNode }) {
   return (
     <div className={`shell${collapsed ? ' shell--sidebar-collapsed' : ''}`}>
       <aside className="shell__sidebar">
-        <div className="shell__brand">DEVYORA</div>
+        <div className="shell__sidebar-head">
+          <div className="shell__brand">DEVYORA</div>
+          <button
+            type="button"
+            className="shell__icon-button"
+            aria-label="Hide the menu"
+            aria-expanded={true}
+            onClick={handleMenu}
+          >
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+        </div>
         {nav}
         <div className="shell__sidebar-footer">
           <span className="shell__who" title={userName ?? undefined}>

@@ -9,11 +9,28 @@
   display: none;
 }
 
-/* The admin's menu button stays on screen at every width: below the desk
-   breakpoint it opens the drawer, above it collapses the sidebar. The
-   salesperson's button keeps its original behaviour, hidden on a desk. */
+/* The sidebar's own header row: the wordmark, and the control that hides it.
+   Scoped to a class only the admin sidebar renders, so the shared
+   `.shell__brand` rules keep working untouched for the salesperson. */
+.shell__sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 0.625rem;
+  margin-bottom: 1.5rem;
+}
+.shell__sidebar-head .shell__brand {
+  /* The row owns the spacing below the wordmark now. */
+  margin-bottom: 0;
+}
+
+/* The top bar's copy of the button is the way back. On a desk it appears only
+   once the sidebar is collapsed — until then the sidebar's own button is the
+   one on screen. Below the desk breakpoint it stays as it was, opening the
+   drawer, because there is no sidebar there to hold a button. The
+   salesperson's button is untouched: it has no --admin class. */
 @media (min-width: 1024px) {
-  .shell__menu-button--admin {
+  .shell--sidebar-collapsed .shell__menu-button--admin {
     display: inline-flex;
   }
 }
