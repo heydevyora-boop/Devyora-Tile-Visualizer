@@ -302,6 +302,18 @@
   margin-bottom: 0;
 }
 
+/* An action with no undo. Outlined rather than filled: it should read as
+   serious without competing with the primary action on the same screen. */
+.ws__action--danger {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.ws__action--danger:hover {
+  border-color: var(--color-error);
+  background-color: var(--color-error-container);
+  color: var(--color-on-error-container);
+}
+
 .ws__action--submit {
   width: 100%;
   margin-top: 0.5rem;

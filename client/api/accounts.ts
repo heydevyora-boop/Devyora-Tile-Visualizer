@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   AccountsError,
   createAccount,
+  deleteAccount,
   listAccounts,
   normaliseUsername,
   updateAccount,
@@ -17,6 +18,8 @@ import { DbError, asDbError } from './_lib/db.js'
  * PATCH — admin only; change one account's username, display name, role or
  *         password. The account is named in the body rather than the path,
  *         matching every other route here.
+ * DELETE — admin only; remove one account, named in the query string. Their
+ *         saved concepts survive it; see the store for why.
  *
  * Admin only throughout, including the listing: who can sign in to a showroom
  * is not something a salesperson needs to enumerate.
@@ -69,9 +72,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // here rather than in the store: it is a fact about who is asking, not
       // about whether the account is valid.
       //
-      // It is also what keeps at least one administrator in existence. Any
-      // other demotion is performed by an admin who stays one, so the only
-      // path to zero administrators is the one this closes.
+      // Together with the self-deletion guard below, it is also what keeps
+      // at least one administrator in existence: every other demotion and
+      // removal is performed by an admin who survives it, so those two are
+      // the only paths to zero administrators.
       const isSelf = normaliseUsername(target) === session.sub
       if (isSelf && body.role !== undefined && body.role !== 'admin') {
         res.status(403).json({
@@ -92,7 +96,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    res.setHeader('Allow', 'GET, POST, PATCH')
+    if (req.method === 'DELETE') {
+      // Named in the query string rather than a body: a DELETE body is not
+      // carried reliably by every runtime, and a flat file route cannot take
+      // a path parameter.
+      const target = typeof req.query.username === 'string' ? req.query.username : ''
+      if (!target.trim()) throw new AccountsError('Which account should be removed?')
+
+      // Deleting yourself is the one removal nobody could undo from inside the
+      // app — with the last administrator gone there is no way back in. Another
+      // administrator can do it, which is the point.
+      if (normaliseUsername(target) === session.sub) {
+        res.status(403).json({
+          error: 'You cannot remove your own account — ask another administrator to do it.',
+        })
+        return
+      }
+
+      res.status(200).json(await deleteAccount(target))
+      return
+    }
+
+    res.setHeader('Allow', 'GET, POST, PATCH, DELETE')
     res.status(405).json({ error: 'Method not allowed.' })
   } catch (error) {
     const failure = asDbError(error) ?? error

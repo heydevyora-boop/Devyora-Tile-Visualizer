@@ -262,6 +262,32 @@ export async function createAccount(input: {
  * A new password replaces the old hash and is never recoverable from what is
  * stored — resetting is the only way back in, which is the point.
  */
+/**
+ * Removes one account, and returns what it was.
+ *
+ * Their saved concepts are deliberately left where they are. Those belong to
+ * the customers they were designed for, not to whoever was holding the tablet:
+ * a salesperson leaving the showroom is no reason to destroy a client's record
+ * of what their floor was going to look like. The concepts carry the display
+ * name as it was at the time, so the history still names the right person
+ * after the account itself is gone.
+ *
+ * There is no undo, and there is nothing to recover: the password hash goes
+ * with the row. Re-creating the person means setting them a new password.
+ */
+export async function deleteAccount(username: unknown): Promise<AccountSummary> {
+  const collection = await getCollection<AccountDoc>(COLLECTION)
+
+  const target = normaliseUsername(typeof username === 'string' ? username : '')
+  if (!target) throw new AccountsError('Which account should be removed?')
+
+  const existing = await collection.findOne({ username: target })
+  if (!existing) throw new AccountsError('That account was not found.', 404)
+
+  await collection.deleteOne({ _id: existing._id })
+  return toSummary(existing)
+}
+
 export async function updateAccount(
   username: string,
   changes: {

@@ -4,6 +4,7 @@ import AdminShell from '../components/AdminShell'
 import { useAuth } from '../state/AuthContext'
 import {
   ApiError,
+  apiDelete,
   apiGet,
   apiPatch,
   type AccountSummary,
@@ -37,6 +38,8 @@ function UserDetail() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Two steps, because there is no undo: the first click only asks.
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const [newUsername, setNewUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -103,6 +106,29 @@ function UserDetail() {
         }
       } catch (caught) {
         setError(caught instanceof ApiError ? caught.message : 'That change could not be saved.')
+      } finally {
+        setBusy(false)
+      }
+    })()
+  }
+
+  const handleDelete = () => {
+    if (!account) return
+    setBusy(true)
+    setError(null)
+    setNotice(null)
+    void (async () => {
+      try {
+        await apiDelete<AccountSummary>(
+          `/api/accounts?username=${encodeURIComponent(account.username)}`,
+          token,
+        )
+        navigate('/admin/users', { replace: true })
+      } catch (caught) {
+        setError(
+          caught instanceof ApiError ? caught.message : 'That account could not be removed.',
+        )
+        setConfirmingDelete(false)
       } finally {
         setBusy(false)
       }
@@ -213,6 +239,59 @@ function UserDetail() {
               </article>
             ))}
           </div>
+
+          {/* Last, and visually separate: there is no undo, so it should not
+              sit next to the fields someone edits routinely. */}
+          <h2 className="ws__section-title">Remove this account</h2>
+          {isSelf ? (
+            <p className="ws__note">
+              You cannot remove your own account. Another administrator has to do it — otherwise
+              the last one could lock everybody out.
+            </p>
+          ) : (
+            <>
+              <p className="ws__lede">
+                {account.displayName} will no longer be able to sign in. This cannot be undone, and
+                the password cannot be recovered — bringing them back means creating the account
+                again with a new password.
+                {work && work.length > 0
+                  ? ` Their ${work.length} saved ${work.length === 1 ? 'concept' : 'concepts'} stay in the history: those belong to the customers they were designed for.`
+                  : ''}
+              </p>
+              {confirmingDelete ? (
+                <div className="ws__actions">
+                  <button
+                    className="ws__action ws__action--danger"
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={busy}
+                  >
+                    <span className="material-symbols-outlined">delete_forever</span>
+                    <span>Yes, remove {account.displayName}</span>
+                  </button>
+                  <button
+                    className="ws__action"
+                    type="button"
+                    onClick={() => setConfirmingDelete(false)}
+                    disabled={busy}
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                    <span>Keep the account</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="ws__action ws__action--danger"
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={busy}
+                >
+                  <span className="material-symbols-outlined">person_remove</span>
+                  <span>Remove account</span>
+                </button>
+              )}
+            </>
+          )}
         </>
       )}
     </AdminShell>
