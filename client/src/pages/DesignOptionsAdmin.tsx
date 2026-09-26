@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPatch, apiPost, type DesignOption, type DesignOptionKind } from '../utils/api'
 import './Workspace.css'
@@ -36,7 +35,6 @@ const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
  * work meaningful.
  */
 function DesignOptionsAdmin() {
-  const navigate = useNavigate()
   const { token } = useAuth()
   const [options, setOptions] = useState<DesignOption[] | null>(null)
   const [kind, setKind] = useState<DesignOptionKind>('style')
@@ -133,20 +131,7 @@ function DesignOptionsAdmin() {
   }
 
   return (
-    <div className="shell">
-      <div className="shell__main">
-        <header className="shell__topbar">
-          <button
-            type="button"
-            className="shell__icon-button"
-            aria-label="Back to history"
-            onClick={() => navigate('/history')}
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <h1 className="shell__title">Design Options</h1>
-        </header>
-        <main className="shell__content">
+    <>
           <div className="ws__tabs" role="tablist" aria-label="Option kind">
             {TABS.map((tab) => (
               <button
@@ -365,9 +350,7 @@ function DesignOptionsAdmin() {
               ),
             )}
           </ul>
-        </main>
-      </div>
-    </div>
+    </>
   )
 }
 

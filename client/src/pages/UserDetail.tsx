@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import AdminShell from '../components/AdminShell'
+import { useAdminTitle } from '../components/adminTitle'
 import { useAuth } from '../state/AuthContext'
 import {
   ApiError,
@@ -40,6 +40,10 @@ function UserDetail() {
   const [busy, setBusy] = useState(false)
   // Two steps, because there is no undo: the first click only asks.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  // The top bar is named after whoever is being looked at, which the route
+  // alone cannot say — the URL carries a username, the bar wants their name.
+  useAdminTitle(account?.displayName ?? null)
 
   const [newUsername, setNewUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -136,7 +140,7 @@ function UserDetail() {
   }
 
   return (
-    <AdminShell title={account?.displayName ?? 'Account'}>
+    <>
       {error && (
         <p className="ws__error" role="alert">
           {error}
@@ -294,7 +298,7 @@ function UserDetail() {
           )}
         </>
       )}
-    </AdminShell>
+    </>
   )
 }
 

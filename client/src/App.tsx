@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import { FlowProvider } from './state/FlowContext'
 import { AuthProvider } from './state/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminShell from './components/AdminShell'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import Camera from './pages/Camera'
@@ -95,59 +96,32 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Every admin screen, under one frame.
+
+              A layout route rather than a wrapper on each page: React Router
+              swaps only what <Outlet /> renders, so the sidebar is mounted
+              once and survives moving between these five. Wrapping each page
+              individually would tear the frame down and build it again on
+              every click. */}
           <Route
-            path="/history"
             element={
               <ProtectedRoute requireRole="admin">
-                <History />
+                <AdminShell />
               </ProtectedRoute>
             }
-          />
-          {/* The showroom's own catalogue of tile sizes, which only the admin
-              maintains. */}
-          <Route
-            path="/tile-formats"
-            element={
-              <ProtectedRoute requireRole="admin">
-                <TileFormatsAdmin />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/space-catalogue"
-            element={
-              <ProtectedRoute requireRole="admin">
-                <SpaceCatalogueAdmin />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/design-options"
-            element={
-              <ProtectedRoute requireRole="admin">
-                <DesignOptionsAdmin />
-              </ProtectedRoute>
-            }
-          />
-          {/* Who can sign in, and what each of them has produced. Admin-only
-              in both directions: the route guards the screens, and every
-              /api/accounts endpoint they call checks the role again. */}
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute requireRole="admin">
-                <UsersAdmin />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/users/:username"
-            element={
-              <ProtectedRoute requireRole="admin">
-                <UserDetail />
-              </ProtectedRoute>
-            }
-          />
+          >
+            {/* Where an admin lands after signing in. */}
+            <Route path="/history" element={<History />} />
+            {/* The showroom's own catalogues, which only the admin maintains. */}
+            <Route path="/tile-formats" element={<TileFormatsAdmin />} />
+            <Route path="/space-catalogue" element={<SpaceCatalogueAdmin />} />
+            <Route path="/design-options" element={<DesignOptionsAdmin />} />
+            {/* Who can sign in, and what each of them has produced. Admin-only
+                in both directions: the route guards the screens, and every
+                /api/accounts endpoint they call checks the role again. */}
+            <Route path="/admin/users" element={<UsersAdmin />} />
+            <Route path="/admin/users/:username" element={<UserDetail />} />
+          </Route>
         </Routes>
       </FlowProvider>
     </AuthProvider>

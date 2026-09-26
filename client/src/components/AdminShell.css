@@ -1,0 +1,19 @@
+/* Rules for the administrator's frame only.
+   Kept out of AppShell.css deliberately: that stylesheet dresses the
+   salesperson's shell too, and nothing here should be able to reach it. */
+
+/* The manual collapse. Two classes deep, so it beats the plain
+   `.shell__sidebar { display: flex }` the desk-width media query sets —
+   media queries add no specificity of their own. */
+.shell--sidebar-collapsed .shell__sidebar {
+  display: none;
+}
+
+/* The admin's menu button stays on screen at every width: below the desk
+   breakpoint it opens the drawer, above it collapses the sidebar. The
+   salesperson's button keeps its original behaviour, hidden on a desk. */
+@media (min-width: 1024px) {
+  .shell__menu-button--admin {
+    display: inline-flex;
+  }
+}

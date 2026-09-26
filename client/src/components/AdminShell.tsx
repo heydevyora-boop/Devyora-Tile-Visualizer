@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
+import { AdminTitleContext } from './adminTitle'
 import './AppShell.css'
+import './AdminShell.css'
 
 /**
  * The administrator's frame: a sidebar on a desk monitor, a drawer on a phone.
@@ -12,7 +14,14 @@ import './AppShell.css'
  * would mean every change to one role's navigation risked the other's.
  *
  * It reuses AppShell's stylesheet, because the two frames should look like the
- * same product even though they lead to different places.
+ * same product even though they lead to different places. Anything specific to
+ * this frame lives in AdminShell.css instead, so no rule here can reach the
+ * salesperson's shell.
+ *
+ * Mounted as a LAYOUT ROUTE, not wrapped around each page. That is what keeps
+ * the sidebar from re-mounting on every navigation: React Router swaps only
+ * what <Outlet /> renders, so the frame — and the open/collapsed state it
+ * holds — survives moving between admin pages.
  */
 const NAV_ITEMS = [
   { to: '/admin/users', label: 'Users & Roles', icon: 'manage_accounts' },
@@ -22,10 +31,34 @@ const NAV_ITEMS = [
   { to: '/design-options', label: 'Design Options', icon: 'palette' },
 ]
 
-function AdminShell({ title, children }: { title: string; children: ReactNode }) {
+const COLLAPSED_KEY = 'devyora.admin.sidebarCollapsed'
+const DESK_WIDTH = '(min-width: 1024px)'
+
+/** The collapsed preference, or false for anything unreadable. */
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === 'true'
+  } catch {
+    // Private mode or blocked storage — the toggle still works for this visit.
+    return false
+  }
+}
+
+function AdminShell({ children }: { children?: ReactNode }) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { userName, logout } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState<boolean>(readCollapsed)
+  const [pageTitle, setPageTitle] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLLAPSED_KEY, String(collapsed))
+    } catch {
+      // Not remembered across refreshes, which is the whole cost.
+    }
+  }, [collapsed])
 
   useEffect(() => {
     if (!drawerOpen) return
@@ -40,6 +73,26 @@ function AdminShell({ title, children }: { title: string; children: ReactNode })
     logout()
     navigate('/', { replace: true })
   }
+
+  /**
+   * One button, two jobs, because there is only ever one sidebar to reveal.
+   * Where the sidebar is on screen it collapses it; where it is not, the same
+   * gesture opens the drawer that stands in for it.
+   */
+  const handleMenu = () => {
+    if (window.matchMedia(DESK_WIDTH).matches) {
+      setCollapsed((previous) => !previous)
+    } else {
+      setDrawerOpen(true)
+    }
+  }
+
+  // The longest matching nav path wins, so /admin/users/priya is still titled
+  // by the Users & Roles item rather than falling through to nothing.
+  const matched = [...NAV_ITEMS]
+    .sort((a, b) => b.to.length - a.to.length)
+    .find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))
+  const title = pageTitle ?? matched?.label ?? 'Administration'
 
   const nav = (
     <nav className="shell__nav" aria-label="Administration">
@@ -58,7 +111,7 @@ function AdminShell({ title, children }: { title: string; children: ReactNode })
   )
 
   return (
-    <div className="shell">
+    <div className={`shell${collapsed ? ' shell--sidebar-collapsed' : ''}`}>
       <aside className="shell__sidebar">
         <div className="shell__brand">DEVYORA</div>
         {nav}
@@ -93,10 +146,10 @@ function AdminShell({ title, children }: { title: string; children: ReactNode })
         <header className="shell__topbar">
           <button
             type="button"
-            className="shell__icon-button shell__menu-button"
-            aria-label="Open menu"
-            aria-expanded={drawerOpen}
-            onClick={() => setDrawerOpen(true)}
+            className="shell__icon-button shell__menu-button shell__menu-button--admin"
+            aria-label={collapsed ? 'Show the menu' : 'Hide the menu'}
+            aria-expanded={!collapsed || drawerOpen}
+            onClick={handleMenu}
           >
             <span className="material-symbols-outlined">menu</span>
           </button>
@@ -111,7 +164,11 @@ function AdminShell({ title, children }: { title: string; children: ReactNode })
             <span className="material-symbols-outlined">logout</span>
           </button>
         </header>
-        <main className="shell__content">{children}</main>
+        <main className="shell__content">
+          <AdminTitleContext.Provider value={setPageTitle}>
+            {children ?? <Outlet />}
+          </AdminTitleContext.Provider>
+        </main>
       </div>
     </div>
   )

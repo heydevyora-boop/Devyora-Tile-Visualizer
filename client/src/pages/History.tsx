@@ -141,10 +141,6 @@ function History() {
     }
   }, [lightbox, activeImages.length])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/', { replace: true })
-  }
 
   const showPrev = () =>
     setLightbox((current) =>
@@ -163,39 +159,7 @@ function History() {
     )
 
   return (
-    <div className="history-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
-      {/* Admins are review-only, so this header carries no navigation into the
-          consultation flow itself — branding, title, and sign-out only. The
-          showroom-configuration screens are a separate matter (see below):
-          an admin is the only one who can reach them, so this page, the one
-          an admin actually lands on, is where that path has to start. */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(0,0,0,0.45)]">
-        <div className="h-16 px-margin flex items-center justify-between">
-          <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">
-            DEVYORA
-          </span>
-          <div className="flex flex-col items-center">
-            <span className="font-headline-sm text-headline-sm uppercase text-on-surface">
-              Generation History
-            </span>
-            <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">
-              Admin
-            </span>
-          </div>
-          <button
-            aria-label="Sign out"
-            className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
-            id="logoutBtn"
-            onClick={handleLogout}
-            title="Sign out"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
-          </button>
-        </div>
-      </header>
-
-      <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">
+    <>
         <div className="history-content">
           {/* Everything only an admin can change: who can sign in, and the
               catalogues that give the visualiser its content — tile formats,
@@ -314,8 +278,6 @@ function History() {
             })}
           </div>
         </div>
-      </main>
-
       {lightbox !== null && activeRecord && (
         <div
           aria-label={`Concept ${lightbox.imageIndex + 1} by ${activeRecord.userName} — full size view`}
@@ -373,7 +335,7 @@ function History() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

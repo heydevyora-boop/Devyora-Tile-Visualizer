@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPatch, apiPost, type SpaceNode } from '../utils/api'
 import './Workspace.css'
@@ -16,7 +15,6 @@ import './Workspace.css'
  * meaningful, and takes them out of the flow immediately.
  */
 function SpaceCatalogueAdmin() {
-  const navigate = useNavigate()
   const { token } = useAuth()
   const [nodes, setNodes] = useState<SpaceNode[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -125,20 +123,7 @@ function SpaceCatalogueAdmin() {
   }
 
   return (
-    <div className="shell">
-      <div className="shell__main">
-        <header className="shell__topbar">
-          <button
-            type="button"
-            className="shell__icon-button"
-            aria-label="Back to history"
-            onClick={() => navigate('/history')}
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <h1 className="shell__title">Space Catalogue</h1>
-        </header>
-        <main className="shell__content">
+    <>
           <p className="ws__lede">
             Categories, their applications, and any deeper choice. Add an entry under another to
             create a further level — there is no fixed depth.
@@ -355,9 +340,7 @@ function SpaceCatalogueAdmin() {
               ),
             )}
           </ul>
-        </main>
-      </div>
-    </div>
+    </>
   )
 }
 

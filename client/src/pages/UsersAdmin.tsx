@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import AdminShell from '../components/AdminShell'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPost, type AccountSummary } from '../utils/api'
 import { signedInUsername } from '../utils/signedInUsername'
@@ -77,7 +76,7 @@ function UsersAdmin() {
   }
 
   return (
-    <AdminShell title="Users & Roles">
+    <>
       <p className="ws__lede">
         Everyone who can sign in to this showroom. Passwords are never shown — they cannot be read
         back, only replaced.
@@ -160,7 +159,7 @@ function UsersAdmin() {
           </li>
         ))}
       </ul>
-    </AdminShell>
+    </>
   )
 }
 
