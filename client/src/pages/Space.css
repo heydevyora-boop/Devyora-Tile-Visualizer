@@ -70,6 +70,15 @@ p {
 .w-6 { width: 1.5rem; }
 .w-8 { width: 2rem; }
 .w-11 { width: 2.75rem; }
+/* The space cards' thumbnail column. w-24 was in the markup but had no rule
+   behind it, so each image was only as wide as its own aspect ratio made it
+   and the text beside it started at a different place on every card. A fixed
+   width with object-cover gives every card the same column, whatever shape
+   the photograph is. The image stretches to the card so a longer description
+   never leaves a gap beside it. */
+.w-24 { width: 6rem; }
+.min-h-24 { min-height: 6rem; }
+.self-stretch { align-self: stretch; }
 .h-full { height: 100%; }
 .h-1\.5 { height: 0.375rem; }
 .h-2 { height: 0.5rem; }
@@ -110,7 +119,11 @@ p {
 .rounded-full { border-radius: 0.75rem; }
 .cursor-pointer { cursor: pointer; }
 .bg-surface { background-color: #121314; }
-.bg-surface\/85 { background-color: rgba(18, 19, 20, 0.85); }
+/* Opaque, despite the name this class was given when the header was meant to
+   be frosted. The header is fixed over a scrolling list, and at 85% the labels
+   passing underneath stayed legible through it — blur softens text, it does
+   not remove it. The surface colour here is --color-surface from tokens.css. */
+.bg-surface\/85 { background-color: #121314; }
 .bg-surface-container-high { background-color: #292a2b; }
 .bg-surface-container-lowest { background-color: #0d0e0f; }
 .bg-primary { background-color: #e2c399; }

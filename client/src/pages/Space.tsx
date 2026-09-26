@@ -171,7 +171,7 @@ function Space() {
               >
                 {node.imageUrl && (
                   <img
-                    className="w-24 h-24 object-cover flex-shrink-0"
+                    className="w-24 self-stretch min-h-24 object-cover flex-shrink-0"
                     src={node.imageUrl}
                     alt={node.name}
                     loading="lazy"
