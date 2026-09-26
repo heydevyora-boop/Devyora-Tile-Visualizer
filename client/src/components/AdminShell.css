@@ -15,12 +15,17 @@
 .shell__sidebar-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* The toggle sits in the gutter and the wordmark follows it on the same
+     row, so the control that hides the sidebar reads as belonging to the
+     sidebar rather than to whatever happens to be beside it. */
+  padding-left: 0.375rem;
   padding-right: 0.625rem;
   margin-bottom: 1.5rem;
 }
 .shell__sidebar-head .shell__brand {
-  /* The row owns the spacing below the wordmark now. */
+  /* The toggle sets the left edge of this row now, and the row owns the
+     spacing beneath it. */
+  padding-left: 0.25rem;
   margin-bottom: 0;
 }
 

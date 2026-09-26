@@ -119,7 +119,6 @@ function AdminShell({ children }: { children?: ReactNode }) {
     <div className={`shell${collapsed ? ' shell--sidebar-collapsed' : ''}`}>
       <aside className="shell__sidebar">
         <div className="shell__sidebar-head">
-          <div className="shell__brand">DEVYORA</div>
           <button
             type="button"
             className="shell__icon-button"
@@ -129,6 +128,7 @@ function AdminShell({ children }: { children?: ReactNode }) {
           >
             <span className="material-symbols-outlined">menu</span>
           </button>
+          <div className="shell__brand">DEVYORA</div>
         </div>
         {nav}
         <div className="shell__sidebar-footer">
