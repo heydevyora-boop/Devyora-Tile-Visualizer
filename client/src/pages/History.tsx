@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet } from '../utils/api'
 import './History.css'
-// The three admin-configuration screens share Settings.tsx's visual
-// language (ws__actions / ws__action), so their styling comes from here
-// rather than being redefined a second time in History.css.
-import './Workspace.css'
 
 /** What this screen draws: one saved concept, flattened to what a card needs. */
 type GenerationRecord = {
@@ -161,38 +157,6 @@ function History() {
   return (
     <>
         <div className="history-content">
-          {/* Everything only an admin can change: who can sign in, and the
-              catalogues that give the visualiser its content — tile formats,
-              the space hierarchy, and the design/joint/pattern/revision-reason
-              lists. This page is the only place an admin lands, so it is the
-              one place these have to be reachable from. */}
-          <section className="history-intro">
-            <p className="history-eyebrow">Showroom setup</p>
-            <h1 className="history-title">Configuration</h1>
-            <p className="history-subtitle">
-              What the visualiser offers a salesperson — changes here take effect immediately, with
-              no redeploy.
-            </p>
-          </section>
-          <div className="ws__actions">
-            <Link className="ws__action" to="/admin/users">
-              <span className="material-symbols-outlined">manage_accounts</span>
-              <span>Users &amp; roles</span>
-            </Link>
-            <Link className="ws__action" to="/tile-formats">
-              <span className="material-symbols-outlined">grid_on</span>
-              <span>Tile formats</span>
-            </Link>
-            <Link className="ws__action" to="/space-catalogue">
-              <span className="material-symbols-outlined">category</span>
-              <span>Space catalogue</span>
-            </Link>
-            <Link className="ws__action" to="/design-options">
-              <span className="material-symbols-outlined">palette</span>
-              <span>Design options</span>
-            </Link>
-          </div>
-
           <section className="history-intro">
             <p className="history-eyebrow">Archive</p>
             <h1 className="history-title">All Generations</h1>
