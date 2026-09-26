@@ -106,13 +106,27 @@ export function classifyDbFailure(error: unknown): DbFailureReason | null {
 
   // No server answered in time. On a hosted cluster this is nearly always the
   // network access list rather than a dead cluster.
+  //
+  // The libuv codes matter as much as the Mongo* names here: a hostname that
+  // does not resolve surfaces as a plain Error carrying `querySrv ENOTFOUND`,
+  // whose name is just "Error". Without them a mistyped cluster address falls
+  // past every branch in this function and gets reported as a bug in the route
+  // that asked for data, rather than as a database nobody can reach.
   if (
     name === 'MongoServerSelectionError' ||
     name === 'MongoNetworkError' ||
     name === 'MongoNetworkTimeoutError' ||
     name === 'MongoTimeoutError' ||
+    code === 'ENOTFOUND' ||
+    code === 'EAI_AGAIN' ||
+    code === 'ECONNREFUSED' ||
+    code === 'ECONNRESET' ||
+    code === 'ETIMEDOUT' ||
+    code === 'EHOSTUNREACH' ||
+    code === 'ENETUNREACH' ||
     text.includes('server selection timed out') ||
-    text.includes('getaddrinfo')
+    text.includes('getaddrinfo') ||
+    text.includes('querysrv')
   ) {
     return 'cannot-reach-cluster'
   }
@@ -161,6 +175,26 @@ function readSetting(name: string): string | undefined {
   if (typeof raw !== 'string') return undefined
   const unwrapped = raw.trim().replace(/^(['"])([\s\S]*)\1$/, '$2').trim()
   return unwrapped || undefined
+}
+
+/**
+ * The per-server reasons behind a failed server selection.
+ *
+ * The driver's own message for this is often no more than "Server selection
+ * timed out after 8000 ms", which does not say whether the cluster refused the
+ * connection, never answered, or was never found — three different problems
+ * with three different fixes. Each server it tried keeps its own error, and
+ * that is the part that names the cause.
+ */
+function describeUnreachableCluster(error: unknown): string {
+  const servers = (error as { reason?: { servers?: unknown } })?.reason?.servers
+  if (!(servers instanceof Map) || servers.size === 0) return 'no per-server detail'
+  return [...servers.entries()]
+    .map(([host, description]) => {
+      const cause = (description as { error?: unknown })?.error
+      return `${String(host)} — ${cause ? describeDbError(cause) : 'no answer'}`
+    })
+    .join('; ')
 }
 
 /**
@@ -250,6 +284,12 @@ export async function getDb(): Promise<Db> {
       // shape goes to the log, where naming the mistake costs no secrets.
       console.error('[db] MONGODB_URI shape:', describeUriShape(uri))
       console.error('[db] MONGODB_DB value:', JSON.stringify(DB_NAME))
+    }
+    if (failure instanceof DbError && failure.reason === 'cannot-reach-cluster') {
+      // Which server, and why it did not answer — the detail the driver's own
+      // timeout message leaves out, and the only thing that separates a
+      // network access list from a paused cluster or a bad address.
+      console.error('[db] cluster unreachable:', describeUnreachableCluster(error))
     }
     throw failure
   }
