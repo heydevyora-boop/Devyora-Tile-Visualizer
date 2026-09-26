@@ -144,7 +144,51 @@ export function describeDbError(error: unknown): string {
   return String(error)
 }
 
-const DB_NAME = process.env.MONGODB_DB ?? 'devyora'
+/**
+ * Reads a connection setting, tolerating the two ways a value gets mangled on
+ * its way into a hosting dashboard.
+ *
+ * A local .env file is parsed by dotenv, which strips the quotes around a
+ * value. A dashboard does not parse anything — it stores exactly what was
+ * typed into the box. So the very same string that works locally arrives here
+ * with its quotes still attached, and `"mongodb+srv://…` is not a scheme the
+ * driver recognises. A trailing newline from the copy does the same thing.
+ * Neither is ever part of a real connection string, so both are removed here
+ * rather than left to fail as an unreadable parse error.
+ */
+function readSetting(name: string): string | undefined {
+  const raw = process.env[name]
+  if (typeof raw !== 'string') return undefined
+  const unwrapped = raw.trim().replace(/^(['"])([\s\S]*)\1$/, '$2').trim()
+  return unwrapped || undefined
+}
+
+/**
+ * What is wrong with a connection string, in terms that name the mistake
+ * without printing the string itself.
+ *
+ * Everything before "://" is the scheme, which cannot contain credentials, so
+ * it is safe to show — and it is where this goes wrong most of the time. The
+ * count of "@" after it is the other common mistake: a password containing an
+ * "@" splits the host off in the wrong place unless it is percent-encoded.
+ */
+function describeUriShape(uri: string): string {
+  const schemeEnd = uri.indexOf('://')
+  if (schemeEnd < 0) {
+    return `${uri.length} characters, with no "://" in it at all`
+  }
+  const rest = uri.slice(schemeEnd + 3)
+  const ats = (rest.match(/@/g) ?? []).length
+  return [
+    `${uri.length} characters`,
+    `scheme ${JSON.stringify(uri.slice(0, schemeEnd))}`,
+    ats > 1
+      ? `${ats} "@" characters after the scheme — a password containing "@" has to be percent-encoded as %40`
+      : `${ats} "@" character after the scheme`,
+  ].join(', ')
+}
+
+const DB_NAME = readSetting('MONGODB_DB') ?? 'devyora'
 
 /**
  * One connection promise, reused across invocations.
@@ -160,7 +204,7 @@ let clientPromise: Promise<MongoClient> | null = null
 
 /** True when MONGODB_URI is set. Lets routes answer cleanly instead of throwing. */
 export function isDatabaseConfigured(): boolean {
-  return Boolean(process.env.MONGODB_URI)
+  return Boolean(readSetting('MONGODB_URI'))
 }
 
 function connect(uri: string): Promise<MongoClient> {
@@ -176,26 +220,38 @@ function connect(uri: string): Promise<MongoClient> {
 
 /** The shared database handle. Throws a DbError when it cannot be reached. */
 export async function getDb(): Promise<Db> {
-  const uri = process.env.MONGODB_URI
+  const uri = readSetting('MONGODB_URI')
   if (!uri) throw new DbConfigError()
 
-  if (!clientPromise) {
-    clientPromise = connect(uri).catch((error: unknown) => {
-      // Don't cache a failed connect, or every later request in this instance
-      // reuses the rejection and the function never recovers.
-      clientPromise = null
-      throw error
-    })
-  }
-
   try {
+    if (!clientPromise) {
+      // Built inside this block on purpose. The driver rejects a connection
+      // string it cannot parse by throwing from the constructor — synchronously,
+      // before there is any promise to reject. Built outside the try, that
+      // throw leaves getDb without ever classifying or logging it, which is
+      // exactly the failure an admin most needs named.
+      clientPromise = connect(uri).catch((error: unknown) => {
+        // Don't cache a failed connect, or every later request in this instance
+        // reuses the rejection and the function never recovers.
+        clientPromise = null
+        throw error
+      })
+    }
     const client = await clientPromise
     return client.db(DB_NAME)
   } catch (error) {
     // The driver's own error names the cluster and the connection string; the
     // caller gets the cause without either, and the log keeps the detail.
     console.error('[db] connection failed:', describeDbError(error))
-    throw asDbError(error) ?? error
+    const failure = asDbError(error) ?? error
+    if (failure instanceof DbError && failure.reason === 'bad-connection-string') {
+      // This is the one cause nobody can act on from the message alone: the
+      // string is wrong, but not in a way the screen may repeat back. Its
+      // shape goes to the log, where naming the mistake costs no secrets.
+      console.error('[db] MONGODB_URI shape:', describeUriShape(uri))
+      console.error('[db] MONGODB_DB value:', JSON.stringify(DB_NAME))
+    }
+    throw failure
   }
 }
 
