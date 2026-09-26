@@ -269,3 +269,11 @@ export async function getCustomer(scope: OwnerScope, id: string): Promise<Custom
   const doc = await collection.findOne({ _id: id, ...ownerFilter(scope) })
   return doc ? toCustomer(doc) : null
 }
+/** One architect/contractor, or null when it is not this caller's. */
+export async function getArchitect(scope: OwnerScope, id: string): Promise<Architect | null> {
+  await ensureIndexes()
+  const collection = await getCollection<ArchitectDoc>(ARCHITECTS)
+  const doc = await collection.findOne({ _id: id, ...ownerFilter(scope) })
+  return doc ? toArchitect(doc) : null
+}
+

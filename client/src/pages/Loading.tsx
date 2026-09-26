@@ -10,7 +10,6 @@ import './Loading.css'
 // Express server. Set VITE_API_BASE_URL only to point at a different host.
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const GENERATE_ENDPOINT = `${API_BASE_URL}/api/generate`
-const GENERATIONS_ENDPOINT = `${API_BASE_URL}/api/generations`
 
 // Generation normally takes 15-25s. Give it room, but never hang forever.
 const REQUEST_TIMEOUT_MS = 75_000
@@ -31,7 +30,7 @@ function Loading() {
     tileSize,
     setGeneratedResult,
   } = useFlow()
-  const { userName, token } = useAuth()
+  const { token } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
 
@@ -120,48 +119,6 @@ function Loading() {
     ],
   )
 
-  /**
-   * Records the finished generation for the admin history page.
-   *
-   * Deliberately fire-and-forget: the user has already paid for these images,
-   * so a history write that fails must never block them reaching /results or
-   * surface as a generation error. Failures are logged and nothing else.
-   */
-  const saveToHistory = useCallback(
-    (result: { generationId?: string; image?: string; images?: string[]; tileImageUrl?: string }) => {
-      const images = result?.image ? [result.image] : (result?.images ?? [])
-      if (!images.length || !croppedImage) return
-      // The server already uploaded the tile photo (to Drive, or a base64
-      // fallback) and returns its URL — send that instead of the raw crop, so
-      // the history file stores a short URL rather than the full photo a
-      // second time. Older responses without tileImageUrl still work.
-      void fetch(GENERATIONS_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          generationId: result.generationId ?? `gen-${Date.now()}`,
-          userName: userName ?? 'Unknown',
-          // Whose consultation this was, and which of their areas it covers.
-          // The server takes the owning salesperson from the session, so it is
-          // deliberately not sent here.
-          customerId: customer?.id ?? null,
-          space,
-          style,
-          tileSize,
-          croppedImage: result.tileImageUrl ?? croppedImage,
-          generatedImages: images,
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch((historyError: unknown) => {
-        console.error('Could not save this generation to history:', historyError)
-      })
-    },
-    [croppedImage, userName, token, customer, space, style, tileSize],
-  )
-
   useEffect(() => {
     const controller = new AbortController()
     let cancelled = false
@@ -177,11 +134,16 @@ function Loading() {
         window.clearTimeout(timeoutId)
         // One request returns one image. It becomes the first concept of this
         // consultation; asking for another appends to the same set.
-        // One request returns one image. It becomes the first concept of this
-        // consultation; asking for another appends to the same set.
         const first = (result as { image?: string }).image
-        setGeneratedResult({ ...result, images: first ? [first] : (result.images ?? []) })
-        saveToHistory(result)
+        const revisionId = (result as { revision?: { id?: string } | null }).revision?.id ?? null
+        setGeneratedResult({
+          ...result,
+          images: first ? [first] : (result.images ?? []),
+          revisionIds: first ? [revisionId] : (result.images ?? []).map(() => null),
+        })
+        // Deliberately not saved here. A concept is temporary until the
+        // salesperson keeps it for the client: most are looked at once and
+        // rejected, and filing those would bury the ones that were agreed.
         navigate('/results')
       })
       .catch((requestError: unknown) => {
@@ -204,7 +166,7 @@ function Loading() {
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [attempt, navigate, runGeneration, saveToHistory, setGeneratedResult])
+  }, [attempt, navigate, runGeneration, setGeneratedResult])
 
   return (
     <div className="loading-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">

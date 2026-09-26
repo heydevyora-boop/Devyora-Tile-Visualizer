@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { useFlow } from '../state/FlowContext'
-import { ApiError, apiGet, type Customer, type SavedVisualisation } from '../utils/api'
+import { ApiError, apiGet, type Architect, type Customer, type SavedVisualisation } from '../utils/api'
 import './Workspace.css'
 
 function formatWhen(timestamp: string): string {
@@ -26,6 +26,7 @@ function CustomerDetail() {
   const { setCustomer } = useFlow()
 
   const [customer, setCustomerRecord] = useState<Customer | null>(null)
+  const [architect, setArchitect] = useState<Architect | null>(null)
   const [records, setRecords] = useState<SavedVisualisation[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,8 +36,9 @@ function CustomerDetail() {
       try {
         // The customer list is already scoped to this salesperson, so a client
         // that is not theirs simply is not in it.
-        const [customerList, saved] = await Promise.all([
+        const [customerList, architectList, saved] = await Promise.all([
           apiGet<Customer[]>('/api/customers', token, controller.signal),
+          apiGet<Architect[]>('/api/architects', token, controller.signal),
           apiGet<SavedVisualisation[]>(
             `/api/generations?customerId=${encodeURIComponent(customerId)}`,
             token,
@@ -44,7 +46,13 @@ function CustomerDetail() {
           ),
         ])
         if (controller.signal.aborted) return
-        setCustomerRecord(customerList.find((entry) => entry.id === customerId) ?? null)
+        const found = customerList.find((entry) => entry.id === customerId) ?? null
+        setCustomerRecord(found)
+        setArchitect(
+          found?.architectId
+            ? architectList.find((entry) => entry.id === found.architectId) ?? null
+            : null,
+        )
         setRecords(saved)
       } catch (caught) {
         if (controller.signal.aborted) return
@@ -53,6 +61,22 @@ function CustomerDetail() {
     })()
     return () => controller.abort()
   }, [customerId, token])
+
+  /**
+   * The client's record, area by area.
+   *
+   * Areas are not a separate thing the showroom maintains: a saved concept
+   * records the space it was for, so grouping by that IS the area list and it
+   * can never drift out of step with what was actually saved.
+   */
+  const areas = useMemo(() => {
+    const byArea = new Map<string, SavedVisualisation[]>()
+    for (const record of records ?? []) {
+      const area = record.space ?? 'Unspecified area'
+      byArea.set(area, [...(byArea.get(area) ?? []), record])
+    }
+    return [...byArea.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  }, [records])
 
   const startForThisClient = () => {
     if (!customer) return
@@ -80,7 +104,11 @@ function CustomerDetail() {
             <dt>Mobile</dt>
             <dd>{customer.mobile}</dd>
             <dt>Type</dt>
-            <dd>{customer.architectId ? 'Via architect/contractor' : 'Direct customer'}</dd>
+            <dd>
+              {customer.architectId
+                ? `Via ${architect?.name ?? 'architect/contractor'}`
+                : 'Direct customer'}
+            </dd>
           </dl>
 
           <div className="ws__actions">
@@ -94,31 +122,47 @@ function CustomerDetail() {
             </button>
           </div>
 
-          <h2 className="ws__section-title">Areas visualised</h2>
-          {records?.length === 0 && <p className="ws__empty">Nothing saved for this client yet.</p>}
-          <ul className="ws__list">
-            {(records ?? []).map((record) => (
-              <li className="ws__row" key={record.generationId}>
-                <div className="ws__thumbs">
-                  {record.generatedImages.slice(0, 3).map((image, index) => (
-                    <img
-                      className="ws__thumb"
-                      key={`${record.generationId}-${index}`}
-                      src={image}
-                      alt={`Concept ${index + 1}`}
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
-                <div className="ws__row-body">
-                  <span className="ws__row-title">{record.space ?? 'Unspecified area'}</span>
-                  <span className="ws__row-meta">
-                    {[record.style, formatWhen(record.timestamp)].filter(Boolean).join(' · ')}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <h2 className="ws__section-title">Saved visualizations</h2>
+          {records?.length === 0 && (
+            <p className="ws__empty">
+              Nothing saved for this client yet. Concepts appear here once you save them from a
+              consultation.
+            </p>
+          )}
+
+          {areas.map(([area, saved]) => (
+            <section className="ws__area" key={area}>
+              <h3 className="ws__area-title">{area}</h3>
+              <ul className="ws__gallery">
+                {saved.map((record) => (
+                  <li key={record.id}>
+                    {/* Opening a saved concept reads the stored record. It is
+                        never regenerated: what the customer agreed to is what
+                        they have to see. */}
+                    <button
+                      className="ws__card"
+                      type="button"
+                      onClick={() => navigate(`/saved-concepts/${record.id}`)}
+                    >
+                      <img
+                        className="ws__card-image"
+                        src={record.image}
+                        alt={`${area} concept ${record.revision}`}
+                        loading="lazy"
+                      />
+                      <span className="ws__card-body">
+                        <span className="ws__card-title">
+                          {[record.styleName, record.tileSize].filter(Boolean).join(' · ') ||
+                            `Concept ${record.revision}`}
+                        </span>
+                        <span className="ws__card-meta">{formatWhen(record.savedAt)}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
         </>
       )}
     </AppShell>

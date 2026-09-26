@@ -15,6 +15,42 @@ import type { OwnerScope } from './clientsStore.js'
  * that chain answers the only question that matters about a rejected concept:
  * what was asked for, and did the next one actually address it.
  */
+/**
+ * Everything needed to understand a concept months later, resolved server-side
+ * at the moment it was generated.
+ *
+ * It is captured here rather than rebuilt when someone saves the concept,
+ * because by then the catalogue may have been edited: a style renamed, a joint
+ * width changed, an application retired. A record that quietly re-reads today's
+ * catalogue would describe a concept that was never produced.
+ */
+export interface GenerationContext {
+  /** The salesperson's display name, as it was at the time. */
+  salespersonName: string
+  customerName: string | null
+  /** The architect/contractor who introduced the customer, where there is one. */
+  architectId: string | null
+  architectName: string | null
+  /** The uncropped tile photo, once the browser has sent it. */
+  originalTileImage: string | null
+  /** The cropped tile the concept was actually generated from. */
+  croppedTileImage: string | null
+  tileSize: string | null
+  /** The top-level area — what a customer's saved work groups by. */
+  space: string | null
+  /**
+   * The full application chain, root first: the space, its instance, the
+   * subcategory and any further selection, each as it was named at the time.
+   */
+  spacePath: { id: string; name: string }[]
+  styleName: string | null
+  jointName: string | null
+  jointWidthMm: number | null
+  patternName: string | null
+  /** What the customer asked for that the fixed choices do not cover. */
+  additionalRequirement: string | null
+}
+
 export interface ConceptRevision {
   id: string
   /** The consultation this belongs to. */
@@ -34,6 +70,15 @@ export interface ConceptRevision {
   /** The concept image — a Drive URL, or a base64 fallback. */
   imageUrl: string
   createdAt: string
+  /** How this concept came to be, as it was understood when it was made. */
+  context: GenerationContext
+  /**
+   * Set when a salesperson keeps this concept for the client. A generated
+   * concept is temporary until then: most are looked at once and rejected, and
+   * filing those in a client's permanent record would bury the ones that
+   * matter.
+   */
+  savedAt: string | null
 }
 
 interface RevisionDoc extends Omit<ConceptRevision, 'id'> {
@@ -87,6 +132,34 @@ export async function listRevisions(
   return docs.map(toRevision)
 }
 
+/** One concept, or null when it does not exist or belongs to someone else. */
+export async function getRevision(
+  scope: OwnerScope,
+  id: string,
+): Promise<ConceptRevision | null> {
+  await ensureIndexes()
+  const collection = await getCollection<RevisionDoc>(COLLECTION)
+  const doc = await collection.findOne({
+    _id: id,
+    ...(scope.isAdmin ? {} : { salesperson: scope.salesperson }),
+  })
+  return doc ? toRevision(doc) : null
+}
+
+/** Marks a concept as kept, so the saved record and the chain agree. */
+export async function markRevisionSaved(
+  scope: OwnerScope,
+  id: string,
+  savedAt: string,
+): Promise<void> {
+  await ensureIndexes()
+  const collection = await getCollection<RevisionDoc>(COLLECTION)
+  await collection.updateOne(
+    { _id: id, ...(scope.isAdmin ? {} : { salesperson: scope.salesperson }) },
+    { $set: { savedAt } },
+  )
+}
+
 /**
  * Records a concept.
  *
@@ -103,6 +176,7 @@ export async function recordRevision(input: {
   reasons: { id: string; name: string }[]
   note: string
   imageUrl: string
+  context: GenerationContext
 }): Promise<ConceptRevision> {
   await ensureIndexes()
   const collection = await getCollection<RevisionDoc>(COLLECTION)
@@ -134,6 +208,10 @@ export async function recordRevision(input: {
     note: input.note,
     imageUrl: input.imageUrl,
     createdAt: new Date().toISOString(),
+    context: input.context,
+    // Saving is a separate, deliberate act. Nothing is filed under a client
+    // just because it was generated.
+    savedAt: null,
   }
   await collection.insertOne(doc)
   return toRevision(doc)

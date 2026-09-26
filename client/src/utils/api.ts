@@ -171,14 +171,37 @@ export interface DesignOption {
   active: boolean
 }
 
+/**
+ * One concept a salesperson chose to keep for a client.
+ *
+ * Generating does not produce one of these; saving does. Everything describing
+ * it was recorded server-side when the image was made, so opening it shows what
+ * was actually agreed rather than what today's catalogue would produce.
+ */
 export interface SavedVisualisation {
-  generationId: string
-  userName: string
+  id: string
+  salesperson: string
+  salespersonName: string
   customerId: string | null
-  space: string | null
-  style: string | null
+  customerName: string | null
+  architectId: string | null
+  architectName: string | null
+  generationId: string
+  revisionId: string
+  revision: number
+  revisionReasons: string[]
+  revisionNote: string
+  originalTileImage: string | null
+  croppedTileImage: string | null
   tileSize: string | null
-  croppedImage: string
-  generatedImages: string[]
-  timestamp: string
+  space: string | null
+  spacePath: { id: string; name: string }[]
+  styleName: string | null
+  jointName: string | null
+  jointWidthMm: number | null
+  patternName: string | null
+  additionalRequirement: string | null
+  image: string
+  generatedAt: string
+  savedAt: string
 }

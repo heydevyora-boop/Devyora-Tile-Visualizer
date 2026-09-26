@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
-import { ApiError, apiGet, type DesignOption } from '../utils/api'
+import { ApiError, apiGet, apiPost, type DesignOption, type SavedVisualisation } from '../utils/api'
+import { saveImageToDevice } from '../utils/saveImage'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
 
@@ -37,6 +38,7 @@ function Results() {
   const navigate = useNavigate()
   const {
     customer,
+    tileImage,
     croppedImage,
     tileSize,
     space,
@@ -50,7 +52,7 @@ function Results() {
     generatedResult,
     setGeneratedResult,
   } = useFlow()
-  const { token, userName } = useAuth()
+  const { token } = useAuth()
   const [addingConcept, setAddingConcept] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
   // Another concept is never a blind retry: the salesperson says what was
@@ -60,11 +62,20 @@ function Results() {
   const [chosenReasons, setChosenReasons] = useState<string[]>([])
   const [reasonNote, setReasonNote] = useState('')
   const [lastRevisionId, setLastRevisionId] = useState<string | null>(null)
+  // The two actions on a concept are tracked separately, because they mean
+  // different things: one puts a copy on this device, the other puts it in the
+  // client's permanent record.
+  const [savingToDevice, setSavingToDevice] = useState<number | null>(null)
+  const [deviceMessage, setDeviceMessage] = useState<string | null>(null)
+  const [savingToClient, setSavingToClient] = useState<number | null>(null)
+  const [savedRevisions, setSavedRevisions] = useState<Record<string, string>>({})
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Only ever the images the backend actually returned. There is deliberately
   // no placeholder set: showing stand-in images would present them as the
   // user's own concepts.
   const conceptImages = generatedResult?.images ?? []
+  const conceptRevisionIds = generatedResult?.revisionIds ?? []
   const hasConcepts = conceptImages.length > 0
 
   const tileSizeLabel = tileSize ? TILE_SIZE_LABELS[tileSize] ?? tileSize : null
@@ -112,6 +123,12 @@ function Results() {
       document.body.style.overflow = previousOverflow
     }
   }, [lightboxIndex, conceptImages.length])
+
+  /** True once this concept is in the client's record. */
+  const isSaved = (index: number) => {
+    const revisionId = conceptRevisionIds[index]
+    return Boolean(revisionId && savedRevisions[revisionId])
+  }
 
   const handleReturn = () => {
     navigate('/summary')
@@ -180,36 +197,81 @@ function Results() {
       setChosenReasons([])
       setReasonNote('')
 
-      const images = [...conceptImages, result.image]
-      setGeneratedResult({ ...(generatedResult as NonNullable<typeof generatedResult>), images })
-
-      // Re-save the whole set under the same id: the store replaces by
-      // generationId, so the consultation stays one record rather than
-      // becoming one per concept.
-      void fetch(`${API_BASE_URL}/api/generations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          generationId: generatedResult?.generationId,
-          userName: userName ?? 'Unknown',
-          customerId: customer?.id ?? null,
-          space: generatedResult?.space ?? space,
-          style: generatedResult?.style ?? style,
-          tileSize,
-          croppedImage: generatedResult?.tileImageUrl ?? croppedImage,
-          generatedImages: images,
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch((error: unknown) => {
-        console.error('Could not save the added concept to history:', error)
+      // The new concept joins the ones already here, carrying the revision it
+      // came from so it can be saved on its own. Nothing is written to the
+      // client's record: a correction is still only a concept until someone
+      // keeps it.
+      setGeneratedResult({
+        ...(generatedResult as NonNullable<typeof generatedResult>),
+        images: [...conceptImages, result.image],
+        revisionIds: [...conceptRevisionIds, result.revision?.id ?? null],
       })
     } catch (error) {
       setAddError(error instanceof Error ? error.message : 'That concept could not be created.')
     } finally {
       setAddingConcept(false)
+    }
+  }
+
+  /**
+   * Save Image — a copy on this device.
+   *
+   * Nothing to do with the client's record: this is the salesperson putting a
+   * picture in their own hands, to send to the customer or keep on the phone.
+   */
+  const handleSaveImage = async (index: number) => {
+    if (savingToDevice !== null) return
+    setSavingToDevice(index)
+    setDeviceMessage(null)
+    setSaveError(null)
+    try {
+      const outcome = await saveImageToDevice(conceptImages[index], conceptLabel(index))
+      setDeviceMessage(
+        outcome === 'shared' ? 'Sent to your device.' : 'Downloaded to this device.',
+      )
+    } catch (error) {
+      // Dismissing the share sheet is a choice, not a failure worth reporting.
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setSaveError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'That image could not be saved to this device.',
+      )
+    } finally {
+      setSavingToDevice(null)
+    }
+  }
+
+  /**
+   * Save to Client — the concept joins the client's permanent record.
+   *
+   * The request names the concept rather than uploading it, so the server files
+   * it under the customer, style and application it was really generated for.
+   * The uncropped tile photo goes with it because that photo only ever existed
+   * in this browser.
+   */
+  const handleSaveToClient = async (index: number) => {
+    const revisionId = conceptRevisionIds[index]
+    if (savingToClient !== null) return
+    if (!revisionId) {
+      setSaveError('This concept cannot be saved to the client. Please create it again.')
+      return
+    }
+    setSavingToClient(index)
+    setSaveError(null)
+    setDeviceMessage(null)
+    try {
+      const saved = await apiPost<SavedVisualisation>('/api/generations', token, {
+        revisionId,
+        originalTileImage: tileImage ?? undefined,
+      })
+      setSavedRevisions((current) => ({ ...current, [revisionId]: saved.id }))
+    } catch (error) {
+      setSaveError(
+        error instanceof ApiError ? error.message : 'That concept could not be saved to the client.',
+      )
+    } finally {
+      setSavingToClient(null)
     }
   }
 
@@ -349,12 +411,74 @@ function Results() {
                     />
                   )}
                 </div>
-                <div className="p-space-md bg-surface-container">
-                  <h2 className="font-title-md text-title-md text-on-surface">{conceptLabel(index)}</h2>
+                <div className="p-space-md bg-surface-container flex flex-col gap-space-sm">
+                  <div className="flex items-baseline justify-between gap-space-xs">
+                    <h2 className="font-title-md text-title-md text-on-surface">
+                      {conceptLabel(index)}
+                    </h2>
+                    {isSaved(index) && (
+                      <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">
+                        Saved to client
+                      </span>
+                    )}
+                  </div>
+                  {/* Two different things, so two buttons. Keeping a copy on
+                      this device is not the same as putting the concept in the
+                      client's permanent record, and one is not a substitute
+                      for the other. */}
+                  <div className="flex gap-space-sm">
+                    <button
+                      className="flex-1 h-11 rounded-lg border border-outline-variant text-on-surface hover:border-primary hover:text-primary active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-body-sm text-body-sm disabled:opacity-60"
+                      type="button"
+                      disabled={savingToDevice === index}
+                      onClick={() => void handleSaveImage(index)}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">download</span>
+                      <span>{savingToDevice === index ? 'Saving…' : 'Save Image'}</span>
+                    </button>
+                    <button
+                      className={`flex-1 h-11 rounded-lg transition-all flex items-center justify-center gap-space-xs font-body-sm text-body-sm disabled:opacity-60 ${
+                        isSaved(index)
+                          ? 'border border-primary text-primary'
+                          : 'bg-primary text-on-primary active:scale-[0.99]'
+                      }`}
+                      type="button"
+                      disabled={savingToClient === index || isSaved(index) || !customer}
+                      title={customer ? undefined : 'Choose a client first'}
+                      onClick={() => void handleSaveToClient(index)}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {isSaved(index) ? 'check_circle' : 'bookmark_add'}
+                      </span>
+                      <span>
+                        {isSaved(index)
+                          ? 'In client record'
+                          : savingToClient === index
+                            ? 'Saving…'
+                            : 'Save to Client'}
+                      </span>
+                    </button>
+                  </div>
+                  {!customer && (
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      Choose a client at the start of a consultation to keep concepts in their
+                      record.
+                    </p>
+                  )}
                 </div>
               </article>
             ))}
             <div className="flex flex-col gap-space-sm">
+              {deviceMessage && (
+                <p className="font-body-sm text-body-sm text-on-surface-variant text-center" role="status">
+                  {deviceMessage}
+                </p>
+              )}
+              {saveError && (
+                <p className="font-body-sm text-body-sm text-error text-center" role="alert">
+                  {saveError}
+                </p>
+              )}
               {addError && (
                 <p className="font-body-sm text-body-sm text-error text-center" role="alert">
                   {addError}

@@ -9,7 +9,7 @@ import {
   findActiveOption,
   requireJointWidth,
 } from '../services/designOptionsStore'
-import { getCustomer, toOwnerScope } from '../services/clientsStore'
+import { getArchitect, getCustomer, toOwnerScope } from '../services/clientsStore'
 import { recordRevision } from '../services/revisionsStore'
 import { DbError, asDbError } from '../services/db'
 
@@ -76,8 +76,13 @@ router.post('/generate', async (req, res) => {
     // The joint width may be one of the showroom's presets or typed in, so it
     // is validated as a measurement either way. The style and pattern are
     // looked up by id, so a disabled or invented option cannot reach the model.
+    // Kept as the option, not just its millimetres: the saved record names the
+    // joint the showroom offered ("Standard 2 mm"), which a bare number cannot.
+    const jointOption = jointOptionId
+      ? await findActiveOption('joint', String(jointOptionId))
+      : null
     const joint = jointOptionId
-      ? (await findActiveOption('joint', String(jointOptionId)))?.valueMm ?? undefined
+      ? jointOption?.valueMm ?? undefined
       : jointWidthMm !== undefined
         ? requireJointWidth(jointWidthMm)
         : undefined
@@ -156,6 +161,12 @@ router.post('/generate', async (req, res) => {
     })
     // Recorded after the image exists, so a failed attempt never leaves a
     // revision claiming a concept that was never produced.
+    // The architect comes from the customer, who is themselves scoped to this
+    // salesperson, so the relationship in the record is the real one rather
+    // than whatever a request claimed.
+    const architect = customer?.architectId
+      ? await getArchitect(toOwnerScope(session), customer.architectId)
+      : null
     const revision = await recordRevision({
       scope: toOwnerScope(session),
       generationId: result.generationId,
@@ -164,6 +175,27 @@ router.post('/generate', async (req, res) => {
       reasons: reasons.map((reason) => ({ id: reason.id, name: reason.name })),
       note,
       imageUrl: result.image,
+      // Captured now, not rebuilt later: the catalogue can be edited, and a
+      // record that re-read today's version would describe a concept nobody
+      // ever produced.
+      context: {
+        salespersonName: session.displayName,
+        customerName: customer?.name ?? null,
+        architectId: architect?.id ?? customer?.architectId ?? null,
+        architectName: architect?.name ?? null,
+        // The uncropped photo never reaches this route; it is supplied when
+        // the concept is saved, by the only place that has it.
+        originalTileImage: null,
+        croppedTileImage: result.processedTileUrl ?? null,
+        tileSize: tileSize ?? null,
+        space: resolved?.path[0]?.name ?? (typeof space === 'string' ? space : null),
+        spacePath: resolved?.path.map((node) => ({ id: node.id, name: node.name })) ?? [],
+        styleName: styleOption?.name ?? (typeof style === 'string' ? style : null),
+        jointName: jointOption?.name ?? null,
+        jointWidthMm: joint ?? null,
+        patternName: pattern?.name ?? null,
+        additionalRequirement: requirement ?? null,
+      },
     }).catch((error: unknown) => {
       // History must never be the reason a salesperson loses a concept they
       // have already paid for.

@@ -379,3 +379,92 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* A saved concept, opened from a client's record. The image is the point of
+   the screen, so it leads rather than sitting in a row of thumbnails. */
+.ws__hero {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container);
+}
+
+.ws__note {
+  font-size: 13px;
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+/* The tile photos on that screen are looked at, not scanned past. */
+.ws__thumbs--large .ws__thumb {
+  width: 96px;
+  height: 96px;
+}
+
+/* An area within a client's record: its name, then the concepts kept for it. */
+.ws__area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ws__area-title {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin: 0.75rem 0 0;
+}
+
+.ws__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.625rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ws__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: var(--color-surface-container);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws__card:hover {
+  border-color: var(--color-primary);
+}
+
+.ws__card-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.ws__card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.625rem 0.625rem;
+}
+
+.ws__card-title {
+  font-size: 13px;
+  color: var(--color-on-surface);
+}
+
+.ws__card-meta {
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+}
