@@ -12,7 +12,8 @@
     "test:generate": "ts-node-dev --transpile-only --no-notify src/scripts/testSingleGeneration.ts",
     "migrate:legacy-generations": "ts-node-dev --transpile-only --no-notify src/scripts/migrateLegacyGenerations.ts",
     "seed:accounts": "ts-node-dev --transpile-only --no-notify src/scripts/seedAccounts.ts",
-    "create:admin": "ts-node-dev --transpile-only --no-notify src/scripts/createAdminAccount.ts"
+    "create:admin": "ts-node-dev --transpile-only --no-notify src/scripts/createAdminAccount.ts",
+    "list:accounts": "ts-node-dev --transpile-only --no-notify src/scripts/listAccounts.ts"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",
