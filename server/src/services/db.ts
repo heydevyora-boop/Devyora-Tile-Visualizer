@@ -265,8 +265,16 @@ export async function getCollection<T extends Document>(name: string): Promise<C
  * A ping is the cheapest call that still proves the whole path works: the
  * connection string parsed, the server was reachable, and the credentials were
  * accepted. /api/health uses it so an outage can be placed from a browser.
+ *
+ * Deliberately one shape rather than a discriminated union. A union keyed on a
+ * boolean only gives up its `reason` after the compiler narrows it, and
+ * narrowing is a thing a build can be configured out of — the platform that
+ * compiles these functions did exactly that, and rejected the health check for
+ * reading a property it could not see. A `reason` that is simply optional,
+ * carried when the ping failed and absent when it did not, is something no
+ * compiler setting can disagree about.
  */
-export async function pingDb(): Promise<{ ok: true } | { ok: false; reason: DbFailureReason }> {
+export async function pingDb(): Promise<{ ok: boolean; reason?: DbFailureReason }> {
   try {
     const db = await getDb()
     await db.command({ ping: 1 })
