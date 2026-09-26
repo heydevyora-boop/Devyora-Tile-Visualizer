@@ -186,15 +186,22 @@ export async function saveVisualisation(
 /** A salesperson's saved work, newest first, optionally for one client. */
 export async function listSavedVisualisations(
   scope: OwnerScope,
-  options: { customerId?: string; architectId?: string } = {},
+  options: { customerId?: string; architectId?: string; salesperson?: string } = {},
 ): Promise<SavedVisualisation[]> {
   await ensureIndexes()
   const collection = await getCollection<SavedDoc>(COLLECTION)
   const docs = await collection
     .find({
-      ...ownerFilter(scope),
       ...(options.customerId ? { customerId: options.customerId } : {}),
       ...(options.architectId ? { architectId: options.architectId } : {}),
+      // Narrowing to one salesperson is how an admin reads one person's work.
+      // It is spread BEFORE the owner filter on purpose: for anyone who is not
+      // an admin the owner filter then overwrites it with their own name, so
+      // this can only ever narrow a scope and never redirect one. Ordering is
+      // the whole guarantee here — moved after, it would be a way to read
+      // somebody else's records.
+      ...(options.salesperson ? { salesperson: options.salesperson.trim().toLowerCase() } : {}),
+      ...ownerFilter(scope),
     })
     .sort({ savedAt: -1 })
     .limit(500)

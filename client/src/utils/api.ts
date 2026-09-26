@@ -207,3 +207,18 @@ export interface SavedVisualisation {
   generatedAt: string
   savedAt: string
 }
+
+/**
+ * A sign-in account as the admin screens see it.
+ *
+ * There is no password field of any kind, by design — the server returns a
+ * shape that structurally cannot carry one, and this mirrors it.
+ */
+export interface AccountSummary {
+  id: string
+  username: string
+  role: 'admin' | 'user'
+  displayName: string
+  createdAt: string
+  updatedAt: string
+}

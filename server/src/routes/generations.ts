@@ -64,7 +64,13 @@ router.get('/generations', async (req, res) => {
     const customerId = typeof req.query?.customerId === 'string' ? req.query.customerId : undefined
     const architectId =
       typeof req.query?.architectId === 'string' ? req.query.architectId : undefined
-    res.status(200).json(await listSavedVisualisations(scope, { customerId, architectId }))
+    // One salesperson's work, for the admin screen. Harmless from anyone else:
+    // the store lets the caller's own scope overwrite it.
+    const salesperson =
+      typeof req.query?.salesperson === 'string' ? req.query.salesperson : undefined
+    res
+      .status(200)
+      .json(await listSavedVisualisations(scope, { customerId, architectId, salesperson }))
   } catch (error) {
     fail(res, 'GET /api/generations', error, 'Could not load the saved concepts.')
   }

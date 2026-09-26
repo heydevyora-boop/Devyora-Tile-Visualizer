@@ -3,6 +3,7 @@
 // (client/), so this cannot import from ../../server/src.
 // KEEP IN SYNC with the local-dev Express copy in server/src/services/.
 import { randomUUID } from 'node:crypto'
+import bcrypt from 'bcryptjs'
 import { getCollection } from './db.js'
 
 /**
@@ -39,6 +40,15 @@ export interface AccountRecord {
 interface AccountDoc extends Omit<AccountRecord, 'id'> {
   _id: string
 }
+
+/**
+ * An account as everything outside this module is allowed to see it.
+ *
+ * Structurally missing the password hash rather than merely omitting it at
+ * each call site: a route cannot leak a field its type does not have, so this
+ * is what every function here returns except the one sign-in itself uses.
+ */
+export type AccountSummary = Omit<AccountRecord, 'passwordHash'>
 
 export class AccountsError extends Error {
   status: number
@@ -81,6 +91,58 @@ function toRecord(doc: AccountDoc): AccountRecord {
   return { id: _id, ...rest }
 }
 
+function toSummary(doc: AccountDoc): AccountSummary {
+  const { _id, passwordHash: _passwordHash, ...rest } = doc
+  return { id: _id, ...rest }
+}
+
+/** The same cost the existing hashes were generated with. */
+const BCRYPT_ROUNDS = 10
+
+/**
+ * A username someone can actually type at a sign-in prompt.
+ *
+ * Deliberately narrow: no spaces or punctuation beyond a dot, dash or
+ * underscore, because a username that needs explaining over the phone is a
+ * support call waiting to happen.
+ */
+function requireUsername(value: unknown): string {
+  const username = normaliseUsername(typeof value === 'string' ? value : '')
+  if (!username) throw new AccountsError('A username is required.')
+  if (!/^[a-z0-9][a-z0-9._-]{1,39}$/.test(username)) {
+    throw new AccountsError(
+      'A username must be 2 to 40 characters, using only letters, numbers, dots, dashes or underscores.',
+    )
+  }
+  return username
+}
+
+/**
+ * Bounded at 72 because that is where bcrypt stops reading. Accepting more
+ * would silently ignore the rest, and a password that is not entirely checked
+ * is worse than one that was refused.
+ */
+function requirePassword(value: unknown): string {
+  const password = typeof value === 'string' ? value : ''
+  if (password.length < 8) throw new AccountsError('A password must be at least 8 characters.')
+  if (Buffer.byteLength(password, 'utf8') > 72) {
+    throw new AccountsError('A password must be at most 72 bytes.')
+  }
+  return password
+}
+
+function requireDisplayName(value: unknown): string {
+  const displayName = typeof value === 'string' ? value.trim() : ''
+  if (!displayName) throw new AccountsError('A display name is required.')
+  if (displayName.length > 60) throw new AccountsError('That display name is too long.')
+  return displayName
+}
+
+function requireRole(value: unknown): AccountRole {
+  if (value === 'admin' || value === 'user') return value
+  throw new AccountsError('A role must be either "admin" or "user".')
+}
+
 /**
  * The account a username belongs to, or null.
  *
@@ -95,12 +157,19 @@ export async function findAccountByUsername(username: string): Promise<AccountRe
   return doc ? toRecord(doc) : null
 }
 
-/** Every account, oldest first. Used by the seed to report what it found. */
-export async function listAccounts(): Promise<AccountRecord[]> {
+/**
+ * Every account, oldest first, without password hashes.
+ *
+ * findAccountByUsername above is the only thing in this module that hands back
+ * a hash, and sign-in is its only caller. Everything else — the admin list,
+ * the seed's report, the responses to every endpoint — goes through this
+ * shape, so a hash has no route out of here.
+ */
+export async function listAccounts(): Promise<AccountSummary[]> {
   await ensureIndexes()
   const collection = await getCollection<AccountDoc>(COLLECTION)
   const docs = await collection.find({}).sort({ createdAt: 1 }).toArray()
-  return docs.map(toRecord)
+  return docs.map(toSummary)
 }
 
 export async function countAccounts(): Promise<number> {
@@ -144,4 +213,94 @@ export async function upsertAccountByUsername(input: {
   }
   await collection.replaceOne({ username }, doc, { upsert: true })
   return { record: toRecord(doc), created: !existing }
+}
+
+
+/**
+ * Adds a salesperson or administrator.
+ *
+ * The password arrives in the clear and leaves as a bcrypt hash without ever
+ * being written down in between: hashing happens here rather than in the
+ * route so that no caller can forget to do it, and nothing logs the argument.
+ */
+export async function createAccount(input: {
+  username?: unknown
+  password?: unknown
+  role?: unknown
+  displayName?: unknown
+}): Promise<AccountSummary> {
+  await ensureIndexes()
+  const collection = await getCollection<AccountDoc>(COLLECTION)
+
+  const username = requireUsername(input.username)
+  const password = requirePassword(input.password)
+  // A new account is a salesperson unless someone deliberately says otherwise:
+  // the privileged role is the one that has to be asked for by name.
+  const role = input.role === undefined ? 'user' : requireRole(input.role)
+  const displayName = requireDisplayName(input.displayName)
+
+  if (await collection.findOne({ username })) {
+    throw new AccountsError(`"${username}" is already taken.`, 409)
+  }
+
+  const now = new Date().toISOString()
+  const doc: AccountDoc = {
+    _id: randomUUID(),
+    username,
+    passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
+    role,
+    displayName,
+    createdAt: now,
+    updatedAt: now,
+  }
+  await collection.insertOne(doc)
+  return toSummary(doc)
+}
+
+/**
+ * Edits one account: its username, its display name, its role, or its
+ * password. Anything left out is left alone.
+ *
+ * A new password replaces the old hash and is never recoverable from what is
+ * stored — resetting is the only way back in, which is the point.
+ */
+export async function updateAccount(
+  username: string,
+  changes: {
+    username?: unknown
+    password?: unknown
+    role?: unknown
+    displayName?: unknown
+  },
+): Promise<AccountSummary> {
+  await ensureIndexes()
+  const collection = await getCollection<AccountDoc>(COLLECTION)
+
+  const existing = await collection.findOne({ username: normaliseUsername(username) })
+  if (!existing) throw new AccountsError('That account was not found.', 404)
+
+  const next: Partial<AccountDoc> = {}
+
+  if (changes.username !== undefined) {
+    const wanted = requireUsername(changes.username)
+    if (wanted !== existing.username) {
+      // Checked rather than left to the unique index, so a collision reads as
+      // "that name is taken" instead of a driver error.
+      if (await collection.findOne({ username: wanted })) {
+        throw new AccountsError(`"${wanted}" is already taken.`, 409)
+      }
+      next.username = wanted
+    }
+  }
+  if (changes.password !== undefined) {
+    next.passwordHash = await bcrypt.hash(requirePassword(changes.password), BCRYPT_ROUNDS)
+  }
+  if (changes.role !== undefined) next.role = requireRole(changes.role)
+  if (changes.displayName !== undefined) next.displayName = requireDisplayName(changes.displayName)
+
+  if (Object.keys(next).length === 0) return toSummary(existing)
+
+  next.updatedAt = new Date().toISOString()
+  await collection.updateOne({ _id: existing._id }, { $set: next })
+  return toSummary({ ...existing, ...next })
 }

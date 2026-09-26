@@ -22,6 +22,8 @@ import ClientSelect from './pages/ClientSelect'
 import TileFormatsAdmin from './pages/TileFormatsAdmin'
 import SpaceCatalogueAdmin from './pages/SpaceCatalogueAdmin'
 import DesignOptionsAdmin from './pages/DesignOptionsAdmin'
+import UsersAdmin from './pages/UsersAdmin'
+import UserDetail from './pages/UserDetail'
 import CustomerDetail from './pages/CustomerDetail'
 import SavedConceptDetail from './pages/SavedConceptDetail'
 import RequireClient from './components/RequireClient'
@@ -124,6 +126,25 @@ function App() {
             element={
               <ProtectedRoute requireRole="admin">
                 <DesignOptionsAdmin />
+              </ProtectedRoute>
+            }
+          />
+          {/* Who can sign in, and what each of them has produced. Admin-only
+              in both directions: the route guards the screens, and every
+              /api/accounts endpoint they call checks the role again. */}
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute requireRole="admin">
+                <UsersAdmin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users/:username"
+            element={
+              <ProtectedRoute requireRole="admin">
+                <UserDetail />
               </ProtectedRoute>
             }
           />
