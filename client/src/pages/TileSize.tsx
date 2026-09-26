@@ -12,7 +12,9 @@ function toSizeId(lengthMm: number, breadthMm: number): string {
 }
 
 function label(format: TileFormat): string {
-  return format.label ?? `${format.lengthMm} × ${format.breadthMm} mm`
+  // Trimmed, and || rather than ??: a label that is present but blank is not a
+  // name, and a salesperson picking a size needs something to read either way.
+  return format.label?.trim() || `${format.lengthMm} × ${format.breadthMm} mm`
 }
 
 /**

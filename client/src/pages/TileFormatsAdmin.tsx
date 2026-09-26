@@ -232,11 +232,11 @@ function TileFormatsAdmin() {
               <li className="ws__row" key={format.id}>
                 <div className="ws__row-body">
                   <span className="ws__row-title">
-                    {format.label ?? `${format.lengthMm} × ${format.breadthMm} mm`}
+                    {format.label?.trim() || `${format.lengthMm} × ${format.breadthMm} mm`}
                   </span>
                   <span className="ws__row-meta">
                     {[
-                      format.label ? `${format.lengthMm} × ${format.breadthMm} mm` : null,
+                      format.label?.trim() ? `${format.lengthMm} × ${format.breadthMm} mm` : null,
                       format.active ? 'Offered' : 'Disabled',
                     ]
                       .filter(Boolean)
