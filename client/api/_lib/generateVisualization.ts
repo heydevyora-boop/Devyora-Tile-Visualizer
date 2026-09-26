@@ -137,9 +137,11 @@ function toGenerationError(error: unknown): GenerationError {
     )
   }
   return new GenerationError(
-    // Keep the raw message visible: this is the catch-all branch, so it is the
-    // one most likely to hide something we have not seen before.
-    `We could not create your concepts. (${raw || 'unknown error'})`,
+    // The raw message stays out of the response on purpose, even here in the
+    // catch-all: an SDK error can name the provider, a model, or a host, and
+    // this is the one branch that would otherwise say whatever it is handed.
+    // It is not lost — `cause` carries it to the server log below.
+    'We could not create your concepts. Please try again.',
     502,
     error,
   )
@@ -389,10 +391,9 @@ export async function generateVisualization(
 ): Promise<GenerateVisualizationResult> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    throw new GenerationError(
-      'Image generation is not configured on the server (missing GEMINI_API_KEY).',
-      500,
-    )
+    // Names nothing about what is missing or which service it configures —
+    // that belongs in the runtime log, not on a showroom screen.
+    throw new GenerationError('This feature is temporarily unavailable. Please contact the team.', 503)
   }
 
   // Both are kept: the crop exactly as the salesperson made it, and the

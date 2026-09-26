@@ -370,18 +370,6 @@ function Camera() {
                 <div className="w-[1.5px] h-2.5 bg-primary-container -ml-[2px]"></div>
                 <div className="absolute w-8 h-8 rounded-full shadow-[inset_0_0_0_1px_rgba(197,168,128,0.35)]"></div>
               </div>
-              <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
-                <div className="px-2.5 py-1 rounded bg-surface-container-lowest/80 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-primary"></span>
-                  <span className="font-label-caps text-label-caps text-primary uppercase tracking-wider">
-                    Planar Sensor
-                  </span>
-                </div>
-                <div className="px-2.5 py-1 rounded bg-surface-container-lowest/80 backdrop-blur-md flex items-center gap-1 shadow-sm">
-                  <span className="material-symbols-outlined text-primary text-[14px]">wb_sunny</span>
-                  <span className="font-body-sm text-body-sm text-on-surface">5400K Even</span>
-                </div>
-              </div>
               <div className="absolute bottom-3 inset-x-4 flex justify-center pointer-events-none">
                 <div className="px-3 py-1.5 rounded-lg bg-surface-container-lowest/85 backdrop-blur-md text-center shadow-lg">
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
@@ -393,18 +381,6 @@ function Camera() {
                 className="absolute inset-0 bg-on-surface opacity-0 pointer-events-none transition-opacity duration-150"
                 id="flashEffect"
               ></div>
-            </div>
-            <div className="w-full max-w-[420px] mt-space-sm px-space-xs flex items-center justify-between">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-low shadow-sm">
-                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  check_circle
-                </span>
-                <span className="font-body-sm text-body-sm text-on-surface">Level: 90° Top-Down Verified</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant">
-                <span className="material-symbols-outlined text-[16px]">aspect_ratio</span>
-                <span className="font-label-caps text-label-caps uppercase tracking-wider">1:1 Flat</span>
-              </div>
             </div>
           </div>
           <div className="px-margin pt-space-md pb-space-lg flex flex-col gap-space-sm w-full max-w-[420px] mx-auto">
