@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { findAccountByUsername } from '../services/accountsStore'
 
 export type Role = 'admin' | 'user'
 
@@ -21,23 +22,17 @@ export interface SessionPayload {
 }
 
 /**
- * Showroom sign-in accounts, loaded from the server-only AUTH_ACCOUNTS_JSON
- * env var. This file is only ever imported by server-side route handlers —
- * it is never bundled into anything served to the browser.
+ * The accounts as AUTH_ACCOUNTS_JSON holds them.
+ *
+ * Sign-in no longer reads this — accounts live in the database now, and
+ * verifyCredentials below queries them there. This remains solely so the
+ * one-time seed can migrate the existing accounts across without anyone
+ * having to retype a password or regenerate a hash: the script reads whatever
+ * the environment variable already contains and copies it in verbatim.
  *
  * Format: a JSON array of {username, passwordHash, role, displayName}.
- * Generate a passwordHash for a new account with:
- *   node -e "console.log(require('bcryptjs').hashSync('the-password', 10))"
- *
- * ── TO ADD A SALESPERSON ─────────────────────────────────────────────────
- * Hash their password with the command above, add an entry to the
- * AUTH_ACCOUNTS_JSON array (role: "user"), redeploy.
- *
- * ── TO REMOVE SOMEONE ────────────────────────────────────────────────────
- * Delete their entry from AUTH_ACCOUNTS_JSON, redeploy. Nobody else's
- * password changes.
  */
-function loadAccounts(): Account[] {
+export function loadSeedAccountsFromEnv(): Account[] {
   const raw = process.env.AUTH_ACCOUNTS_JSON
   if (!raw) return []
   try {
@@ -60,9 +55,23 @@ function loadAccounts(): Account[] {
   }
 }
 
-function findAccount(username: string): Account | null {
-  const target = username.trim().toLowerCase()
-  return loadAccounts().find((account) => account.username.trim().toLowerCase() === target) ?? null
+/**
+ * Looks an account up in the database.
+ *
+ * A failure to reach the database is deliberately not caught here. Returning
+ * null on an outage would tell someone their password was wrong when the real
+ * answer is that nothing could be checked at all; letting it through means the
+ * caller reports the outage for what it is.
+ */
+async function findAccount(username: string): Promise<Account | null> {
+  const record = await findAccountByUsername(username)
+  if (!record) return null
+  return {
+    username: record.username,
+    passwordHash: record.passwordHash,
+    role: record.role,
+    displayName: record.displayName,
+  }
 }
 
 /**
@@ -75,9 +84,9 @@ function findAccount(username: string): Account | null {
  */
 const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8u62c6Ka.PNQI2q7f5Ei5yV2H9c.Pa'
 
-/** Verifies a username/password pair against the server-side account list. */
+/** Verifies a username/password pair against the accounts in the database. */
 export async function verifyCredentials(username: string, password: string): Promise<Account | null> {
-  const account = findAccount(username)
+  const account = await findAccount(username)
   const ok = await bcrypt.compare(password, account?.passwordHash ?? DUMMY_HASH)
   return ok && account ? account : null
 }
