@@ -1,0 +1,172 @@
+/* The crop surface. touch-action:none is essential — without it the browser
+   claims the gesture for page scrolling and the corners never move on a
+   phone, which is the only device this screen is really used on. */
+.freecrop {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--color-surface-container-lowest);
+  cursor: grab;
+}
+
+.freecrop:active {
+  cursor: grabbing;
+}
+
+.freecrop__image {
+  position: absolute;
+  transform-origin: center;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* Dims everything outside the selection. */
+.freecrop__shade {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.62);
+  pointer-events: none;
+}
+
+.freecrop__rect {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+  cursor: move;
+  touch-action: none;
+}
+
+/* Thirds, to help square the tile up against its own joint lines. */
+.freecrop__rect::before,
+.freecrop__rect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.freecrop__rect::before {
+  background-image: linear-gradient(
+    to right,
+    transparent calc(33.333% - 0.5px),
+    var(--color-primary) calc(33.333% - 0.5px),
+    var(--color-primary) calc(33.333% + 0.5px),
+    transparent calc(33.333% + 0.5px),
+    transparent calc(66.666% - 0.5px),
+    var(--color-primary) calc(66.666% - 0.5px),
+    var(--color-primary) calc(66.666% + 0.5px),
+    transparent calc(66.666% + 0.5px)
+  );
+}
+
+.freecrop__rect::after {
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(33.333% - 0.5px),
+    var(--color-primary) calc(33.333% - 0.5px),
+    var(--color-primary) calc(33.333% + 0.5px),
+    transparent calc(33.333% + 0.5px),
+    transparent calc(66.666% - 0.5px),
+    var(--color-primary) calc(66.666% - 0.5px),
+    var(--color-primary) calc(66.666% + 0.5px),
+    transparent calc(66.666% + 0.5px)
+  );
+}
+
+/* Grips are deliberately larger than they look: the visible mark is small so
+   it does not hide the tile, while the touch area stays thumb-sized. */
+.freecrop__grip {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  touch-action: none;
+  z-index: 2;
+}
+
+.freecrop__grip::after {
+  content: '';
+  position: absolute;
+  background-color: var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Corners: a right angle, drawn inside the rectangle ------------------- */
+
+.freecrop__grip--nw,
+.freecrop__grip--ne,
+.freecrop__grip--sw,
+.freecrop__grip--se {
+  width: 36px;
+  height: 36px;
+}
+
+.freecrop__grip--nw { left: -18px; top: -18px; cursor: nwse-resize; }
+.freecrop__grip--ne { right: -18px; top: -18px; cursor: nesw-resize; }
+.freecrop__grip--sw { left: -18px; bottom: -18px; cursor: nesw-resize; }
+.freecrop__grip--se { right: -18px; bottom: -18px; cursor: nwse-resize; }
+
+.freecrop__grip--nw::after,
+.freecrop__grip--ne::after,
+.freecrop__grip--sw::after,
+.freecrop__grip--se::after {
+  width: 14px;
+  height: 14px;
+  background-color: transparent;
+  border: 2px solid var(--color-primary);
+  box-shadow: none;
+}
+
+.freecrop__grip--nw::after { left: 16px; top: 16px; border-right: none; border-bottom: none; }
+.freecrop__grip--ne::after { right: 16px; top: 16px; border-left: none; border-bottom: none; }
+.freecrop__grip--sw::after { left: 16px; bottom: 16px; border-right: none; border-top: none; }
+.freecrop__grip--se::after { right: 16px; bottom: 16px; border-left: none; border-top: none; }
+
+/* --- Edges: a short bar, centred on each side ----------------------------- */
+
+.freecrop__grip--n,
+.freecrop__grip--s {
+  left: 50%;
+  width: 56px;
+  margin-left: -28px;
+  cursor: ns-resize;
+}
+
+.freecrop__grip--w,
+.freecrop__grip--e {
+  top: 50%;
+  height: 56px;
+  margin-top: -28px;
+  cursor: ew-resize;
+}
+
+.freecrop__grip--n { top: -16px; }
+.freecrop__grip--s { bottom: -16px; }
+.freecrop__grip--w { left: -16px; }
+.freecrop__grip--e { right: -16px; }
+
+.freecrop__grip--n::after,
+.freecrop__grip--s::after {
+  left: 50%;
+  width: 22px;
+  height: 3px;
+  margin-left: -11px;
+}
+
+.freecrop__grip--w::after,
+.freecrop__grip--e::after {
+  top: 50%;
+  width: 3px;
+  height: 22px;
+  margin-top: -11px;
+}
+
+.freecrop__grip--n::after { top: 14px; }
+.freecrop__grip--s::after { bottom: 14px; }
+.freecrop__grip--w::after { left: 14px; }
+.freecrop__grip--e::after { right: 14px; }

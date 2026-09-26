@@ -1,17 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
+import { ApiError, apiGet } from '../utils/api'
 import './History.css'
+// The three admin-configuration screens share Settings.tsx's visual
+// language (ws__actions / ws__action), so their styling comes from here
+// rather than being redefined a second time in History.css.
+import './Workspace.css'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
-const GENERATIONS_ENDPOINT = `${API_BASE_URL}/api/generations`
-
+/** What this screen draws: one saved concept, flattened to what a card needs. */
 type GenerationRecord = {
   generationId: string
   userName: string
   croppedImage: string
   generatedImages: string[]
   timestamp: string
+}
+
+/** The saved record as the API returns it — one kept concept, with its context. */
+type SavedRecord = {
+  id: string
+  salespersonName?: string
+  croppedTileImage?: string | null
+  image: string
+  savedAt: string
+}
+
+/**
+ * A saved concept is one image, not a set, so each becomes its own card.
+ *
+ * This screen used to show every generation as it happened. It now shows what
+ * was kept: rejected experiments never reach the client's record, and so never
+ * reach here either.
+ */
+function toCard(saved: SavedRecord): GenerationRecord {
+  return {
+    generationId: saved.id,
+    userName: saved.salespersonName ?? 'Unknown',
+    croppedImage: saved.croppedTileImage ?? saved.image,
+    generatedImages: [saved.image],
+    timestamp: saved.savedAt,
+  }
 }
 
 /** Open lightbox target: which record, and which image within it. */
@@ -42,26 +71,27 @@ function History() {
     async (signal?: AbortSignal) => {
       setError(null)
       try {
-        const response = await fetch(GENERATIONS_ENDPOINT, {
-          signal,
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-        if (response.status === 401) {
+        // apiGet is what every other screen uses, and for a reason that
+        // matters here specifically: it reads the response body's own
+        // `error` field, which is where the database-failure work put a
+        // real, specific cause ("could not be reached", "rejected the
+        // sign-in", …) rather than a bare status code. A raw fetch() that
+        // only checks response.ok throws that detail away.
+        const data = await apiGet<unknown>('/api/generations', token, signal)
+        setRecords(Array.isArray(data) ? (data as SavedRecord[]).map(toCard) : [])
+      } catch (loadError) {
+        if (signal?.aborted) return
+        if (loadError instanceof ApiError && loadError.status === 401) {
           // The session was rejected server-side (expired, or somehow not an
           // admin token) — sign out rather than show a bare error.
           logout()
           navigate('/', { replace: true })
           return
         }
-        if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
-        const data: unknown = await response.json()
-        setRecords(Array.isArray(data) ? (data as GenerationRecord[]) : [])
-      } catch (loadError) {
-        if (signal?.aborted) return
         setRecords([])
         setError(
-          loadError instanceof Error && loadError.message
-            ? `Could not load history. ${loadError.message}`
+          loadError instanceof ApiError && loadError.message
+            ? loadError.message
             : 'Could not load history.',
         )
       }
@@ -135,7 +165,10 @@ function History() {
   return (
     <div className="history-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
       {/* Admins are review-only, so this header carries no navigation into the
-          visualiser — branding, title, and sign-out only. */}
+          consultation flow itself — branding, title, and sign-out only. The
+          showroom-configuration screens are a separate matter (see below):
+          an admin is the only one who can reach them, so this page, the one
+          an admin actually lands on, is where that path has to start. */}
       <header className="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(0,0,0,0.45)]">
         <div className="h-16 px-margin flex items-center justify-between">
           <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">
@@ -164,6 +197,34 @@ function History() {
 
       <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">
         <div className="history-content">
+          {/* The catalogues that give the visualiser its content — tile
+              formats, the space hierarchy, and the design/joint/pattern/
+              revision-reason lists. An admin is the only one who can change
+              any of this, and this page is the only place an admin lands, so
+              it is the one place these three have to be reachable from. */}
+          <section className="history-intro">
+            <p className="history-eyebrow">Showroom setup</p>
+            <h1 className="history-title">Configuration</h1>
+            <p className="history-subtitle">
+              What the visualiser offers a salesperson — changes here take effect immediately, with
+              no redeploy.
+            </p>
+          </section>
+          <div className="ws__actions">
+            <Link className="ws__action" to="/tile-formats">
+              <span className="material-symbols-outlined">grid_on</span>
+              <span>Tile formats</span>
+            </Link>
+            <Link className="ws__action" to="/space-catalogue">
+              <span className="material-symbols-outlined">category</span>
+              <span>Space catalogue</span>
+            </Link>
+            <Link className="ws__action" to="/design-options">
+              <span className="material-symbols-outlined">palette</span>
+              <span>Design options</span>
+            </Link>
+          </div>
+
           <section className="history-intro">
             <p className="history-eyebrow">Archive</p>
             <h1 className="history-title">All Generations</h1>
@@ -184,9 +245,9 @@ function History() {
           {records !== null && records.length === 0 && !error && (
             <div className="history-empty" id="historyEmpty">
               <span className="material-symbols-outlined history-empty-icon">inventory_2</span>
-              <p className="history-empty-title">No generations yet</p>
+              <p className="history-empty-title">Nothing saved yet</p>
               <p className="history-empty-text">
-                Completed consultations will appear here automatically.
+                Concepts appear here once a salesperson saves one to a client.
               </p>
             </div>
           )}

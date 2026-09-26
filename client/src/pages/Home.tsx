@@ -8,7 +8,6 @@ const TILE_SRC =
 function Home() {
   const navigate = useNavigate()
   const { userName, logout } = useAuth()
-  const handleThemeToggle = () => {}
   const handleLogout = () => {
     logout()
     navigate('/', { replace: true })
@@ -27,17 +26,6 @@ function Home() {
             </span>
           </div>
           <div className="home__header-actions">
-            <button
-              id="theme-toggle-btn"
-              type="button"
-              aria-label="Toggle theme"
-              className="home__theme-toggle"
-              onClick={handleThemeToggle}
-            >
-              <span className="material-symbols-outlined home__theme-icon">
-                light_mode
-              </span>
-            </button>
             <div className="home__atelier-badge" title={userName ?? undefined}>
               <span className="home__atelier-dot"></span>
               <span className="home__atelier-label">
@@ -95,20 +83,6 @@ function Home() {
                 <span className="home__spec-name">Navona Travertine</span>
                 <span className="home__spec-size">1200×600</span>
               </div>
-            </div>
-          </div>
-
-          <div className="home__metrics">
-            <div className="home__metric">
-              <span className="home__metric-label">Matte Honed</span>
-            </div>
-            <span className="home__metric-dot">•</span>
-            <div className="home__metric">
-              <span className="home__metric-label">10.5 mm</span>
-            </div>
-            <span className="home__metric-dot">•</span>
-            <div className="home__metric">
-              <span className="home__metric-label">R10 A+B</span>
             </div>
           </div>
         </section>

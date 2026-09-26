@@ -10,15 +10,27 @@ import './Loading.css'
 // Express server. Set VITE_API_BASE_URL only to point at a different host.
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const GENERATE_ENDPOINT = `${API_BASE_URL}/api/generate`
-const GENERATIONS_ENDPOINT = `${API_BASE_URL}/api/generations`
 
 // Generation normally takes 15-25s. Give it room, but never hang forever.
 const REQUEST_TIMEOUT_MS = 75_000
 
 function Loading() {
   const navigate = useNavigate()
-  const { croppedImage, space, style, tileSize, setGeneratedResult } = useFlow()
-  const { userName, token } = useAuth()
+  const {
+    customer,
+    croppedImage,
+    space,
+    spacePath,
+    style,
+    styleOption,
+    jointWidthMm,
+    jointOption,
+    patternOption,
+    additionalRequirement,
+    tileSize,
+    setGeneratedResult,
+  } = useFlow()
+  const { token } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
 
@@ -40,12 +52,28 @@ function Loading() {
       try {
         response = await fetch(GENERATE_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             tileImage: croppedImage,
             space,
+            // The ids of the chosen application, re-checked server-side.
+            spacePath: spacePath.map((node) => node.id),
             style,
+            // Ids where the option came from the showroom's list, so the
+            // server verifies it; the millimetres only when typed in.
+            styleOptionId: styleOption?.id,
+            jointOptionId: jointOption?.id,
+            jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
+            patternOptionId: patternOption?.id,
             tileSize,
+            // Who this is for. The server resolves the architect from the
+            // customer and takes the salesperson from the session, so neither
+            // is sent from here.
+            customerId: customer?.id,
+            additionalRequirement: additionalRequirement.trim() || undefined,
           }),
           signal,
         })
@@ -75,41 +103,20 @@ function Loading() {
         throw new Error('The server sent a response we could not read. Please try again.')
       }
     },
-    [croppedImage, space, style, tileSize],
-  )
-
-  /**
-   * Records the finished generation for the admin history page.
-   *
-   * Deliberately fire-and-forget: the user has already paid for these images,
-   * so a history write that fails must never block them reaching /results or
-   * surface as a generation error. Failures are logged and nothing else.
-   */
-  const saveToHistory = useCallback(
-    (result: { generationId?: string; images?: string[]; tileImageUrl?: string }) => {
-      if (!result?.images?.length || !croppedImage) return
-      // The server already uploaded the tile photo (to Drive, or a base64
-      // fallback) and returns its URL — send that instead of the raw crop, so
-      // the history file stores a short URL rather than the full photo a
-      // second time. Older responses without tileImageUrl still work.
-      void fetch(GENERATIONS_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          generationId: result.generationId ?? `gen-${Date.now()}`,
-          userName: userName ?? 'Unknown',
-          croppedImage: result.tileImageUrl ?? croppedImage,
-          generatedImages: result.images,
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch((historyError: unknown) => {
-        console.error('Could not save this generation to history:', historyError)
-      })
-    },
-    [croppedImage, userName, token],
+    [
+      croppedImage,
+      space,
+      spacePath,
+      style,
+      styleOption,
+      jointWidthMm,
+      jointOption,
+      patternOption,
+      additionalRequirement,
+      customer,
+      tileSize,
+      token,
+    ],
   )
 
   useEffect(() => {
@@ -125,8 +132,18 @@ function Loading() {
       .then((result) => {
         if (cancelled) return
         window.clearTimeout(timeoutId)
-        setGeneratedResult(result)
-        saveToHistory(result)
+        // One request returns one image. It becomes the first concept of this
+        // consultation; asking for another appends to the same set.
+        const first = (result as { image?: string }).image
+        const revisionId = (result as { revision?: { id?: string } | null }).revision?.id ?? null
+        setGeneratedResult({
+          ...result,
+          images: first ? [first] : (result.images ?? []),
+          revisionIds: first ? [revisionId] : (result.images ?? []).map(() => null),
+        })
+        // Deliberately not saved here. A concept is temporary until the
+        // salesperson keeps it for the client: most are looked at once and
+        // rejected, and filing those would bury the ones that were agreed.
         navigate('/results')
       })
       .catch((requestError: unknown) => {
@@ -149,7 +166,7 @@ function Loading() {
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [attempt, navigate, runGeneration, saveToHistory, setGeneratedResult])
+  }, [attempt, navigate, runGeneration, setGeneratedResult])
 
   return (
     <div className="loading-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">

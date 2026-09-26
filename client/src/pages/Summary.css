@@ -361,3 +361,177 @@ header.fixed .h-16 img {
     min-height: 44px;
   }
 }
+
+/* --- Review rows ---------------------------------------------------------- */
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-low);
+}
+
+.summary-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.summary-row__label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+}
+
+.summary-row__value {
+  color: var(--color-on-surface);
+  overflow-wrap: anywhere;
+}
+
+/* A missing choice is shown as missing rather than filled with a guess. */
+.summary-row__value--missing {
+  color: var(--color-error);
+}
+
+.summary-row__edit {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.summary-row__edit:hover {
+  background-color: var(--color-surface-container-high);
+}
+
+/* --- Tile preview --------------------------------------------------------- */
+
+.summary-tile {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.summary-tile__main {
+  flex: 1;
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background-color: var(--color-surface-container-lowest);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summary-tile__main img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.summary-tile__empty {
+  color: var(--color-error);
+  font-size: 13px;
+}
+
+.summary-tile__side {
+  width: 6rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-tile__thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-outline-variant);
+}
+
+.summary-tile__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.summary-tile__caption {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 0.125rem 0.375rem;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-on-surface);
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.summary-tile__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.summary-tile__actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 44px;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-low);
+  color: var(--color-on-surface);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.summary-tile__actions button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* --- Free-text requirement ------------------------------------------------ */
+
+.summary-requirement {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-low);
+  color: var(--color-on-surface);
+  font: inherit;
+  resize: vertical;
+}
+
+.summary-requirement::placeholder {
+  color: var(--color-outline);
+}
+
+.summary-requirement:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}

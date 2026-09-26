@@ -1,0 +1,470 @@
+/* Shared by the workspace screens (dashboard, clients, recent, saved,
+   settings). They are lists and cards over the same tokens, so one sheet
+   keeps them consistent rather than five near-copies. */
+
+.ws__lede {
+  margin: 0 0 1.25rem;
+  color: var(--color-on-surface-variant);
+}
+
+.ws__section-title {
+  font-family: 'Metrophobic', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+  margin: 1.75rem 0 0.75rem;
+}
+
+.ws__section-title:first-child {
+  margin-top: 0;
+}
+
+/* --- Stat tiles ----------------------------------------------------------- */
+
+.ws__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.ws__stat {
+  background-color: var(--color-surface-container-low);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.ws__stat-value {
+  display: block;
+  font-family: 'Metrophobic', sans-serif;
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--color-primary);
+}
+
+.ws__stat-label {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+}
+
+/* --- Actions -------------------------------------------------------------- */
+
+.ws__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+.ws__action {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-low);
+  color: var(--color-on-surface);
+  text-decoration: none;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.ws__action:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.ws__action--primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.ws__action--primary:hover {
+  color: var(--color-on-primary);
+  opacity: 0.92;
+}
+
+/* --- Lists ---------------------------------------------------------------- */
+
+.ws__search {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 0.875rem;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-low);
+  color: var(--color-on-surface);
+  font: inherit;
+}
+
+.ws__search::placeholder {
+  color: var(--color-outline);
+}
+
+.ws__search:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.ws__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ws__row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container-low);
+}
+
+.ws__row-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.ws__row-title {
+  display: block;
+  color: var(--color-on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws__row-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--color-outline);
+}
+
+.ws__badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+}
+
+/* --- Thumbnails ----------------------------------------------------------- */
+
+.ws__thumbs {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.ws__thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container);
+}
+
+/* --- States --------------------------------------------------------------- */
+
+.ws__empty,
+.ws__error,
+.ws__loading {
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px dashed var(--color-outline-variant);
+  color: var(--color-on-surface-variant);
+  text-align: center;
+}
+
+.ws__error {
+  border-style: solid;
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.ws__definition {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.ws__definition dt {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+}
+
+.ws__definition dd {
+  margin: 0;
+  color: var(--color-on-surface);
+}
+
+/* --- Client selection ----------------------------------------------------- */
+
+.ws__tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  background-color: var(--color-surface-container-low);
+  border: 1px solid var(--color-outline-variant);
+  /* Three labels do not fit across a phone; scrolling beats truncating them. */
+  overflow-x: auto;
+}
+
+.ws__tab {
+  flex: 1 0 auto;
+  min-height: 40px;
+  padding: 0 0.875rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-on-surface-variant);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.ws__tab--active {
+  background-color: var(--color-surface-container-high);
+  color: var(--color-primary);
+}
+
+/* A row that is itself the control — used where picking the row is the action. */
+.ws__row--button {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  color: var(--color-on-surface);
+  transition: border-color 150ms ease;
+}
+
+.ws__row--button:hover {
+  border-color: var(--color-primary);
+}
+
+.ws__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 44px;
+  margin-bottom: 0.5rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-on-surface-variant);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ws__back:hover {
+  color: var(--color-primary);
+}
+
+.ws__field {
+  display: block;
+  margin-bottom: 0.875rem;
+}
+
+.ws__field-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+}
+
+.ws__field .ws__search {
+  margin-bottom: 0;
+}
+
+.ws__action--submit {
+  width: 100%;
+  margin-top: 0.5rem;
+  border: 1px solid var(--color-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ws__action--submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Row controls for the admin lists. Each stays a 44px target on a tablet. */
+.ws__row-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.ws__row-tools .shell__icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* --- Inline editing ------------------------------------------------------- */
+
+/* A row being edited becomes the form, in place. Nothing moves and nothing
+   opens over the list, so the admin keeps sight of the entries around the one
+   they are changing — which is the whole point of editing an ordered list. */
+.ws__row--editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  border-color: var(--color-primary);
+}
+
+.ws__edit-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* Two short fields sit side by side where there is room, and stack on a
+   phone rather than being squeezed. */
+.ws__edit-fields--pair {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 30rem) {
+  .ws__edit-fields--pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ws__edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ws__edit-actions .ws__action {
+  flex: 1;
+  min-height: 44px;
+  justify-content: center;
+  border: 1px solid var(--color-outline-variant);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ws__edit-actions .ws__action--primary {
+  border-color: var(--color-primary);
+}
+
+.ws__edit-actions .ws__action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* A saved concept, opened from a client's record. The image is the point of
+   the screen, so it leads rather than sitting in a row of thumbnails. */
+.ws__hero {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container);
+}
+
+.ws__note {
+  font-size: 13px;
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+/* The tile photos on that screen are looked at, not scanned past. */
+.ws__thumbs--large .ws__thumb {
+  width: 96px;
+  height: 96px;
+}
+
+/* An area within a client's record: its name, then the concepts kept for it. */
+.ws__area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ws__area-title {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin: 0.75rem 0 0;
+}
+
+.ws__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.625rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ws__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: var(--color-surface-container);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws__card:hover {
+  border-color: var(--color-primary);
+}
+
+.ws__card-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.ws__card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.625rem 0.625rem;
+}
+
+.ws__card-title {
+  font-size: 13px;
+  color: var(--color-on-surface);
+}
+
+.ws__card-meta {
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+}

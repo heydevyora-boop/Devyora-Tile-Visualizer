@@ -1,50 +1,103 @@
 import { Router } from 'express'
+import type { Request, Response } from 'express'
 import {
-  GenerationsStoreError,
-  appendGeneration,
-  listGenerations,
-  toGenerationRecord,
-} from '../services/generationsStore'
+  SavedVisualisationsError,
+  getSavedVisualisation,
+  listSavedVisualisations,
+  removeSavedVisualisation,
+  saveVisualisation,
+} from '../services/savedVisualisationsStore'
+import { toOwnerScope } from '../services/clientsStore'
 import { verifyAuthHeader } from '../config/auth'
+import { DbError, asDbError } from '../services/db'
 
+/**
+ * A client's permanent record of kept concepts.
+ *
+ * Generating does not write here. A concept becomes part of a client's record
+ * only when a salesperson saves it, which is what keeps the record made of
+ * agreed work rather than of every experiment along the way.
+ *
+ * KEEP IN SYNC with the deployed Vercel copy in client/api/generations.ts.
+ */
 const router = Router()
 
-// Any signed-in account (any role) may save a completed generation — this is
-// the fire-and-forget write every showroom user triggers after generating,
-// not an admin-only action.
-router.post('/generations', async (req, res) => {
-  if (!verifyAuthHeader(req.headers.authorization)) {
+function fail(res: Response, label: string, error: unknown, fallback: string): void {
+  const failure = asDbError(error) ?? error
+  const status =
+    failure instanceof SavedVisualisationsError || failure instanceof DbError
+      ? failure.status
+      : 500
+  // Only errors this code raised are safe to repeat back: a driver message can
+  // carry the cluster address and the user it connected as.
+  const message =
+    failure instanceof SavedVisualisationsError || failure instanceof DbError
+      ? failure.message
+      : fallback
+  console.error(`[${label}] failed:`, error)
+  res.status(status).json({ error: message })
+}
+
+function scopeFor(req: Request, res: Response) {
+  const session = verifyAuthHeader(req.headers.authorization)
+  if (!session) {
     res.status(401).json({ error: 'Sign in required.' })
-    return
+    return null
   }
+  return toOwnerScope(session)
+}
+
+router.get('/generations', async (req, res) => {
+  const scope = scopeFor(req, res)
+  if (!scope) return
   try {
-    const record = toGenerationRecord(req.body)
-    await appendGeneration(record)
-    res.status(201).json({ generationId: record.generationId, saved: true })
+    const id = typeof req.query?.id === 'string' ? req.query.id : undefined
+    if (id) {
+      const saved = await getSavedVisualisation(scope, id)
+      if (!saved) {
+        res.status(404).json({ error: 'That saved concept was not found.' })
+        return
+      }
+      res.status(200).json(saved)
+      return
+    }
+    const customerId = typeof req.query?.customerId === 'string' ? req.query.customerId : undefined
+    const architectId =
+      typeof req.query?.architectId === 'string' ? req.query.architectId : undefined
+    res.status(200).json(await listSavedVisualisations(scope, { customerId, architectId }))
   } catch (error) {
-    // Saving history must never take the server down, and must never be the
-    // reason a user loses a generation they already paid for.
-    const status = error instanceof GenerationsStoreError ? error.status : 500
-    const message =
-      error instanceof Error && error.message ? error.message : 'Could not save this generation.'
-    console.error('[POST /api/generations] save failed:', error)
-    res.status(status).json({ error: message })
+    fail(res, 'GET /api/generations', error, 'Could not load the saved concepts.')
   }
 })
 
-// Only admins may read the full history.
-router.get('/generations', async (req, res) => {
-  const session = verifyAuthHeader(req.headers.authorization)
-  if (!session || session.role !== 'admin') {
-    res.status(401).json({ error: 'Sign in as an administrator to view history.' })
-    return
-  }
+router.post('/generations', async (req, res) => {
+  const scope = scopeFor(req, res)
+  if (!scope) return
   try {
-    const records = await listGenerations()
-    res.json(records)
+    const saved = await saveVisualisation(scope, (req.body ?? {}) as Record<string, unknown>)
+    res.status(201).json(saved)
   } catch (error) {
-    console.error('[GET /api/generations] read failed:', error)
-    res.status(500).json({ error: 'Could not load the generation history.' })
+    fail(res, 'POST /api/generations', error, 'Could not save this concept.')
+  }
+})
+
+router.delete('/generations', async (req, res) => {
+  const scope = scopeFor(req, res)
+  if (!scope) return
+  try {
+    const id = typeof req.query?.id === 'string' ? req.query.id : ''
+    if (!id) {
+      res.status(400).json({ error: 'Which saved concept should be removed?' })
+      return
+    }
+    const removed = await removeSavedVisualisation(scope, id)
+    if (!removed) {
+      res.status(404).json({ error: 'That saved concept was not found.' })
+      return
+    }
+    res.status(200).json({ removed: true })
+  } catch (error) {
+    fail(res, 'DELETE /api/generations', error, 'Could not remove this saved concept.')
   }
 })
 

@@ -67,7 +67,7 @@ async function main() {
         { type: 'text', text: prompt.text },
         { type: 'image', data: tile.data, mime_type: tile.mimeType },
       ],
-      response_modalities: ['TEXT', 'IMAGE'],
+      response_modalities: ['text', 'image'],
       generation_config: {
         image_config: {
           aspect_ratio: IMAGE_ASPECT_RATIO,

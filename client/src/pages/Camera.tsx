@@ -35,6 +35,15 @@ function Camera() {
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraBusy, setCameraBusy] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
+  /**
+   * Which lens the viewfinder is on. 0.5x only appears when the device really
+   * has an ultra-wide to switch to — a button that claimed a wider field of
+   * view without delivering one would have the salesperson framing a tile that
+   * is not in the shot.
+   */
+  const [lens, setLens] = useState<0.5 | 1>(1)
+  const ultraWideIdRef = useRef<string | null>(null)
+  const [ultraWideAvailable, setUltraWideAvailable] = useState(false)
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -72,9 +81,33 @@ function Camera() {
     stopCamera()
     navigate('/')
   }
-  const handleToggleGrid = () => {}
 
-  const startCamera = async () => {
+  /**
+   * Looks for a real ultra-wide camera.
+   *
+   * Device labels are only readable once permission has been granted, which is
+   * why this runs after the first stream rather than before it. Phones name the
+   * lens inconsistently, so the match is deliberately loose, and finding
+   * nothing simply means 0.5x is never offered.
+   */
+  const detectUltraWide = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const match = devices.find(
+        (device) =>
+          device.kind === 'videoinput' &&
+          /ultra.?wide|0\.5/i.test(device.label) &&
+          !/front|face/i.test(device.label),
+      )
+      ultraWideIdRef.current = match?.deviceId ?? null
+      if (mountedRef.current) setUltraWideAvailable(Boolean(match))
+    } catch {
+      // Enumeration is a nicety; failing it just means one lens.
+      ultraWideIdRef.current = null
+    }
+  }, [])
+
+  const startCamera = async (requested: 0.5 | 1 = lens) => {
     setCameraError(null)
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError(CAMERA_UNAVAILABLE_MESSAGE)
@@ -83,12 +116,24 @@ function Camera() {
 
     setCameraBusy(true)
     try {
+      // Only one camera may be open at a time on most phones, so the current
+      // stream is released before asking for the next lens.
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+
+      const ultraWideId = ultraWideIdRef.current
       let stream: MediaStream
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        })
+        stream =
+          requested === 0.5 && ultraWideId
+            ? await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: ultraWideId } },
+                audio: false,
+              })
+            : await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false,
+              })
       } catch {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
       }
@@ -102,7 +147,11 @@ function Camera() {
         return
       }
       streamRef.current = stream
+      setLens(requested)
       setCameraActive(true)
+      // Labels only become readable after permission, so the lens list is
+      // discovered off the back of the first successful stream.
+      if (!ultraWideIdRef.current) void detectUltraWide()
     } catch {
       setCameraError(CAMERA_DENIED_MESSAGE)
       stopCamera()
@@ -226,15 +275,9 @@ function Camera() {
                 Step 01 / 06
               </span>
             </div>
-            <button
-              aria-label="Toggle camera grid"
-              className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
-              id="gridToggleBtn"
-              type="button"
-              onClick={handleToggleGrid}
-            >
-              <span className="material-symbols-outlined text-[18px]">grid_3x3</span>
-            </button>
+            {/* Balances the back button so the step pill stays centred in this
+                justify-between row. The alignment grid is always on. */}
+            <div className="w-10 h-10" aria-hidden="true"></div>
           </div>
           <div className="px-margin pt-space-xs pb-space-sm flex flex-col gap-1">
             <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-normal">
@@ -264,6 +307,32 @@ function Camera() {
                 />
               )}
               <div className="absolute inset-0 bg-gradient-to-b from-surface-container-lowest/50 via-transparent to-surface-container-lowest/70 pointer-events-none"></div>
+              {/* Lens switch. Only rendered when the device actually has an
+                  ultra-wide, so the control never promises a framing the
+                  camera cannot give. */}
+              {cameraActive && ultraWideAvailable && (
+                <div className="absolute top-3 inset-x-0 mx-auto w-fit z-10 flex items-center gap-1 bg-surface-container-highest/85 backdrop-blur-md p-1 rounded-full shadow-lg">
+                  {([0.5, 1] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-label={`${option}x lens`}
+                      aria-pressed={lens === option}
+                      disabled={cameraBusy}
+                      className={`min-w-[44px] h-9 px-3 rounded-full text-body-sm font-body-sm transition-all active:scale-95 disabled:opacity-60 ${
+                        lens === option
+                          ? 'bg-primary text-on-primary'
+                          : 'text-on-surface-variant hover:text-primary'
+                      }`}
+                      onClick={() => {
+                        if (lens !== option) void startCamera(option)
+                      }}
+                    >
+                      {option}×
+                    </button>
+                  ))}
+                </div>
+              )}
               <div
                 className="absolute inset-4 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-40 transition-opacity duration-300"
                 id="gridOverlay"
@@ -301,18 +370,6 @@ function Camera() {
                 <div className="w-[1.5px] h-2.5 bg-primary-container -ml-[2px]"></div>
                 <div className="absolute w-8 h-8 rounded-full shadow-[inset_0_0_0_1px_rgba(197,168,128,0.35)]"></div>
               </div>
-              <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none">
-                <div className="px-2.5 py-1 rounded bg-surface-container-lowest/80 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-primary"></span>
-                  <span className="font-label-caps text-label-caps text-primary uppercase tracking-wider">
-                    Planar Sensor
-                  </span>
-                </div>
-                <div className="px-2.5 py-1 rounded bg-surface-container-lowest/80 backdrop-blur-md flex items-center gap-1 shadow-sm">
-                  <span className="material-symbols-outlined text-primary text-[14px]">wb_sunny</span>
-                  <span className="font-body-sm text-body-sm text-on-surface">5400K Even</span>
-                </div>
-              </div>
               <div className="absolute bottom-3 inset-x-4 flex justify-center pointer-events-none">
                 <div className="px-3 py-1.5 rounded-lg bg-surface-container-lowest/85 backdrop-blur-md text-center shadow-lg">
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
@@ -324,18 +381,6 @@ function Camera() {
                 className="absolute inset-0 bg-on-surface opacity-0 pointer-events-none transition-opacity duration-150"
                 id="flashEffect"
               ></div>
-            </div>
-            <div className="w-full max-w-[420px] mt-space-sm px-space-xs flex items-center justify-between">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-low shadow-sm">
-                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  check_circle
-                </span>
-                <span className="font-body-sm text-body-sm text-on-surface">Level: 90° Top-Down Verified</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low text-on-surface-variant">
-                <span className="material-symbols-outlined text-[16px]">aspect_ratio</span>
-                <span className="font-label-caps text-label-caps uppercase tracking-wider">1:1 Flat</span>
-              </div>
             </div>
           </div>
           <div className="px-margin pt-space-md pb-space-lg flex flex-col gap-space-sm w-full max-w-[420px] mx-auto">

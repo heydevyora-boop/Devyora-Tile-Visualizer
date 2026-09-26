@@ -1,27 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
+import { useAuth } from '../state/AuthContext'
+import { ApiError, apiGet, apiPost, type DesignOption, type SavedVisualisation } from '../utils/api'
+import { saveImageToDevice } from '../utils/saveImage'
+import { formatTileSize } from '../utils/tileSizeLabel'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
 
-const TILE_SIZE_LABELS: Record<string, string> = {
-  '600x600': '600 × 600 mm',
-  '800x800': '800 × 800 mm',
-  '1200x600': '1200 × 600 mm',
-  '1200x1200': '1200 × 1200 mm',
-}
-
-const STYLE_LABELS: Record<string, string> = {
-  minimal: 'Minimal',
-  modern: 'Modern',
-  luxury: 'Luxury',
-  warm: 'Warm',
-  contemporary: 'Contemporary',
-  earthy: 'Earthy',
-  indian: 'Indian',
-  elegant: 'Elegant',
-  surprise: 'Surprise Me',
-}
+// Same-origin by default, matching the rest of the app.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 /** "Concept 01", "Concept 02", … for a zero-based index. */
 function conceptLabel(index: number): string {
@@ -30,17 +18,54 @@ function conceptLabel(index: number): string {
 
 function Results() {
   const navigate = useNavigate()
-  const { tileSize, space, style, generatedResult, setGeneratedResult } = useFlow()
+  const {
+    customer,
+    tileImage,
+    croppedImage,
+    tileSize,
+    tileFormatOption,
+    space,
+    spacePath,
+    style,
+    styleOption,
+    jointWidthMm,
+    jointOption,
+    patternOption,
+    additionalRequirement,
+    generatedResult,
+    setGeneratedResult,
+  } = useFlow()
+  const { token } = useAuth()
+  const [addingConcept, setAddingConcept] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
+  // Another concept is never a blind retry: the salesperson says what was
+  // wrong first, and that is what steers the new one.
+  const [askingWhy, setAskingWhy] = useState(false)
+  const [reasons, setReasons] = useState<DesignOption[] | null>(null)
+  const [chosenReasons, setChosenReasons] = useState<string[]>([])
+  const [reasonNote, setReasonNote] = useState('')
+  const [lastRevisionId, setLastRevisionId] = useState<string | null>(null)
+  // The two actions on a concept are tracked separately, because they mean
+  // different things: one puts a copy on this device, the other puts it in the
+  // client's permanent record.
+  const [savingToDevice, setSavingToDevice] = useState<number | null>(null)
+  const [deviceMessage, setDeviceMessage] = useState<string | null>(null)
+  const [savingToClient, setSavingToClient] = useState<number | null>(null)
+  const [savedRevisions, setSavedRevisions] = useState<Record<string, string>>({})
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Only ever the images the backend actually returned. There is deliberately
   // no placeholder set: showing stand-in images would present them as the
   // user's own concepts.
   const conceptImages = generatedResult?.images ?? []
+  const conceptRevisionIds = generatedResult?.revisionIds ?? []
   const hasConcepts = conceptImages.length > 0
 
-  const tileSizeLabel = tileSize ? TILE_SIZE_LABELS[tileSize] ?? tileSize : null
+  // The catalogue's own label and name — the same values the admin set and
+  // Summary already showed, rather than a second guess at what they might be.
+  const tileSizeLabel = formatTileSize(tileSize, tileFormatOption)
   const spaceLabel = space ?? null
-  const styleLabel = style ? STYLE_LABELS[style] ?? style : null
+  const styleLabel = styleOption?.name ?? style ?? null
   // The one place the real space/style selection is shown. The per-concept
   // surface strategy stays backend-only and is never surfaced here.
   const selectionSubtitle = [spaceLabel, styleLabel].filter(Boolean).join(' · ')
@@ -84,12 +109,181 @@ function Results() {
     }
   }, [lightboxIndex, conceptImages.length])
 
+  /** True once this concept is in the client's record. */
+  const isSaved = (index: number) => {
+    const revisionId = conceptRevisionIds[index]
+    return Boolean(revisionId && savedRevisions[revisionId])
+  }
+
   const handleReturn = () => {
     navigate('/summary')
   }
   const handleRegenerate = () => {
     navigate('/loading')
   }
+  /**
+   * Asks for one more concept of the same room.
+   *
+   * One request, one image, appended to what is already here. The concept
+   * index continues from the images already shown, so the model is given the
+   * next viewpoint rather than repeating the first — and nothing is generated
+   * that the salesperson did not ask to see.
+   */
+  const handleAnotherConcept = async () => {
+    if (addingConcept || !croppedImage) return
+    setAddingConcept(true)
+    setAddError(null)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          tileImage: croppedImage,
+          space,
+          spacePath: spacePath.map((node) => node.id),
+          style,
+          styleOptionId: styleOption?.id,
+          jointOptionId: jointOption?.id,
+          jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
+          patternOptionId: patternOption?.id,
+          tileSize,
+          customerId: customer?.id,
+          additionalRequirement: additionalRequirement.trim() || undefined,
+          conceptIndex: conceptImages.length,
+          // What was wrong with the last concept, and which concept that was.
+          reasonIds: chosenReasons,
+          revisionNote: reasonNote.trim() || undefined,
+          parentRevisionId: lastRevisionId ?? undefined,
+        }),
+      })
+      if (!response.ok) {
+        let detail = ''
+        try {
+          const body = (await response.json()) as { error?: unknown }
+          detail = typeof body?.error === 'string' ? body.error : ''
+        } catch {
+          detail = ''
+        }
+        throw new Error(detail || 'That concept could not be created.')
+      }
+      const result = (await response.json()) as {
+        image?: string
+        tileImageUrl?: string
+        revision?: { id?: string } | null
+      }
+      if (!result.image) throw new Error('No image came back. Please try again.')
+
+      if (result.revision?.id) setLastRevisionId(result.revision.id)
+      // Reset the sheet: the next correction is about the new concept.
+      setAskingWhy(false)
+      setChosenReasons([])
+      setReasonNote('')
+
+      // The new concept joins the ones already here, carrying the revision it
+      // came from so it can be saved on its own. Nothing is written to the
+      // client's record: a correction is still only a concept until someone
+      // keeps it.
+      setGeneratedResult({
+        ...(generatedResult as NonNullable<typeof generatedResult>),
+        images: [...conceptImages, result.image],
+        revisionIds: [...conceptRevisionIds, result.revision?.id ?? null],
+      })
+    } catch (error) {
+      setAddError(error instanceof Error ? error.message : 'That concept could not be created.')
+    } finally {
+      setAddingConcept(false)
+    }
+  }
+
+  /**
+   * Save Image — a copy on this device.
+   *
+   * Nothing to do with the client's record: this is the salesperson putting a
+   * picture in their own hands, to send to the customer or keep on the phone.
+   */
+  const handleSaveImage = async (index: number) => {
+    if (savingToDevice !== null) return
+    setSavingToDevice(index)
+    setDeviceMessage(null)
+    setSaveError(null)
+    try {
+      const outcome = await saveImageToDevice(conceptImages[index], conceptLabel(index))
+      setDeviceMessage(
+        outcome === 'shared' ? 'Sent to your device.' : 'Downloaded to this device.',
+      )
+    } catch (error) {
+      // Dismissing the share sheet is a choice, not a failure worth reporting.
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setSaveError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'That image could not be saved to this device.',
+      )
+    } finally {
+      setSavingToDevice(null)
+    }
+  }
+
+  /**
+   * Save to Client — the concept joins the client's permanent record.
+   *
+   * The request names the concept rather than uploading it, so the server files
+   * it under the customer, style and application it was really generated for.
+   * The uncropped tile photo goes with it because that photo only ever existed
+   * in this browser.
+   */
+  const handleSaveToClient = async (index: number) => {
+    const revisionId = conceptRevisionIds[index]
+    if (savingToClient !== null) return
+    if (!revisionId) {
+      setSaveError('This concept cannot be saved to the client. Please create it again.')
+      return
+    }
+    setSavingToClient(index)
+    setSaveError(null)
+    setDeviceMessage(null)
+    try {
+      const saved = await apiPost<SavedVisualisation>('/api/generations', token, {
+        revisionId,
+        originalTileImage: tileImage ?? undefined,
+      })
+      setSavedRevisions((current) => ({ ...current, [revisionId]: saved.id }))
+    } catch (error) {
+      setSaveError(
+        error instanceof ApiError ? error.message : 'That concept could not be saved to the client.',
+      )
+    } finally {
+      setSavingToClient(null)
+    }
+  }
+
+  useEffect(() => {
+    if (!askingWhy || reasons !== null) return
+    const controller = new AbortController()
+    void (async () => {
+      try {
+        const list = await apiGet<DesignOption[]>(
+          '/api/design-options?kind=reason',
+          token,
+          controller.signal,
+        )
+        if (!controller.signal.aborted) setReasons(list)
+      } catch (caught) {
+        if (controller.signal.aborted) return
+        setAddError(caught instanceof ApiError ? caught.message : 'Could not load the reasons.')
+      }
+    })()
+    return () => controller.abort()
+  }, [askingWhy, reasons, token])
+
+  const toggleReason = (id: string) =>
+    setChosenReasons((current) =>
+      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
+    )
+
   const handleStartNew = () => {
     // Drop the finished run, so returning here before generating again shows
     // the empty state rather than the previous consultation's concepts.
@@ -202,11 +396,167 @@ function Results() {
                     />
                   )}
                 </div>
-                <div className="p-space-md bg-surface-container">
-                  <h2 className="font-title-md text-title-md text-on-surface">{conceptLabel(index)}</h2>
+                <div className="p-space-md bg-surface-container flex flex-col gap-space-sm">
+                  <div className="flex items-baseline justify-between gap-space-xs">
+                    <h2 className="font-title-md text-title-md text-on-surface">
+                      {conceptLabel(index)}
+                    </h2>
+                    {isSaved(index) && (
+                      <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">
+                        Saved to client
+                      </span>
+                    )}
+                  </div>
+                  {/* Two different things, so two buttons. Keeping a copy on
+                      this device is not the same as putting the concept in the
+                      client's permanent record, and one is not a substitute
+                      for the other. */}
+                  <div className="flex gap-space-sm">
+                    <button
+                      className="flex-1 h-11 rounded-lg border border-outline-variant text-on-surface hover:border-primary hover:text-primary active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-body-sm text-body-sm disabled:opacity-60"
+                      type="button"
+                      disabled={savingToDevice === index}
+                      onClick={() => void handleSaveImage(index)}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">download</span>
+                      <span>{savingToDevice === index ? 'Saving…' : 'Save Image'}</span>
+                    </button>
+                    <button
+                      className={`flex-1 h-11 rounded-lg transition-all flex items-center justify-center gap-space-xs font-body-sm text-body-sm disabled:opacity-60 ${
+                        isSaved(index)
+                          ? 'border border-primary text-primary'
+                          : 'bg-primary text-on-primary active:scale-[0.99]'
+                      }`}
+                      type="button"
+                      disabled={savingToClient === index || isSaved(index) || !customer}
+                      title={customer ? undefined : 'Choose a client first'}
+                      onClick={() => void handleSaveToClient(index)}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {isSaved(index) ? 'check_circle' : 'bookmark_add'}
+                      </span>
+                      <span>
+                        {isSaved(index)
+                          ? 'In client record'
+                          : savingToClient === index
+                            ? 'Saving…'
+                            : 'Save to Client'}
+                      </span>
+                    </button>
+                  </div>
+                  {!customer && (
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      Choose a client at the start of a consultation to keep concepts in their
+                      record.
+                    </p>
+                  )}
                 </div>
               </article>
             ))}
+            <div className="flex flex-col gap-space-sm">
+              {deviceMessage && (
+                <p className="font-body-sm text-body-sm text-on-surface-variant text-center" role="status">
+                  {deviceMessage}
+                </p>
+              )}
+              {saveError && (
+                <p className="font-body-sm text-body-sm text-error text-center" role="alert">
+                  {saveError}
+                </p>
+              )}
+              {addError && (
+                <p className="font-body-sm text-body-sm text-error text-center" role="alert">
+                  {addError}
+                </p>
+              )}
+
+              {!askingWhy ? (
+                <button
+                  className="w-full h-[52px] rounded-lg border border-outline-variant text-on-surface hover:border-primary hover:text-primary active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-title-md text-title-md disabled:opacity-60"
+                  id="anotherConceptBtn"
+                  type="button"
+                  disabled={addingConcept}
+                  onClick={() => setAskingWhy(true)}
+                >
+                  <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
+                  <span>Want another concept?</span>
+                </button>
+              ) : (
+                <div className="bg-surface-container rounded-xl p-space-md flex flex-col gap-space-sm">
+                  <h2 className="font-title-md text-title-md text-on-surface">
+                    What would you like to change?
+                  </h2>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant">
+                    Everything you don&rsquo;t pick stays exactly as it is.
+                  </p>
+
+                  {reasons === null && (
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">Loading…</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-space-xs">
+                    {(reasons ?? []).map((reason) => {
+                      const selected = chosenReasons.includes(reason.id)
+                      return (
+                        <button
+                          key={reason.id}
+                          type="button"
+                          aria-pressed={selected}
+                          title={reason.description || undefined}
+                          className={`px-space-md h-11 rounded-full border transition-all font-body-sm text-body-sm ${
+                            selected
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'bg-surface-container-low text-on-surface border-outline-variant hover:border-primary'
+                          }`}
+                          onClick={() => toggleReason(reason.id)}
+                        >
+                          {reason.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <label className="flex flex-col gap-1">
+                    <span className="font-label-caps text-label-caps uppercase tracking-widest text-outline">
+                      Anything else to say — optional
+                    </span>
+                    <textarea
+                      className="w-full box-border p-space-sm rounded-lg bg-surface-container-low text-on-surface border border-outline-variant focus:border-primary focus:outline-none font-body-sm text-body-sm"
+                      rows={2}
+                      maxLength={300}
+                      placeholder="Jaise: tile sirf vanity ke peeche feature wall par chahiye."
+                      value={reasonNote}
+                      onChange={(event) => setReasonNote(event.target.value)}
+                    />
+                  </label>
+
+                  <div className="flex gap-space-sm">
+                    <button
+                      className="flex-1 h-[52px] rounded-lg bg-primary text-on-primary hover:bg-primary-fixed-dim active:scale-[0.99] transition-all flex items-center justify-center gap-space-xs font-title-md text-title-md disabled:opacity-60"
+                      id="createConceptBtn"
+                      type="button"
+                      disabled={addingConcept || (chosenReasons.length === 0 && !reasonNote.trim())}
+                      onClick={() => void handleAnotherConcept()}
+                    >
+                      <span>{addingConcept ? 'Creating…' : 'Create concept'}</span>
+                      <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                    </button>
+                    <button
+                      className="h-[52px] px-space-md rounded-lg border border-outline-variant text-on-surface hover:border-primary transition-all font-label-caps text-label-caps uppercase tracking-widest"
+                      type="button"
+                      disabled={addingConcept}
+                      onClick={() => {
+                        setAskingWhy(false)
+                        setChosenReasons([])
+                        setReasonNote('')
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </main>
           {/* Fixed Sticky Showroom Consultation Dock */}
           <aside className="fixed bottom-3 inset-x-0 z-40 px-margin pointer-events-none">

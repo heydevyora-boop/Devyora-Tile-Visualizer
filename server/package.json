@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "print-prompts": "ts-node-dev --transpile-only --no-notify src/scripts/printPrompts.ts",
-    "test:generate": "ts-node-dev --transpile-only --no-notify src/scripts/testSingleGeneration.ts"
+    "test:generate": "ts-node-dev --transpile-only --no-notify src/scripts/testSingleGeneration.ts",
+    "migrate:legacy-generations": "ts-node-dev --transpile-only --no-notify src/scripts/migrateLegacyGenerations.ts"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",
@@ -17,7 +18,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "googleapis": "^161.0.0",
     "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.6.0",
     "sharp": "^0.35.4"
   },
   "devDependencies": {
