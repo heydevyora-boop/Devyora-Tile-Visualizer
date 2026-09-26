@@ -122,6 +122,33 @@ export async function apiPatch<T>(path: string, token: string | null, body: unkn
   }
 }
 
+export async function apiDelete<T>(path: string, token: string | null): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  } catch {
+    throw new ApiError('We could not reach the server. Please check your connection.', 0)
+  }
+  if (!response.ok) {
+    let detail = ''
+    try {
+      const failure = (await response.json()) as { error?: unknown }
+      detail = typeof failure?.error === 'string' ? failure.error : ''
+    } catch {
+      detail = ''
+    }
+    throw new ApiError(detail || `Request failed with status ${response.status}`, response.status)
+  }
+  try {
+    return (await response.json()) as T
+  } catch {
+    throw new ApiError('The server sent a response we could not read.', response.status)
+  }
+}
+
 /** Shapes returned by the API, mirrored from the server-side stores. */
 export interface Customer {
   id: string

@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import {
   AccountsError,
   createAccount,
+  deleteAccount,
   listAccounts,
   normaliseUsername,
   updateAccount,
@@ -75,9 +76,10 @@ router.patch('/accounts', async (req, res) => {
     if (!target.trim()) throw new AccountsError('Which account should be changed?')
 
     // Self-lockout guard. An administrator demoting themselves would be the one
-    // change nobody could undo from inside the app. It also keeps at least one
-    // administrator in existence: any other demotion is performed by an admin
-    // who stays one, so the only path to zero administrators is this one.
+    // change nobody could undo from inside the app. Together with the
+    // self-deletion guard on DELETE, it keeps at least one administrator in
+    // existence: every other demotion and removal is performed by an admin who
+    // survives it, so those two are the only paths to zero administrators.
     const isSelf = normaliseUsername(target) === session.sub
     if (isSelf && body.role !== undefined && body.role !== 'admin') {
       res.status(403).json({
@@ -95,6 +97,29 @@ router.patch('/accounts', async (req, res) => {
     )
   } catch (error) {
     fail(res, 'PATCH /api/accounts', error)
+  }
+})
+
+router.delete('/accounts', async (req, res) => {
+  const session = requireAdmin(req, res)
+  if (!session) return
+  try {
+    // Named in the query string, matching the deployed copy.
+    const target = typeof req.query.username === 'string' ? req.query.username : ''
+    if (!target.trim()) throw new AccountsError('Which account should be removed?')
+
+    // Deleting yourself is the one removal nobody could undo from inside the
+    // app. Another administrator can do it, which is the point.
+    if (normaliseUsername(target) === session.sub) {
+      res.status(403).json({
+        error: 'You cannot remove your own account — ask another administrator to do it.',
+      })
+      return
+    }
+
+    res.status(200).json(await deleteAccount(target))
+  } catch (error) {
+    fail(res, 'DELETE /api/accounts', error)
   }
 })
 
