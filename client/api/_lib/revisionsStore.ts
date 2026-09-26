@@ -7,15 +7,6 @@ import { describeDbError, getCollection } from './db.js'
 import type { OwnerScope } from './clientsStore.js'
 
 /**
- * Every concept ever produced for a consultation, and why.
- *
- * A concept is never overwritten. When a salesperson asks for another because
- * something was wrong, the new one is recorded beside the old with the reason
- * attached and a pointer back to what it was meant to improve on. Weeks later
- * that chain answers the only question that matters about a rejected concept:
- * what was asked for, and did the next one actually address it.
- */
-/**
  * Everything needed to understand a concept months later, resolved server-side
  * at the moment it was generated.
  *
@@ -51,6 +42,15 @@ export interface GenerationContext {
   additionalRequirement: string | null
 }
 
+/**
+ * Every concept ever produced for a consultation, and why.
+ *
+ * A concept is never overwritten. When a salesperson asks for another because
+ * something was wrong, the new one is recorded beside the old with the reason
+ * attached and a pointer back to what it was meant to improve on. Weeks later
+ * that chain answers the only question that matters about a rejected concept:
+ * what was asked for, and did the next one actually address it.
+ */
 export interface ConceptRevision {
   id: string
   /** The consultation this belongs to. */
