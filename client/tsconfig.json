@@ -5,9 +5,14 @@
   // and reads this file, so without an explicit target/lib it falls back to
   // compiler defaults and rejects ES2022 syntax such as `Error.cause`.
   // Keep in step with tsconfig.api.json, which is what `tsc -b` checks api/ against.
+  // "strict" belongs here for the same reason target and lib do: without it
+  // the deployed functions are checked under weaker rules than the ones they
+  // were written and reviewed against, and a difference that only shows up on
+  // the platform is a difference nobody sees until it is live.
   "compilerOptions": {
     "target": "es2023",
-    "lib": ["ES2023"]
+    "lib": ["ES2023"],
+    "strict": true
   },
   "files": [],
   "references": [
