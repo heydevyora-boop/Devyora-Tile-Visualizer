@@ -11,8 +11,8 @@ function toSizeId(lengthMm: number, breadthMm: number): string {
   return `${lengthMm}x${breadthMm}`
 }
 
-function label(lengthMm: number, breadthMm: number): string {
-  return `${lengthMm} × ${breadthMm} mm`
+function label(format: TileFormat): string {
+  return format.label ?? `${format.lengthMm} × ${format.breadthMm} mm`
 }
 
 /**
@@ -26,7 +26,7 @@ function label(lengthMm: number, breadthMm: number): string {
  */
 function TileSize() {
   const navigate = useNavigate()
-  const { tileSize, setTileSize } = useFlow()
+  const { tileSize, setTileSize, setTileFormatOption } = useFlow()
   const { token } = useAuth()
 
   const [formats, setFormats] = useState<TileFormat[] | null>(null)
@@ -82,6 +82,7 @@ function TileSize() {
       }
     }
     setTileSize(toSizeId(lengthMm, breadthMm))
+    setTileFormatOption(null)
   }
 
   const handleContinue = () => {
@@ -167,10 +168,13 @@ function TileSize() {
                   aria-pressed={selected}
                   data-size={id}
                   className={`tile-card w-full text-left bg-surface-container-low hover:bg-surface-container transition-all duration-200 p-space-md rounded-xl flex items-center justify-between shadow-sm${selected ? ' selected' : ''}`}
-                  onClick={() => setTileSize(id)}
+                  onClick={() => {
+                    setTileSize(id)
+                    setTileFormatOption(format)
+                  }}
                 >
                   <span className="font-spec-numeral text-spec-numeral text-on-surface tracking-wide">
-                    {label(format.lengthMm, format.breadthMm)}
+                    {label(format)}
                   </span>
                   <span
                     className={`material-symbols-outlined text-[20px] ${selected ? 'text-primary' : 'text-outline'}`}

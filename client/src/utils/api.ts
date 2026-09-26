@@ -142,6 +142,8 @@ export interface TileFormat {
   id: string
   lengthMm: number
   breadthMm: number
+  /** An admin-given name shown instead of the raw dimensions, where set. */
+  label: string | null
   active: boolean
   order: number
 }

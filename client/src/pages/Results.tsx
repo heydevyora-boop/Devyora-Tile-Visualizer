@@ -4,30 +4,12 @@ import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPost, type DesignOption, type SavedVisualisation } from '../utils/api'
 import { saveImageToDevice } from '../utils/saveImage'
+import { formatTileSize } from '../utils/tileSizeLabel'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
 
 // Same-origin by default, matching the rest of the app.
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
-
-const TILE_SIZE_LABELS: Record<string, string> = {
-  '600x600': '600 × 600 mm',
-  '800x800': '800 × 800 mm',
-  '1200x600': '1200 × 600 mm',
-  '1200x1200': '1200 × 1200 mm',
-}
-
-const STYLE_LABELS: Record<string, string> = {
-  minimal: 'Minimal',
-  modern: 'Modern',
-  luxury: 'Luxury',
-  warm: 'Warm',
-  contemporary: 'Contemporary',
-  earthy: 'Earthy',
-  indian: 'Indian',
-  elegant: 'Elegant',
-  surprise: 'Surprise Me',
-}
 
 /** "Concept 01", "Concept 02", … for a zero-based index. */
 function conceptLabel(index: number): string {
@@ -41,6 +23,7 @@ function Results() {
     tileImage,
     croppedImage,
     tileSize,
+    tileFormatOption,
     space,
     spacePath,
     style,
@@ -78,9 +61,11 @@ function Results() {
   const conceptRevisionIds = generatedResult?.revisionIds ?? []
   const hasConcepts = conceptImages.length > 0
 
-  const tileSizeLabel = tileSize ? TILE_SIZE_LABELS[tileSize] ?? tileSize : null
+  // The catalogue's own label and name — the same values the admin set and
+  // Summary already showed, rather than a second guess at what they might be.
+  const tileSizeLabel = formatTileSize(tileSize, tileFormatOption)
   const spaceLabel = space ?? null
-  const styleLabel = style ? STYLE_LABELS[style] ?? style : null
+  const styleLabel = styleOption?.name ?? style ?? null
   // The one place the real space/style selection is shown. The per-concept
   // surface strategy stays backend-only and is never surfaced here.
   const selectionSubtitle = [spaceLabel, styleLabel].filter(Boolean).join(' · ')

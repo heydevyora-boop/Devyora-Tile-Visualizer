@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { formatTileSize as tileSizeLabelFor } from '../utils/tileSizeLabel'
 import { useFlow } from '../state/FlowContext'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Summary.css'
@@ -69,6 +70,7 @@ function Summary() {
     tileImage,
     croppedImage,
     tileSize,
+    tileFormatOption,
     spacePath,
     styleOption,
     style,
@@ -78,7 +80,7 @@ function Summary() {
     setAdditionalRequirement,
   } = useFlow()
 
-  const tileSizeLabel = tileSize ? `${tileSize.replace('x', ' × ')} mm` : NOT_SELECTED
+  const tileSizeLabel = tileSizeLabelFor(tileSize, tileFormatOption) ?? NOT_SELECTED
   const ready = Boolean(croppedImage && tileSize && spacePath.length > 0 && style)
 
   return (

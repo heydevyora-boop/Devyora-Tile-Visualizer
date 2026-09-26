@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import type { Customer, DesignOption, SpaceNode } from '../utils/api'
+import type { Customer, DesignOption, SpaceNode, TileFormat } from '../utils/api'
 
 export type GeneratedResult = {
   generationId: string
@@ -32,6 +32,12 @@ type FlowContextValue = {
   tileImage: string | null
   croppedImage: string | null
   tileSize: string | null
+  /**
+   * The catalogue entry the size came from, where it did — set alongside
+   * tileSize so a screen can show the showroom's own label for it without a
+   * second fetch. Null for a size typed in by hand.
+   */
+  tileFormatOption: TileFormat | null
   space: string | null
   /**
    * The application chosen, root category first — Bathroom -> Powder Washroom
@@ -57,6 +63,7 @@ type FlowContextValue = {
   setTileImage: (tileImage: string | null) => void
   setCroppedImage: (croppedImage: string | null) => void
   setTileSize: (tileSize: string | null) => void
+  setTileFormatOption: (tileFormatOption: TileFormat | null) => void
   setSpace: (space: string | null) => void
   setSpacePath: (spacePath: SpaceNode[]) => void
   setStyle: (style: string | null) => void
@@ -75,6 +82,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const [tileImage, setTileImage] = useState<string | null>(null)
   const [croppedImage, setCroppedImage] = useState<string | null>(null)
   const [tileSize, setTileSize] = useState<string | null>(null)
+  const [tileFormatOption, setTileFormatOption] = useState<TileFormat | null>(null)
   const [space, setSpace] = useState<string | null>(null)
   const [spacePath, setSpacePath] = useState<SpaceNode[]>([])
   const [style, setStyle] = useState<string | null>(null)
@@ -92,6 +100,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         tileImage,
         croppedImage,
         tileSize,
+        tileFormatOption,
         space,
         spacePath,
         style,
@@ -105,6 +114,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         setTileImage,
         setCroppedImage,
         setTileSize,
+        setTileFormatOption,
         setSpace,
         setSpacePath,
         setStyle,
