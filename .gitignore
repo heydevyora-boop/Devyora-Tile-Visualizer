@@ -20,3 +20,17 @@ server/data/
 # Local working notes from a spec-compliance review. Regenerated on demand and
 # specific to one point in time, so it is kept out of the branch history.
 AUDIT.md
+
+# Service-account key files. Nothing in this repository needs one on disk: the
+# Drive integration reads GOOGLE_SERVICE_ACCOUNT_EMAIL and
+# GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY from the environment, so a key file in the
+# tree is always a stray download — which is exactly how one reached a branch
+# once. Named patterns rather than *.json, which would swallow package.json and
+# every tsconfig. A key downloaded under its default "<project>-<hash>.json"
+# name still slips past this, so it is a safety net, not the guarantee.
+credentials.json
+*credentials.json
+client_secret*.json
+*service-account*.json
+*serviceaccount*.json
+*-key.json
