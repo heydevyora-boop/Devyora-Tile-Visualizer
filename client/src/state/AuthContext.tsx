@@ -35,15 +35,17 @@ const LOGIN_ENDPOINT = `${API_BASE_URL}/api/login`
 /**
  * The one screen a role belongs on.
  *
- * Admins exist only to review the generation history — they have no reason to
- * run a consultation, so /history is both their landing page and the page they
- * are sent back to if they try to reach the visualiser. A salesperson lands on
- * their workspace dashboard and starts a consultation from there. Routing
- * decisions read this rather than hardcoding paths, so the two can never
- * disagree.
+ * An admin has no reason to run a consultation, so they land on the admin
+ * panel and are sent back to it if they try to reach the visualiser. Users &
+ * Roles is where that starts: who can sign in is the thing an admin is most
+ * often here to change, and the rest of the panel is one click away in the
+ * sidebar. The generation history is still there, still reachable, just no
+ * longer the doorway. A salesperson lands on their workspace dashboard and
+ * starts a consultation from there. Routing decisions read this rather than
+ * hardcoding paths, so the two can never disagree.
  */
 export function landingPathFor(role: Role | null): string {
-  return role === 'admin' ? '/history' : '/dashboard'
+  return role === 'admin' ? '/admin/users' : '/dashboard'
 }
 
 /**

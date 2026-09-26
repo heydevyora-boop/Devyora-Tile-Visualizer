@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPatch, apiPost, type TileFormat } from '../utils/api'
 import './Workspace.css'
@@ -17,7 +16,6 @@ import './Workspace.css'
  * lays out, which is all this measurement is used for.
  */
 function TileFormatsAdmin() {
-  const navigate = useNavigate()
   const { token } = useAuth()
   const [formats, setFormats] = useState<TileFormat[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -118,20 +116,7 @@ function TileFormatsAdmin() {
   }
 
   return (
-    <div className="shell">
-      <div className="shell__main">
-        <header className="shell__topbar">
-          <button
-            type="button"
-            className="shell__icon-button"
-            aria-label="Back to history"
-            onClick={() => navigate('/history')}
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <h1 className="shell__title">Tile Formats</h1>
-        </header>
-        <main className="shell__content">
+    <>
           <p className="ws__lede">
             The sizes offered at the start of a consultation, in the order they appear. Millimetres
             only.
@@ -247,11 +232,11 @@ function TileFormatsAdmin() {
               <li className="ws__row" key={format.id}>
                 <div className="ws__row-body">
                   <span className="ws__row-title">
-                    {format.label ?? `${format.lengthMm} × ${format.breadthMm} mm`}
+                    {format.label?.trim() || `${format.lengthMm} × ${format.breadthMm} mm`}
                   </span>
                   <span className="ws__row-meta">
                     {[
-                      format.label ? `${format.lengthMm} × ${format.breadthMm} mm` : null,
+                      format.label?.trim() ? `${format.lengthMm} × ${format.breadthMm} mm` : null,
                       format.active ? 'Offered' : 'Disabled',
                     ]
                       .filter(Boolean)
@@ -309,9 +294,7 @@ function TileFormatsAdmin() {
               ),
             )}
           </ul>
-        </main>
-      </div>
-    </div>
+    </>
   )
 }
 

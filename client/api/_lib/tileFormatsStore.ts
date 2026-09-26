@@ -99,8 +99,17 @@ async function ensureReady(): Promise<void> {
 }
 
 function toFormat(doc: TileFormatDoc): TileFormat {
-  const { _id, ...rest } = doc
-  return { id: _id, ...rest }
+  const { _id, label, ...rest } = doc
+  return {
+    id: _id,
+    // Anything that is not a name is no name. Writing through this store can
+    // only ever produce null or a real name, but a row edited by hand in the
+    // database, or brought in by an import, can carry "" or "   " — and then
+    // every reader has to decide for itself whether that counts as a label.
+    // Normalised here, once, so that none of them have to.
+    label: typeof label === 'string' && label.trim() ? label.trim() : null,
+    ...rest,
+  }
 }
 
 /** An optional name, trimmed to nothing rather than kept as whitespace. */

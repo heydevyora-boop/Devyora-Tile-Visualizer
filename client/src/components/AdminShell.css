@@ -1,0 +1,41 @@
+/* Rules for the administrator's frame only.
+   Kept out of AppShell.css deliberately: that stylesheet dresses the
+   salesperson's shell too, and nothing here should be able to reach it. */
+
+/* The manual collapse. Two classes deep, so it beats the plain
+   `.shell__sidebar { display: flex }` the desk-width media query sets —
+   media queries add no specificity of their own. */
+.shell--sidebar-collapsed .shell__sidebar {
+  display: none;
+}
+
+/* The sidebar's own header row: the wordmark, and the control that hides it.
+   Scoped to a class only the admin sidebar renders, so the shared
+   `.shell__brand` rules keep working untouched for the salesperson. */
+.shell__sidebar-head {
+  display: flex;
+  align-items: center;
+  /* The toggle sits in the gutter and the wordmark follows it on the same
+     row, so the control that hides the sidebar reads as belonging to the
+     sidebar rather than to whatever happens to be beside it. */
+  padding-left: 0.375rem;
+  padding-right: 0.625rem;
+  margin-bottom: 1.5rem;
+}
+.shell__sidebar-head .shell__brand {
+  /* The toggle sets the left edge of this row now, and the row owns the
+     spacing beneath it. */
+  padding-left: 0.25rem;
+  margin-bottom: 0;
+}
+
+/* The top bar's copy of the button is the way back. On a desk it appears only
+   once the sidebar is collapsed — until then the sidebar's own button is the
+   one on screen. Below the desk breakpoint it stays as it was, opening the
+   drawer, because there is no sidebar there to hold a button. The
+   salesperson's button is untouched: it has no --admin class. */
+@media (min-width: 1024px) {
+  .shell--sidebar-collapsed .shell__menu-button--admin {
+    display: inline-flex;
+  }
+}

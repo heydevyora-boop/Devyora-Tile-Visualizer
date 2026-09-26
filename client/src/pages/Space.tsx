@@ -170,12 +170,9 @@ function Space() {
                 onClick={() => choose(node)}
               >
                 {node.imageUrl && (
-                  <img
-                    className="w-24 h-24 object-cover flex-shrink-0"
-                    src={node.imageUrl}
-                    alt={node.name}
-                    loading="lazy"
-                  />
+                  <span className="space-card__thumb">
+                    <img src={node.imageUrl} alt={node.name} loading="lazy" />
+                  </span>
                 )}
                 <span className="flex-1 min-w-0 p-space-md flex flex-col justify-center gap-1">
                   <span className="font-title-md text-title-md text-on-surface">{node.name}</span>

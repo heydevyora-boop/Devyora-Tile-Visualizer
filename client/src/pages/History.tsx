@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet } from '../utils/api'
 import './History.css'
-// The three admin-configuration screens share Settings.tsx's visual
-// language (ws__actions / ws__action), so their styling comes from here
-// rather than being redefined a second time in History.css.
-import './Workspace.css'
 
 /** What this screen draws: one saved concept, flattened to what a card needs. */
 type GenerationRecord = {
@@ -141,10 +137,6 @@ function History() {
     }
   }, [lightbox, activeImages.length])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/', { replace: true })
-  }
 
   const showPrev = () =>
     setLightbox((current) =>
@@ -163,72 +155,8 @@ function History() {
     )
 
   return (
-    <div className="history-page bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen">
-      {/* Admins are review-only, so this header carries no navigation into the
-          consultation flow itself — branding, title, and sign-out only. The
-          showroom-configuration screens are a separate matter (see below):
-          an admin is the only one who can reach them, so this page, the one
-          an admin actually lands on, is where that path has to start. */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_12px_rgba(0,0,0,0.45)]">
-        <div className="h-16 px-margin flex items-center justify-between">
-          <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">
-            DEVYORA
-          </span>
-          <div className="flex flex-col items-center">
-            <span className="font-headline-sm text-headline-sm uppercase text-on-surface">
-              Generation History
-            </span>
-            <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">
-              Admin
-            </span>
-          </div>
-          <button
-            aria-label="Sign out"
-            className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
-            id="logoutBtn"
-            onClick={handleLogout}
-            title="Sign out"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
-          </button>
-        </div>
-      </header>
-
-      <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">
+    <>
         <div className="history-content">
-          {/* Everything only an admin can change: who can sign in, and the
-              catalogues that give the visualiser its content — tile formats,
-              the space hierarchy, and the design/joint/pattern/revision-reason
-              lists. This page is the only place an admin lands, so it is the
-              one place these have to be reachable from. */}
-          <section className="history-intro">
-            <p className="history-eyebrow">Showroom setup</p>
-            <h1 className="history-title">Configuration</h1>
-            <p className="history-subtitle">
-              What the visualiser offers a salesperson — changes here take effect immediately, with
-              no redeploy.
-            </p>
-          </section>
-          <div className="ws__actions">
-            <Link className="ws__action" to="/admin/users">
-              <span className="material-symbols-outlined">manage_accounts</span>
-              <span>Users &amp; roles</span>
-            </Link>
-            <Link className="ws__action" to="/tile-formats">
-              <span className="material-symbols-outlined">grid_on</span>
-              <span>Tile formats</span>
-            </Link>
-            <Link className="ws__action" to="/space-catalogue">
-              <span className="material-symbols-outlined">category</span>
-              <span>Space catalogue</span>
-            </Link>
-            <Link className="ws__action" to="/design-options">
-              <span className="material-symbols-outlined">palette</span>
-              <span>Design options</span>
-            </Link>
-          </div>
-
           <section className="history-intro">
             <p className="history-eyebrow">Archive</p>
             <h1 className="history-title">All Generations</h1>
@@ -314,8 +242,6 @@ function History() {
             })}
           </div>
         </div>
-      </main>
-
       {lightbox !== null && activeRecord && (
         <div
           aria-label={`Concept ${lightbox.imageIndex + 1} by ${activeRecord.userName} — full size view`}
@@ -373,7 +299,7 @@ function History() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

@@ -118,7 +118,11 @@ p {
 .opacity-15 { opacity: 0.15; }
 .cursor-pointer { cursor: pointer; }
 .bg-surface { background-color: #121314; }
-.bg-surface\/85 { background-color: rgba(18, 19, 20, 0.85); }
+/* Opaque, despite the name this class was given when the header was meant to
+   be frosted. The header is fixed over a scrolling list, and at 85% the labels
+   passing underneath stayed legible through it — blur softens text, it does
+   not remove it. The surface colour here is --color-surface from tokens.css. */
+.bg-surface\/85 { background-color: #121314; }
 .bg-surface\/90 { background-color: rgba(18, 19, 20, 0.9); }
 .bg-surface-container { background-color: #1f2021; }
 .bg-surface-container-low { background-color: #1b1c1d; }
