@@ -19,6 +19,13 @@ export interface TileFormat {
   id: string
   lengthMm: number
   breadthMm: number
+  /**
+   * An optional name shown instead of the raw dimensions — "Large Format
+   * Slab" reads better on a size-selection screen than "1200 × 2400 mm" on
+   * its own. Null falls back to the dimensions, so naming a format is never
+   * required to use one.
+   */
+  label: string | null
   /** A disabled format stays on record but is not offered in the flow. */
   active: boolean
   /** Ascending. The order the showroom wants them read in. */
@@ -75,6 +82,7 @@ async function ensureReady(): Promise<void> {
             _id: randomUUID(),
             lengthMm,
             breadthMm,
+            label: null,
             active: true,
             order: index,
           })),
@@ -91,6 +99,13 @@ async function ensureReady(): Promise<void> {
 function toFormat(doc: TileFormatDoc): TileFormat {
   const { _id, ...rest } = doc
   return { id: _id, ...rest }
+}
+
+/** An optional name, trimmed to nothing rather than kept as whitespace. */
+function optionalLabel(value: unknown): string | null {
+  const text = typeof value === 'string' ? value.trim() : ''
+  if (text.length > 60) throw new TileFormatsError('That name is too long.')
+  return text || null
 }
 
 /** A dimension in millimetres, rejected unless it could describe a real tile. */
@@ -119,6 +134,7 @@ export async function listTileFormats(includeDisabled = false): Promise<TileForm
 export async function createTileFormat(input: {
   lengthMm?: unknown
   breadthMm?: unknown
+  label?: unknown
 }): Promise<TileFormat> {
   await ensureReady()
   const collection = await getCollection<TileFormatDoc>(COLLECTION)
@@ -135,6 +151,7 @@ export async function createTileFormat(input: {
     _id: randomUUID(),
     lengthMm,
     breadthMm,
+    label: optionalLabel(input.label),
     active: true,
     order: (last[0]?.order ?? -1) + 1,
   }
@@ -145,7 +162,7 @@ export async function createTileFormat(input: {
 /** Edits a format's dimensions, or enables/disables it. */
 export async function updateTileFormat(
   id: string,
-  changes: { lengthMm?: unknown; breadthMm?: unknown; active?: unknown },
+  changes: { lengthMm?: unknown; breadthMm?: unknown; label?: unknown; active?: unknown },
 ): Promise<TileFormat> {
   await ensureReady()
   const collection = await getCollection<TileFormatDoc>(COLLECTION)
@@ -155,6 +172,7 @@ export async function updateTileFormat(
   const next: Partial<TileFormatDoc> = {}
   if (changes.lengthMm !== undefined) next.lengthMm = requireDimension(changes.lengthMm, 'Length')
   if (changes.breadthMm !== undefined) next.breadthMm = requireDimension(changes.breadthMm, 'Breadth')
+  if (changes.label !== undefined) next.label = optionalLabel(changes.label)
   if (changes.active !== undefined) next.active = Boolean(changes.active)
   if (Object.keys(next).length === 0) return toFormat(existing)
 

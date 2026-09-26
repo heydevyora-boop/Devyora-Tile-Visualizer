@@ -25,11 +25,14 @@ function TileFormatsAdmin() {
 
   const [lengthMm, setLengthMm] = useState('')
   const [breadthMm, setBreadthMm] = useState('')
+  const [formatLabel, setFormatLabel] = useState('')
 
   // The row being edited, with its working values. Held here rather than in
   // each row so only one can be open at a time — two half-finished edits in
   // an ordered list is how the wrong one gets saved.
-  const [editing, setEditing] = useState<{ id: string; lengthMm: string; breadthMm: string } | null>(null)
+  const [editing, setEditing] = useState<
+    { id: string; lengthMm: string; breadthMm: string; label: string } | null
+  >(null)
 
   const load = async (signal?: AbortSignal) => {
     try {
@@ -70,9 +73,11 @@ function TileFormatsAdmin() {
       const created = await apiPost<TileFormat>('/api/tile-formats', token, {
         lengthMm: Number(lengthMm),
         breadthMm: Number(breadthMm),
+        label: formatLabel.trim() || undefined,
       })
       setLengthMm('')
       setBreadthMm('')
+      setFormatLabel('')
       return created
     })
   }
@@ -89,6 +94,10 @@ function TileFormatsAdmin() {
         id: editing.id,
         lengthMm: Number(editing.lengthMm),
         breadthMm: Number(editing.breadthMm),
+        // An edit always sends the label outright, including clearing it back
+        // to the auto dimensions — a field left untouched in this form is
+        // still a deliberate value, not "leave it as it was".
+        label: editing.label.trim() || null,
       })
       setEditing(null)
       return saved
@@ -156,6 +165,16 @@ function TileFormatsAdmin() {
                 required
               />
             </label>
+            <label className="ws__field">
+              <span className="ws__field-label">Name — optional, shown instead of the size</span>
+              <input
+                className="ws__search"
+                value={formatLabel}
+                onChange={(event) => setFormatLabel(event.target.value)}
+                placeholder={lengthMm && breadthMm ? `${lengthMm} × ${breadthMm} mm` : undefined}
+                maxLength={60}
+              />
+            </label>
             <button className="ws__action ws__action--primary ws__action--submit" type="submit" disabled={busy}>
               <span className="material-symbols-outlined">add</span>
               <span>Add format</span>
@@ -193,6 +212,16 @@ function TileFormatsAdmin() {
                         }
                       />
                     </label>
+                    <label className="ws__field">
+                      <span className="ws__field-label">Name — optional</span>
+                      <input
+                        className="ws__search"
+                        value={editing.label}
+                        onChange={(event) => setEditing({ ...editing, label: event.target.value })}
+                        placeholder={`${editing.lengthMm} × ${editing.breadthMm} mm`}
+                        maxLength={60}
+                      />
+                    </label>
                   </div>
                   <div className="ws__edit-actions">
                     <button
@@ -218,9 +247,16 @@ function TileFormatsAdmin() {
               <li className="ws__row" key={format.id}>
                 <div className="ws__row-body">
                   <span className="ws__row-title">
-                    {format.lengthMm} × {format.breadthMm} mm
+                    {format.label ?? `${format.lengthMm} × ${format.breadthMm} mm`}
                   </span>
-                  <span className="ws__row-meta">{format.active ? 'Offered' : 'Disabled'}</span>
+                  <span className="ws__row-meta">
+                    {[
+                      format.label ? `${format.lengthMm} × ${format.breadthMm} mm` : null,
+                      format.active ? 'Offered' : 'Disabled',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
                 </div>
                 <div className="ws__row-tools">
                   <button
@@ -251,6 +287,7 @@ function TileFormatsAdmin() {
                         id: format.id,
                         lengthMm: String(format.lengthMm),
                         breadthMm: String(format.breadthMm),
+                        label: format.label ?? '',
                       })
                     }
                   >
