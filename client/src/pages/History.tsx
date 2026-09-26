@@ -197,11 +197,11 @@ function History() {
 
       <main className="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen">
         <div className="history-content">
-          {/* The catalogues that give the visualiser its content — tile
-              formats, the space hierarchy, and the design/joint/pattern/
-              revision-reason lists. An admin is the only one who can change
-              any of this, and this page is the only place an admin lands, so
-              it is the one place these three have to be reachable from. */}
+          {/* Everything only an admin can change: who can sign in, and the
+              catalogues that give the visualiser its content — tile formats,
+              the space hierarchy, and the design/joint/pattern/revision-reason
+              lists. This page is the only place an admin lands, so it is the
+              one place these have to be reachable from. */}
           <section className="history-intro">
             <p className="history-eyebrow">Showroom setup</p>
             <h1 className="history-title">Configuration</h1>
@@ -211,6 +211,10 @@ function History() {
             </p>
           </section>
           <div className="ws__actions">
+            <Link className="ws__action" to="/admin/users">
+              <span className="material-symbols-outlined">manage_accounts</span>
+              <span>Users &amp; roles</span>
+            </Link>
             <Link className="ws__action" to="/tile-formats">
               <span className="material-symbols-outlined">grid_on</span>
               <span>Tile formats</span>

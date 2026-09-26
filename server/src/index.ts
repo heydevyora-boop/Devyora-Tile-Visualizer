@@ -9,6 +9,7 @@ import clientsRouter from './routes/clients'
 import tileFormatsRouter from './routes/tileFormats'
 import spaceNodesRouter from './routes/spaceNodes'
 import designOptionsRouter from './routes/designOptions'
+import accountsRouter from './routes/accounts'
 
 const app = express()
 
@@ -25,6 +26,7 @@ app.use('/api', clientsRouter)
 app.use('/api', tileFormatsRouter)
 app.use('/api', spaceNodesRouter)
 app.use('/api', designOptionsRouter)
+app.use('/api', accountsRouter)
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001
 

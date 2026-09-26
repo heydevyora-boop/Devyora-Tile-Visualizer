@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { AuthConfigError, signSessionToken, verifyCredentials } from './_lib/auth.js'
+import { asDbError } from './_lib/db.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -41,6 +42,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (error instanceof AuthConfigError) {
       console.error('[POST /api/login] server misconfigured:', error.message)
       res.status(500).json({ error: 'Sign-in is not configured on the server.' })
+      return
+    }
+    // Accounts live in the database, so signing in can now fail because the
+    // database is unreachable rather than because the password was wrong.
+    // Saying "invalid username or password" to someone whose credentials were
+    // never actually checked would send them hunting for a problem that is not
+    // theirs, so the outage is reported as itself.
+    const dbFailure = asDbError(error)
+    if (dbFailure) {
+      console.error('[POST /api/login] database unavailable:', error)
+      res.status(dbFailure.status).json({ error: dbFailure.message })
       return
     }
     console.error('[POST /api/login] unexpected failure:', error)
