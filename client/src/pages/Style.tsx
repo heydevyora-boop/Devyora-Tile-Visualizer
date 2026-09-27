@@ -46,28 +46,33 @@ function Style() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void (async () => {
-      try {
-        const [s, j, p, r] = await Promise.all([
-          apiGet<DesignOption[]>('/api/design-options?kind=style', token, controller.signal),
-          apiGet<DesignOption[]>('/api/design-options?kind=joint', token, controller.signal),
-          apiGet<DesignOption[]>('/api/design-options?kind=pattern', token, controller.signal),
-          apiGet<DesignOption[]>('/api/design-options?kind=role', token, controller.signal),
-        ])
-        if (controller.signal.aborted) return
-        // Belt and suspenders: the store now prevents this at the source, but
-        // the screen that showed three "Minimal" cards is the one place a
-        // customer or salesperson would actually see it, so it defends itself
-        // too rather than trusting every layer beneath it stayed fixed.
-        setStyles(dedupeByName(s))
-        setJoints(dedupeByName(j))
-        setPatterns(dedupeByName(p))
-        setTileRoles(dedupeByName(r))
-      } catch (caught) {
-        if (controller.signal.aborted) return
-        setError(caught instanceof ApiError ? caught.message : 'Could not load the design options.')
-      }
-    })()
+    // Four independent fetches, not one Promise.all — a single kind failing
+    // (a 400 from an outdated route, a disabled catalogue, a network blip)
+    // must not blank out the sibling sections that loaded fine.
+    const load = (kind: string, setter: (options: DesignOption[]) => void) => {
+      void (async () => {
+        try {
+          const data = await apiGet<DesignOption[]>(
+            `/api/design-options?kind=${kind}`,
+            token,
+            controller.signal,
+          )
+          if (controller.signal.aborted) return
+          // Belt and suspenders: the store now prevents this at the source, but
+          // the screen that showed three "Minimal" cards is the one place a
+          // customer or salesperson would actually see it, so it defends itself
+          // too rather than trusting every layer beneath it stayed fixed.
+          setter(dedupeByName(data))
+        } catch (caught) {
+          if (controller.signal.aborted) return
+          setError(caught instanceof ApiError ? caught.message : 'Could not load the design options.')
+        }
+      })()
+    }
+    load('style', setStyles)
+    load('joint', setJoints)
+    load('pattern', setPatterns)
+    load('role', setTileRoles)
     return () => controller.abort()
   }, [token])
 

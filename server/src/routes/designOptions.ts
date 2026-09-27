@@ -56,10 +56,17 @@ router.get('/design-options', async (req, res) => {
       return
     }
     const kind = req.query.kind
-    // 'reason' belongs here too: the salesperson's "what would you like to
-    // change?" panel reads the revision reasons through this same route.
-    if (kind !== 'style' && kind !== 'joint' && kind !== 'pattern' && kind !== 'reason') {
-      throw new DesignOptionsError('Ask for style, joint, pattern or reason.')
+    // 'reason' and 'role' belong here too: the salesperson's "what would you
+    // like to change?" panel and the tile-role picker both read through this
+    // same route.
+    if (
+      kind !== 'style' &&
+      kind !== 'joint' &&
+      kind !== 'pattern' &&
+      kind !== 'reason' &&
+      kind !== 'role'
+    ) {
+      throw new DesignOptionsError('Ask for style, joint, pattern, reason or role.')
     }
     res.json(await listDesignOptions(kind))
   } catch (error) {
