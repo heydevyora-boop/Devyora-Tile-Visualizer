@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './History.css'
 
 /** What this screen draws: one saved concept, flattened to what a card needs. */
@@ -55,10 +56,17 @@ function formatTimestamp(timestamp: string): { date: string; time: string } {
   }
 }
 
+// Not '/api/generations' on its own: this screen caches the mapped
+// GenerationRecord[] it derives from that response, not the raw
+// SavedVisualisation[] that Dashboard, RecentGenerations and SavedConcepts
+// fetch from the same endpoint and cache under the plain URL. Sharing a key
+// across two different shapes would hand one of them the other's data.
+const CACHE_KEY = '/api/generations::history-cards'
+
 function History() {
   const navigate = useNavigate()
   const { logout, token } = useAuth()
-  const [records, setRecords] = useState<GenerationRecord[] | null>(null)
+  const [records, setRecords] = useState<GenerationRecord[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<LightboxTarget | null>(null)
   const lightboxCloseRef = useRef<HTMLButtonElement>(null)
@@ -74,7 +82,9 @@ function History() {
         // sign-in", …) rather than a bare status code. A raw fetch() that
         // only checks response.ok throws that detail away.
         const data = await apiGet<unknown>('/api/generations', token, signal)
-        setRecords(Array.isArray(data) ? (data as SavedRecord[]).map(toCard) : [])
+        const cards = Array.isArray(data) ? (data as SavedRecord[]).map(toCard) : []
+        setRecords(cards)
+        setCached(CACHE_KEY, cards)
       } catch (loadError) {
         if (signal?.aborted) return
         if (loadError instanceof ApiError && loadError.status === 401) {

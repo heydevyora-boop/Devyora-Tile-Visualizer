@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type Architect, type Customer } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 /**
@@ -12,10 +13,13 @@ import './Workspace.css'
  * Adding a client happens at the start of a consultation; opening one here
  * shows their history and the way back into a new visualisation for them.
  */
+const CUSTOMERS_KEY = '/api/customers'
+const ARCHITECTS_KEY = '/api/architects'
+
 function Clients() {
   const { token } = useAuth()
-  const [customers, setCustomers] = useState<Customer[] | null>(null)
-  const [architects, setArchitects] = useState<Architect[]>([])
+  const [customers, setCustomers] = useState<Customer[] | null>(() => getCached(CUSTOMERS_KEY) ?? null)
+  const [architects, setArchitects] = useState<Architect[]>(() => getCached(ARCHITECTS_KEY) ?? [])
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
@@ -30,6 +34,8 @@ function Clients() {
         if (controller.signal.aborted) return
         setCustomers(customerList)
         setArchitects(architectList)
+        setCached(CUSTOMERS_KEY, customerList)
+        setCached(ARCHITECTS_KEY, architectList)
       } catch (caught) {
         if (controller.signal.aborted) return
         setError(caught instanceof ApiError ? caught.message : 'Could not load your clients.')

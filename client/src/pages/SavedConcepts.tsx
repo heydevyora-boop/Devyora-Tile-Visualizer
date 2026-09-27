@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type SavedVisualisation } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 function formatWhen(timestamp: string): string {
@@ -32,10 +33,12 @@ interface CustomerGroup {
  * grouping is derived from the saved work itself and can never drift out of
  * step with it.
  */
+const CACHE_KEY = '/api/generations'
+
 function SavedConcepts() {
   const navigate = useNavigate()
   const { token } = useAuth()
-  const [records, setRecords] = useState<SavedVisualisation[] | null>(null)
+  const [records, setRecords] = useState<SavedVisualisation[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -47,7 +50,10 @@ function SavedConcepts() {
           token,
           controller.signal,
         )
-        if (!controller.signal.aborted) setRecords(saved)
+        if (!controller.signal.aborted) {
+          setRecords(saved)
+          setCached(CACHE_KEY, saved)
+        }
       } catch (caught) {
         if (controller.signal.aborted) return
         setError(caught instanceof ApiError ? caught.message : 'Could not load saved concepts.')

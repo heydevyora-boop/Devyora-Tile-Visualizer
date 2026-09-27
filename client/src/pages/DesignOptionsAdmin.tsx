@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPatch, apiPost, type DesignOption, type DesignOptionKind } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
@@ -34,9 +35,11 @@ const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
  * sitting. Disabling rather than deleting keeps choices recorded against past
  * work meaningful.
  */
+const CACHE_KEY = '/api/design-options?all=1'
+
 function DesignOptionsAdmin() {
   const { token } = useAuth()
-  const [options, setOptions] = useState<DesignOption[] | null>(null)
+  const [options, setOptions] = useState<DesignOption[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [kind, setKind] = useState<DesignOptionKind>('style')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -53,7 +56,10 @@ function DesignOptionsAdmin() {
   const load = async (signal?: AbortSignal) => {
     try {
       const list = await apiGet<DesignOption[]>('/api/design-options?all=1', token, signal)
-      if (!signal?.aborted) setOptions(list)
+      if (!signal?.aborted) {
+        setOptions(list)
+        setCached(CACHE_KEY, list)
+      }
     } catch (caught) {
       if (signal?.aborted) return
       setError(caught instanceof ApiError ? caught.message : 'Could not load the options.')
