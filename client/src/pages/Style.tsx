@@ -86,7 +86,11 @@ function Style() {
     setJointWidthMm(Math.round(mm * 2) / 2)
   }
 
-  const ready = Boolean(style) && jointWidthMm !== null && patternOption !== null
+  // The joint width is not required. A consultation can reach a concept
+  // without one, and the generation request simply leaves that instruction
+  // out rather than inventing a width — so asking for it before the customer
+  // has an opinion about grout only stops the conversation.
+  const ready = Boolean(style) && patternOption !== null
 
   const pill = (selected: boolean) =>
     `px-space-md h-11 rounded-full border transition-all font-body-sm text-body-sm ${
