@@ -27,6 +27,7 @@ function Loading() {
     jointWidthMm,
     jointOption,
     patternOption,
+    tileRoleOption,
     additionalRequirement,
     tileSize,
     setGeneratedResult,
@@ -74,6 +75,9 @@ function Loading() {
             jointOptionId: jointOption?.id,
             jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
             patternOptionId: patternOption?.id,
+            // Absent when skipped — the server substitutes the showroom's
+            // default role itself, so nothing here needs to guess at it.
+            roleOptionId: tileRoleOption?.id,
             tileSize,
             // Who this is for. The server resolves the architect from the
             // customer and takes the salesperson from the session, so neither
@@ -118,6 +122,7 @@ function Loading() {
       jointWidthMm,
       jointOption,
       patternOption,
+      tileRoleOption,
       additionalRequirement,
       customer,
       tileSize,

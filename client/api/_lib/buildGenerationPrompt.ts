@@ -21,6 +21,8 @@ export interface PromptInput {
   jointWidthMm?: number
   /** How the tiles are laid out, e.g. a straight grid or a running bond. */
   layingPattern?: { name: string; description: string }
+  /** How the tile participates in the design — base, highlighter, accent. */
+  tileRole?: { name: string; description: string }
   /**
    * A style the showroom added that has no curated config. Its description is
    * used in place of one.
@@ -193,6 +195,15 @@ Before producing the final image, verify:
 ═══════════════════════════════════════
 You are not inventing a new tile design — you are showing how the real supplied tile looks in the exact space, application, surface, size, height, coverage, joint, layout, and style the user specified. Be creative with the architecture where the request allows it; be strict with the tile, its identity, its dimensions, its orientation, its application, its surface allocation, its installation, its height and coverage, its joint, and its laying pattern. The result must be realistic, cohesive, technically believable, visually verifiable, and suitable to show directly to a showroom client, architect, or contractor.
 
+═══════════════════════════════════════
+13. TILE ROLE
+═══════════════════════════════════════
+TILE ROLE IS SEPARATE FROM TILE SIZE: Tile dimensions (physical size in mm) and tile role (how it participates in the design — base/background, highlighter/decorative, feature, accent, border/strip, mosaic, large-format, or another specified role) are independent pieces of information supplied by the user — never infer one from the other. A 600×600mm tile could be a base tile or a highlighter tile; size alone never implies full-wall coverage and never implies 'base tile.'
+
+If the selected role is HIGHLIGHTER / DECORATIVE / FEATURE / ACCENT: do not cover the entire room or wall with it. Use it selectively, in one coherent, architecturally appropriate highlight area (e.g. a vanity feature wall, a central wall panel, a shower feature zone, a decorative vertical section) — the user's specified location if given, otherwise your best single coherent choice for the space/subcategory. Surround it with a clearly different complementary base/background material, and keep it visually identifiable as the accent — never let it become the room's default background material, and never scatter it across multiple unrelated areas.
+
+If the selected role is BASE / BACKGROUND: it may serve as the primary material across its designated surface per the selected application — the surface-allocation rule still applies in full; being a base tile does not exempt it from that restriction.
+
 CORE PRINCIPLE: THE ENVIRONMENT CAN BE CREATIVE. THE TILE CANNOT BE REINTERPRETED. THE TILE APPLICATION CANNOT BE INVENTED. THE TILE MUST ONLY APPEAR WHERE THE USER HAS REQUESTED IT.`
 
 function describeStyle(
@@ -270,6 +281,7 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
       describeStyle(styleConfig, resolvedStyle, input.styleDescription),
       '',
       describeApplication(input.application),
+      describeTileRole(input.tileRole),
       describeJointAndPattern(input.jointWidthMm, input.layingPattern),
       describeTileGeometry(input.tileSize),
       describeAdditionalRequirement(input.additionalRequirement),
@@ -278,6 +290,23 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
       `CONCEPT ${index + 1} OF 3 — this concept must focus on: ${focus}`,
     ].join('\n'),
   }))
+}
+
+/**
+ * Which role the tile plays this time — base, highlighter, feature, accent
+ * and so on — stated plainly rather than left to size or application alone
+ * to imply. The system instruction carries the general rule for each role;
+ * this names which one applies to this specific generation.
+ */
+function describeTileRole(tileRole: { name: string; description: string } | undefined): string {
+  if (!tileRole) return ''
+  return [
+    'TILE ROLE:',
+    `${tileRole.name}.${tileRole.description ? ` ${tileRole.description}` : ''}`,
+    'Independent of the tile\'s physical size — do not infer one from the',
+    'other. Apply the TILE ROLE section of the system instruction for this',
+    'exact role.',
+  ].join('\n')
 }
 
 /**

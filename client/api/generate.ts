@@ -8,6 +8,7 @@ import { SpaceNodesError, resolveApplicationPath } from './_lib/spaceNodesStore.
 import {
   DesignOptionsError,
   findActiveOption,
+  findDefaultOption,
   requireJointWidth,
 } from './_lib/designOptionsStore.js'
 import { getArchitect, getCustomer, toOwnerScope } from './_lib/clientsStore.js'
@@ -139,6 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       jointOptionId,
       jointWidthMm,
       patternOptionId,
+      roleOptionId,
       customerId,
       additionalRequirement,
       conceptIndex,
@@ -155,6 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       jointOptionId?: string
       jointWidthMm?: number
       patternOptionId?: string
+      roleOptionId?: string
       customerId?: string
       additionalRequirement?: string
       conceptIndex?: number
@@ -232,6 +235,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const styleOption = styleOptionId
       ? await findActiveOption('style', String(styleOptionId))
       : null
+    // A role the salesperson picked is verified like any other option. One
+    // they skipped falls back to whichever role the showroom marked as the
+    // default — silently, here, so nothing upstream has to know a default
+    // exists at all. Null only if no active default is configured.
+    const roleOption = roleOptionId
+      ? await findActiveOption('role', String(roleOptionId))
+      : await findDefaultOption('role')
     // Reasons are looked up rather than trusted: only what the showroom
     // configured can steer a regeneration, and a disabled reason cannot.
     const reasons = Array.isArray(reasonIds)
@@ -273,6 +283,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         styleId: styleOption?.styleId ?? styleOption?.name ?? null,
         jointWidthMm: joint ?? null,
         layingPattern: pattern?.name ?? null,
+        tileRole: roleOption?.name ?? null,
         hasAdditionalRequirement: Boolean(requirement),
         conceptIndex: conceptIndex ?? 0,
         revisionReasons: reasons.map((reason) => reason.name),
@@ -294,6 +305,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         jointWidthMm: joint,
         layingPattern: pattern
           ? { name: pattern.name, description: pattern.description }
+          : undefined,
+        tileRole: roleOption
+          ? { name: roleOption.name, description: roleOption.description }
           : undefined,
         additionalRequirement: requirement,
         revisionReasons: reasons.map((reason) => ({

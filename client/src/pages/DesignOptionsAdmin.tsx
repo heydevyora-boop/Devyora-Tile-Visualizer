@@ -25,6 +25,11 @@ const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
     label: 'Revision reasons',
     lede: 'Why a salesperson asks for another concept. These are faults to correct, not alternative looks — the description tells the generation what to fix.',
   },
+  {
+    kind: 'role',
+    label: 'Tile roles',
+    lede: 'How the tile participates in the design — the whole surface, or one deliberate highlight. "Base / Background" is what a consultation silently uses when the salesperson skips this choice, so leave it enabled — disabling it leaves nothing to fall back to.',
+  },
 ]
 
 /**

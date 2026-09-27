@@ -29,12 +29,15 @@ function Style() {
     setJointOption,
     patternOption,
     setPatternOption,
+    tileRoleOption,
+    setTileRoleOption,
   } = useFlow()
   const { token } = useAuth()
 
   const [styles, setStyles] = useState<DesignOption[] | null>(null)
   const [joints, setJoints] = useState<DesignOption[] | null>(null)
   const [patterns, setPatterns] = useState<DesignOption[] | null>(null)
+  const [tileRoles, setTileRoles] = useState<DesignOption[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const [customJoint, setCustomJoint] = useState('')
@@ -45,10 +48,11 @@ function Style() {
     const controller = new AbortController()
     void (async () => {
       try {
-        const [s, j, p] = await Promise.all([
+        const [s, j, p, r] = await Promise.all([
           apiGet<DesignOption[]>('/api/design-options?kind=style', token, controller.signal),
           apiGet<DesignOption[]>('/api/design-options?kind=joint', token, controller.signal),
           apiGet<DesignOption[]>('/api/design-options?kind=pattern', token, controller.signal),
+          apiGet<DesignOption[]>('/api/design-options?kind=role', token, controller.signal),
         ])
         if (controller.signal.aborted) return
         // Belt and suspenders: the store now prevents this at the source, but
@@ -58,6 +62,7 @@ function Style() {
         setStyles(dedupeByName(s))
         setJoints(dedupeByName(j))
         setPatterns(dedupeByName(p))
+        setTileRoles(dedupeByName(r))
       } catch (caught) {
         if (controller.signal.aborted) return
         setError(caught instanceof ApiError ? caught.message : 'Could not load the design options.')
@@ -296,6 +301,26 @@ function Style() {
                 </button>
               )
             })}
+          </div>
+
+          {/* --- Tile role --- */}
+          <h2 className="px-margin font-label-caps text-label-caps uppercase tracking-widest text-outline pb-space-xs">
+            Tile role — optional
+          </h2>
+          <div className="px-margin flex flex-wrap gap-space-sm pb-space-lg">
+            {(tileRoles ?? []).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={tileRoleOption?.id === option.id}
+                className={pill(tileRoleOption?.id === option.id)}
+                onClick={() =>
+                  setTileRoleOption(tileRoleOption?.id === option.id ? null : option)
+                }
+              >
+                {option.name}
+              </button>
+            ))}
           </div>
 
           <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-lg pb-safe">
