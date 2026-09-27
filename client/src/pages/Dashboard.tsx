@@ -3,16 +3,20 @@ import { Link } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type Customer, type SavedVisualisation } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 /**
  * The salesperson's starting point: what they have on the go, and the one
  * button they press most. Everything here is scoped to them by the server.
  */
+const CUSTOMERS_KEY = '/api/customers'
+const GENERATIONS_KEY = '/api/generations'
+
 function Dashboard() {
   const { token, userName } = useAuth()
-  const [customers, setCustomers] = useState<Customer[] | null>(null)
-  const [saved, setSaved] = useState<SavedVisualisation[] | null>(null)
+  const [customers, setCustomers] = useState<Customer[] | null>(() => getCached(CUSTOMERS_KEY) ?? null)
+  const [saved, setSaved] = useState<SavedVisualisation[] | null>(() => getCached(GENERATIONS_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -26,6 +30,8 @@ function Dashboard() {
         if (controller.signal.aborted) return
         setCustomers(customerList)
         setSaved(savedList)
+        setCached(CUSTOMERS_KEY, customerList)
+        setCached(GENERATIONS_KEY, savedList)
       } catch (caught) {
         if (controller.signal.aborted) return
         setError(caught instanceof ApiError ? caught.message : 'Could not load your workspace.')

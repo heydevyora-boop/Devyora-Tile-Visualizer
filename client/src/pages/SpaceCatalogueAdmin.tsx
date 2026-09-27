@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPatch, apiPost, type SpaceNode } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 /**
@@ -14,9 +15,11 @@ import './Workspace.css'
  * Disabling rather than deleting keeps applications recorded against past work
  * meaningful, and takes them out of the flow immediately.
  */
+const CACHE_KEY = '/api/space-nodes?all=1'
+
 function SpaceCatalogueAdmin() {
   const { token } = useAuth()
-  const [nodes, setNodes] = useState<SpaceNode[] | null>(null)
+  const [nodes, setNodes] = useState<SpaceNode[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -33,7 +36,10 @@ function SpaceCatalogueAdmin() {
   const load = async (signal?: AbortSignal) => {
     try {
       const list = await apiGet<SpaceNode[]>('/api/space-nodes?all=1', token, signal)
-      if (!signal?.aborted) setNodes(list)
+      if (!signal?.aborted) {
+        setNodes(list)
+        setCached(CACHE_KEY, list)
+      }
     } catch (caught) {
       if (signal?.aborted) return
       setError(caught instanceof ApiError ? caught.message : 'Could not load the catalogue.')

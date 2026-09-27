@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPatch, apiPost, type TileFormat } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 /**
@@ -15,9 +16,11 @@ import './Workspace.css'
  * Millimetres only, and no thickness: thickness does not change how a tile
  * lays out, which is all this measurement is used for.
  */
+const CACHE_KEY = '/api/tile-formats?all=1'
+
 function TileFormatsAdmin() {
   const { token } = useAuth()
-  const [formats, setFormats] = useState<TileFormat[] | null>(null)
+  const [formats, setFormats] = useState<TileFormat[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -37,7 +40,10 @@ function TileFormatsAdmin() {
       // ?all=1 includes disabled formats — this screen manages them, the
       // consultation flow only ever sees the active ones.
       const list = await apiGet<TileFormat[]>('/api/tile-formats?all=1', token, signal)
-      if (!signal?.aborted) setFormats(list)
+      if (!signal?.aborted) {
+        setFormats(list)
+        setCached(CACHE_KEY, list)
+      }
     } catch (caught) {
       if (signal?.aborted) return
       setError(caught instanceof ApiError ? caught.message : 'Could not load the tile formats.')
@@ -56,8 +62,13 @@ function TileFormatsAdmin() {
     setError(null)
     try {
       const result = await work()
-      setFormats(Array.isArray(result) ? result : null)
-      if (!Array.isArray(result)) await load()
+      if (Array.isArray(result)) {
+        setFormats(result)
+        setCached(CACHE_KEY, result)
+      } else {
+        setFormats(null)
+        await load()
+      }
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'That change could not be saved.')
     } finally {

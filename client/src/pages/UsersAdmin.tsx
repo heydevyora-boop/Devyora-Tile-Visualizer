@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPost, type AccountSummary } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import { signedInUsername } from '../utils/signedInUsername'
 import './Workspace.css'
 
@@ -16,10 +17,12 @@ import './Workspace.css'
  * existing one back, because nothing stores one — only a hash the server makes
  * and never returns. Forgetting a password means setting a new one.
  */
+const CACHE_KEY = '/api/accounts'
+
 function UsersAdmin() {
   const { token } = useAuth()
   const me = signedInUsername(token)
-  const [accounts, setAccounts] = useState<AccountSummary[] | null>(null)
+  const [accounts, setAccounts] = useState<AccountSummary[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -32,7 +35,10 @@ function UsersAdmin() {
   const load = async (signal?: AbortSignal) => {
     try {
       const list = await apiGet<AccountSummary[]>('/api/accounts', token, signal)
-      if (!signal?.aborted) setAccounts(list)
+      if (!signal?.aborted) {
+        setAccounts(list)
+        setCached(CACHE_KEY, list)
+      }
     } catch (caught) {
       if (signal?.aborted) return
       setError(caught instanceof ApiError ? caught.message : 'Could not load the accounts.')

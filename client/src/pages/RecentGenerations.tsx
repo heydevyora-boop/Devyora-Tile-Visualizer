@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type SavedVisualisation } from '../utils/api'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 /** Date and time as a showroom would read them, not an ISO string. */
@@ -19,10 +20,12 @@ function formatWhen(timestamp: string): string {
  * Everything this salesperson has generated, newest first. The server scopes
  * the response to them; an admin reviewing everyone uses the history screen.
  */
+const CACHE_KEY = '/api/generations'
+
 function RecentGenerations() {
   const navigate = useNavigate()
   const { token } = useAuth()
-  const [records, setRecords] = useState<SavedVisualisation[] | null>(null)
+  const [records, setRecords] = useState<SavedVisualisation[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,7 +37,10 @@ function RecentGenerations() {
           token,
           controller.signal,
         )
-        if (!controller.signal.aborted) setRecords(list)
+        if (!controller.signal.aborted) {
+          setRecords(list)
+          setCached(CACHE_KEY, list)
+        }
       } catch (caught) {
         if (controller.signal.aborted) return
         setError(caught instanceof ApiError ? caught.message : 'Could not load your generations.')
