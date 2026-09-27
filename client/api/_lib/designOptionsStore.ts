@@ -193,6 +193,28 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
   },
 ]
 
+/**
+ * The id a seeded option always gets, derived from what it is rather than
+ * generated fresh.
+ *
+ * This is what makes seeding safe to run twice at once. The screen that reads
+ * these asks for styles, joints and patterns in parallel, and on a cold
+ * deployment those three requests can land on three separate instances, none
+ * of which can see the others' writes yet. With a random id each one inserted
+ * its own copy of the whole list and the showroom ended up with everything
+ * three times over. With this id the second and third writers collide with the
+ * first and are discarded, which is the correct outcome rather than an error.
+ */
+function seedId(kind: string, name: string): string {
+  return `seed:${kind}:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+}
+
+/** True for the driver's duplicate-key error, however it is wrapped. */
+function isDuplicateKey(error: unknown): boolean {
+  const e = error as { code?: number; writeErrors?: { code?: number }[] } | null
+  return e?.code === 11000 || Boolean(e?.writeErrors?.some((w) => w.code === 11000))
+}
+
 let ready: Promise<void> | null = null
 
 async function ensureReady(): Promise<void> {
@@ -200,10 +222,31 @@ async function ensureReady(): Promise<void> {
     ready = (async () => {
       const collection = await getCollection<DesignOptionDoc>(COLLECTION)
       await collection.createIndex({ kind: 1, order: 1 })
+
+      // One option of a kind per name. Enforced by the database rather than by
+      // the code that writes, so a second writer this process cannot see is
+      // caught too. Best-effort: a collection that already holds duplicates
+      // rejects this, and a catalogue nobody can read would be a worse outcome
+      // than one showing something twice, so the failure is logged and the
+      // rest carries on. Run the dedupe script to clear it.
+      try {
+        await collection.createIndex({ kind: 1, name: 1 }, { unique: true })
+      } catch (error: unknown) {
+        console.error('[designOptions] unique index not created:', error)
+      }
+
       // Guarded by a count: once the showroom has edited these, an empty list
       // means they emptied it deliberately.
       if ((await collection.countDocuments({})) > 0) return
-      await collection.insertMany(SEED.map((doc) => ({ _id: randomUUID(), ...doc })))
+      try {
+        await collection.insertMany(
+          SEED.map((doc) => ({ _id: seedId(doc.kind, doc.name), ...doc })),
+          { ordered: false },
+        )
+      } catch (error: unknown) {
+        // Another instance seeded first. Its rows are the same rows.
+        if (!isDuplicateKey(error)) throw error
+      }
     })().catch((error: unknown) => {
       ready = null
       throw error
@@ -270,12 +313,21 @@ export async function createDesignOption(input: Record<string, unknown>): Promis
   const kind = requireKind(input.kind)
   const valueMm = kind === 'joint' ? requireJointWidth(input.valueMm ?? input.name) : null
 
+  // A joint is named by its width, so the two can never disagree.
+  const name = kind === 'joint' ? `${valueMm} mm` : requireName(input.name)
+
+  // Checked here as well as by the unique index, so adding something that is
+  // already on the list reads as "that is already there" rather than as a
+  // driver error.
+  if (await collection.findOne({ kind, name })) {
+    throw new DesignOptionsError(`"${name}" is already on this list.`, 409)
+  }
+
   const last = await collection.find({ kind }).sort({ order: -1 }).limit(1).toArray()
   const doc: DesignOptionDoc = {
     _id: randomUUID(),
     kind,
-    // A joint is named by its width, so the two can never disagree.
-    name: kind === 'joint' ? `${valueMm} mm` : requireName(input.name),
+    name,
     description: typeof input.description === 'string' ? input.description.trim().slice(0, 400) : '',
     imageUrl:
       typeof input.imageUrl === 'string' && input.imageUrl.trim() ? input.imageUrl.trim() : null,
