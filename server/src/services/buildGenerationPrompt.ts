@@ -1,5 +1,6 @@
 import { getSpaceConfig, type SpaceConfig } from '../config/spaces'
 import { getStyleConfig, resolveStyleValue, type StyleConfig } from '../config/styles'
+import { buildApplicationMap, renderApplicationMap } from './applicationMap'
 
 export interface PromptInput {
   space: string
@@ -294,16 +295,19 @@ function describeApplication(application: { name: string; description: string }[
     .map((step) => `- ${step.name}: ${step.description}`)
 
   return [
-    'CHOSEN APPLICATION — follow this exactly:',
+    'CHOSEN APPLICATION — the catalogue chain the customer selected:',
     chain,
     ...(detail.length ? ['', ...detail] : []),
     '',
-    'This is the application the customer selected. Apply the tile to that',
-    'surface, to that extent, and nowhere else it was not asked for. Do not',
-    'substitute a different surface, and do not extend or reduce the tiled area',
-    'because another arrangement would look better in the image. If a height or',
-    'extent is named above, that height is a hard requirement: tile up to it',
-    'exactly, and finish the wall above it in plain painted plaster.',
+    renderApplicationMap(buildApplicationMap(application)),
+    '',
+    'The chain above is context for what these facts mean. The map is the',
+    'instruction: do not substitute a different surface, do not extend or',
+    'reduce the tiled area because another arrangement would look better in',
+    'the image, and do not re-derive TILE APPLICATION or TILE HEIGHT from the',
+    'chain yourself — they are already decided above. If anything elsewhere',
+    'in this prompt, including the concept focus below, reads as suggesting a',
+    'different surface or height, this map is the one that is correct.',
   ].join('\n')
 }
 

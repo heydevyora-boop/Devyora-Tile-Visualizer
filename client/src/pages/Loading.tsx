@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
+import { buildApplicationMap } from '../utils/applicationMap'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Loading.css'
 
@@ -61,6 +62,11 @@ function Loading() {
             space,
             // The ids of the chosen application, re-checked server-side.
             spacePath: spacePath.map((node) => node.id),
+            // The same eight-field map the server independently derives from
+            // its own re-resolved path — sent so the request itself carries
+            // the explicit application as structured data, not only as ids
+            // the server has to look up to find out what they mean.
+            applicationMap: spacePath.length ? buildApplicationMap(spacePath) : undefined,
             style,
             // Ids where the option came from the showroom's list, so the
             // server verifies it; the millimetres only when typed in.

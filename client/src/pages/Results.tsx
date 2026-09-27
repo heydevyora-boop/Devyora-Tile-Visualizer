@@ -6,6 +6,7 @@ import { ApiError, apiGet, apiPost, type DesignOption, type SavedVisualisation }
 import { saveImageToDevice } from '../utils/saveImage'
 import { formatTileSize } from '../utils/tileSizeLabel'
 import { dedupeByName } from '../utils/dedupeByName'
+import { buildApplicationMap } from '../utils/applicationMap'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
 
@@ -145,6 +146,7 @@ function Results() {
           tileImage: croppedImage,
           space,
           spacePath: spacePath.map((node) => node.id),
+          applicationMap: spacePath.length ? buildApplicationMap(spacePath) : undefined,
           style,
           styleOptionId: styleOption?.id,
           jointOptionId: jointOption?.id,
