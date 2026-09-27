@@ -13,7 +13,7 @@ import { getCollection } from './db'
  * Keeping them together means one admin screen and one set of rules rather
  * than three near-identical copies.
  */
-export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason'
+export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role'
 
 export interface DesignOption {
   id: string
@@ -32,6 +32,14 @@ export interface DesignOption {
    * the showroom adds later has none, and its description is used instead.
    */
   styleId: string | null
+  /**
+   * Tile roles only: true for the one role the app substitutes when the
+   * salesperson skips the selection — the tile is then treated as the
+   * base/background material without anyone having to see or choose that.
+   * At most one row per kind should ever carry this; nothing enforces that
+   * beyond the seed only ever setting it once.
+   */
+  isDefault: boolean
   order: number
   active: boolean
 }
@@ -51,7 +59,7 @@ export class DesignOptionsError extends Error {
 }
 
 const COLLECTION = 'designOptions'
-const KINDS: DesignOptionKind[] = ['style', 'joint', 'pattern', 'reason']
+const KINDS: DesignOptionKind[] = ['style', 'joint', 'pattern', 'reason', 'role']
 
 /**
  * What a new showroom starts with.
@@ -76,6 +84,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId,
+    isDefault: false,
     order,
     active: true,
   })),
@@ -86,6 +95,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm,
     styleId: null,
+    isDefault: false,
     order,
     active: true,
   })),
@@ -96,6 +106,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 0,
     active: true,
   },
@@ -106,6 +117,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 1,
     active: true,
   },
@@ -116,6 +128,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 0,
     active: true,
   },
@@ -126,6 +139,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 1,
     active: true,
   },
@@ -136,6 +150,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 2,
     active: true,
   },
@@ -146,6 +161,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 3,
     active: true,
   },
@@ -156,6 +172,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 4,
     active: true,
   },
@@ -166,6 +183,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 5,
     active: true,
   },
@@ -176,6 +194,7 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 6,
     active: true,
   },
@@ -186,9 +205,30 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     imageUrl: null,
     valueMm: null,
     styleId: null,
+    isDefault: false,
     order: 7,
     active: true,
   },
+  ...([
+    ['Base / Background', 'The tile that covers the designated surface as the primary material — the room\'s field tile.', true],
+    ['Highlighter / Decorative', 'Used selectively, in one coherent area, to draw the eye — never the room\'s default surface.', false],
+    ['Feature', 'The centrepiece of one wall or zone, meant to be seen and admired on its own.', false],
+    ['Accent', 'A small, deliberate touch of contrast against the base material.', false],
+    ['Border / Strip', 'A narrow trim or listello running along an edge or transition.', false],
+    ['Mosaic', 'Small-format pieces set as a textured decorative field, usually within a larger surface.', false],
+    ['Large-Format', 'A big-format slab used for broad, minimal-joint coverage.', false],
+    ['Other', 'Any other role the showroom wants to specify by hand — describe it in the additional requirement.', false],
+  ] as [string, string, boolean][]).map(([name, description, isDefault], order) => ({
+    kind: 'role' as const,
+    name,
+    description,
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    isDefault,
+    order,
+    active: true,
+  })),
 ]
 
 /**
@@ -346,6 +386,7 @@ const KIND_LABEL: Record<DesignOptionKind, string> = {
   joint: 'joint width',
   pattern: 'laying pattern',
   reason: 'reason',
+  role: 'tile role',
 }
 
 export async function createDesignOption(input: Record<string, unknown>): Promise<DesignOption> {
@@ -376,6 +417,10 @@ export async function createDesignOption(input: Record<string, unknown>): Promis
       typeof input.imageUrl === 'string' && input.imageUrl.trim() ? input.imageUrl.trim() : null,
     valueMm,
     styleId: null,
+    // Not settable through this form — a role becomes the default only via
+    // the seed, so there is exactly one and it is never a surprise typed
+    // into the "Add" box.
+    isDefault: false,
     order: (last[0]?.order ?? -1) + 1,
     active: true,
   }
@@ -432,5 +477,21 @@ export async function findActiveOption(
   await ensureReady()
   const collection = await getCollection<DesignOptionDoc>(COLLECTION)
   const doc = await collection.findOne({ _id: id, kind, active: true })
+  return doc ? toOption(doc) : null
+}
+
+/**
+ * The option a kind silently falls back to when nothing was selected.
+ *
+ * Used for tile role: a salesperson who skips the choice on Design
+ * Direction never sees a default named, and the generation still needs a
+ * definite answer rather than an absent one — so this looks up whichever
+ * active row the seed marked isDefault, and null if none is (an admin
+ * disabled it, or this kind has no such row at all).
+ */
+export async function findDefaultOption(kind: DesignOptionKind): Promise<DesignOption | null> {
+  await ensureReady()
+  const collection = await getCollection<DesignOptionDoc>(COLLECTION)
+  const doc = await collection.findOne({ kind, isDefault: true, active: true })
   return doc ? toOption(doc) : null
 }
