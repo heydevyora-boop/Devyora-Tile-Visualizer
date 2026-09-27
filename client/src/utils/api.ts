@@ -186,7 +186,7 @@ export interface SpaceNode {
   active: boolean
 }
 
-export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason'
+export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role'
 
 export interface DesignOption {
   id: string
@@ -196,6 +196,8 @@ export interface DesignOption {
   imageUrl: string | null
   valueMm: number | null
   styleId: string | null
+  /** Tile roles only: true for the one the app uses when nothing is chosen. */
+  isDefault: boolean
   order: number
   active: boolean
 }
