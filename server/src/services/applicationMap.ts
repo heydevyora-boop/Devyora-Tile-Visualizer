@@ -82,7 +82,14 @@ export interface ApplicationMap {
   designatedTiledSurfaces: string
   tileHeight: string
   heightBehaviour: string
-  nonTiledSurfaces: string
+  /**
+   * A structured list, not a sentence — each entry is one excluded surface,
+   * rendered as its own bullet in the prompt. A prose sentence here is
+   * exactly the kind of thing this whole map exists to replace: something
+   * the model has to parse and hope it read correctly, rather than a plain
+   * enumerated fact.
+   */
+  nonTiledSurfaces: string[]
   nonTiledMaterialRule: string
 }
 
@@ -123,12 +130,22 @@ export function buildApplicationMap(path: ApplicationPathNode[]): ApplicationMap
         ? 'Tile continues to the ceiling on every designated tiled wall — no painted band above it anywhere.'
         : 'Full coverage of the designated surface. No partial-height boundary applies.'
 
-  const nonTiledSurfaces =
+  // Fixtures a room actually has. A Living Room's TV Wall has no vanity to
+  // list, and listing one would be a stray, meaningless instruction rather
+  // than a safeguard — so this is asked per space, not assumed for every
+  // wall application.
+  const spaceLower = space.toLowerCase()
+  const fixtures = [
+    ...(spaceLower === 'bathroom' ? ['Vanity'] : []),
+    ...(spaceLower === 'bathroom' || spaceLower === 'kitchen' ? ['Countertop'] : []),
+  ]
+
+  const nonTiledSurfaces: string[] =
     classification.kind === 'floor'
-      ? 'Walls, ceiling, and all other surfaces.'
+      ? ['Walls', 'Ceiling', ...fixtures, 'Other non-designated surfaces']
       : classification.kind === 'tread-and-riser'
-        ? 'Walls, any floor area not part of the stair run, ceiling, and all other surfaces.'
-        : 'Floor, ceiling, vanity/countertop where present, and all surfaces not named above.'
+        ? ['Walls', 'Any floor area not part of the stair run', 'Ceiling', 'Other non-designated surfaces']
+        : ['Floor', 'Ceiling', ...fixtures, 'Other non-designated surfaces']
 
   const nonTiledMaterialRule =
     'Use a different, complementary material on every non-tiled surface. Never reuse the supplied tile there.'
@@ -164,7 +181,7 @@ export function renderApplicationMap(map: ApplicationMap): string {
     map.heightBehaviour,
     '',
     'NON-TILED SURFACES:',
-    map.nonTiledSurfaces,
+    ...map.nonTiledSurfaces.map((surface) => `- ${surface}`),
     '',
     'NON-TILED MATERIAL RULE:',
     map.nonTiledMaterialRule,
