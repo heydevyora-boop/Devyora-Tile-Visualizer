@@ -4,6 +4,7 @@ import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type DesignOption } from '../utils/api'
 import HeaderUserMenu from '../components/HeaderUserMenu'
+import { dedupeByName } from '../utils/dedupeByName'
 import './Style.css'
 
 /**
@@ -50,9 +51,13 @@ function Style() {
           apiGet<DesignOption[]>('/api/design-options?kind=pattern', token, controller.signal),
         ])
         if (controller.signal.aborted) return
-        setStyles(s)
-        setJoints(j)
-        setPatterns(p)
+        // Belt and suspenders: the store now prevents this at the source, but
+        // the screen that showed three "Minimal" cards is the one place a
+        // customer or salesperson would actually see it, so it defends itself
+        // too rather than trusting every layer beneath it stayed fixed.
+        setStyles(dedupeByName(s))
+        setJoints(dedupeByName(j))
+        setPatterns(dedupeByName(p))
       } catch (caught) {
         if (controller.signal.aborted) return
         setError(caught instanceof ApiError ? caught.message : 'Could not load the design options.')
