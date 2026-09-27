@@ -129,12 +129,41 @@ export function buildApplicationMap(path: ApplicationPathNode[]): ApplicationMap
         ? 'The staircase treads and risers as selected.'
         : `${space} wall surfaces included in the selected wall treatment${surfaceAside}.`
 
+  // Wall-like applications with no chosen height still cover their whole
+  // designated surface, but that is a distinct fact from Half/Full Height
+  // and is worded to say so explicitly — a floor, tread or cladding
+  // application is a different distinction again, and gets told outright
+  // that a wall's height rule does not apply to it, rather than leaving
+  // that absence to be inferred from the field simply not appearing.
+  const isWallLike = classification.kind === 'wall' || classification.kind === 'wall-cladding'
   const heightBehaviour =
     tileHeight === 'Half Height'
-      ? 'Consistent half-height/dado level across every designated tiled wall, holding that same height around every corner.'
+      ? [
+          'Consistent half-height/dado level across every designated tiled wall,',
+          'holding that exact same height around every corner — never a taller or',
+          'shorter stopping point on a different wall. The supplied tile appears',
+          'only below this line; do not extend it above the line under any',
+          'circumstance, and do not treat this as a full-height instruction. Above',
+          'the line, every designated wall uses a different, complementary finish',
+          '— paint or plaster, never the supplied tile.',
+        ].join(' ')
       : tileHeight === 'Full Height'
-        ? 'Tile continues to the ceiling on every designated tiled wall — no painted band above it anywhere.'
-        : 'Full coverage of the designated surface. No partial-height boundary applies.'
+        ? [
+            'Tile continues, uninterrupted, from floor to ceiling on every',
+            'designated tiled wall — no painted band, no stopping point, and no',
+            'partial coverage on any designated wall. Do not treat this as a',
+            'half-height or partial-coverage instruction.',
+          ].join(' ')
+        : isWallLike
+          ? [
+              'Tile covers the entire designated wall surface, with no',
+              'partial-height boundary. Do not invent a stopping point that was',
+              'not selected.',
+            ].join(' ')
+          : [
+              'Full coverage of the designated surface. Height/coverage boundaries',
+              '(half-height, full-height) are a wall concept and do not apply here.',
+            ].join(' ')
 
   // Fixtures a room actually has. A Living Room's TV Wall has no vanity to
   // list, and listing one would be a stray, meaningless instruction rather
