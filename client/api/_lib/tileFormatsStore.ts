@@ -69,6 +69,43 @@ const INITIAL_FORMATS: [number, number][] = [
   [100, 100],
 ]
 
+/** The id a seeded format always gets, derived from its dimensions. */
+function seedId(lengthMm: number, breadthMm: number): string {
+  return `seed:${lengthMm}x${breadthMm}`
+}
+
+/** True for the driver's duplicate-key error, however it is wrapped. */
+function isDuplicateKey(error: unknown): boolean {
+  const e = error as { code?: number; writeErrors?: { code?: number }[] } | null
+  return e?.code === 11000 || Boolean(e?.writeErrors?.some((w) => w.code === 11000))
+}
+
+/**
+ * Collapses any (lengthMm, breadthMm) group that already has more than one
+ * document back to one, keeping the first — natural order is insertion
+ * order, so that is the oldest. See the identical function in
+ * designOptionsStore.ts for why this runs here instead of a one-off script:
+ * this process cannot reach a showroom's database from outside the app, so
+ * the app cleans itself the first time it touches the collection after this
+ * deploys, and logs exactly what it removed.
+ */
+async function healDuplicates(collection: Awaited<ReturnType<typeof getCollection<TileFormatDoc>>>): Promise<void> {
+  const all = await collection.find({}).toArray()
+  const seen = new Set<string>()
+  const remove: TileFormatDoc[] = []
+  for (const doc of all) {
+    const key = `${doc.lengthMm}x${doc.breadthMm}`
+    if (seen.has(key)) remove.push(doc)
+    else seen.add(key)
+  }
+  if (remove.length === 0) return
+  await collection.deleteMany({ _id: { $in: remove.map((doc) => doc._id) } })
+  console.error(
+    `[tileFormats] removed ${remove.length} duplicate(s): ` +
+      remove.map((doc) => `${doc.lengthMm}x${doc.breadthMm}`).join(', '),
+  )
+}
+
 let indexesReady: Promise<void> | null = null
 
 async function ensureReady(): Promise<void> {
@@ -76,19 +113,35 @@ async function ensureReady(): Promise<void> {
     indexesReady = (async () => {
       const collection = await getCollection<TileFormatDoc>(COLLECTION)
       await collection.createIndex({ order: 1 })
+      await healDuplicates(collection)
+
+      // One format per (lengthMm, breadthMm). Best-effort, same reasoning as
+      // designOptions: healDuplicates just ran, so this should always
+      // succeed, but a write could in principle land in between.
+      try {
+        await collection.createIndex({ lengthMm: 1, breadthMm: 1 }, { unique: true })
+      } catch (error: unknown) {
+        console.error('[tileFormats] unique index not created:', error)
+      }
+
       // Seeding is guarded by a count rather than an upsert: once the showroom
       // has edited the list, an empty result means they emptied it on purpose.
-      if ((await collection.countDocuments({})) === 0) {
+      if ((await collection.countDocuments({})) > 0) return
+      try {
         await collection.insertMany(
           INITIAL_FORMATS.map(([lengthMm, breadthMm], index) => ({
-            _id: randomUUID(),
+            _id: seedId(lengthMm, breadthMm),
             lengthMm,
             breadthMm,
             label: null,
             active: true,
             order: index,
           })),
+          { ordered: false },
         )
+      } catch (error: unknown) {
+        // Another instance seeded first. Its rows are the same rows.
+        if (!isDuplicateKey(error)) throw error
       }
     })().catch((error: unknown) => {
       indexesReady = null

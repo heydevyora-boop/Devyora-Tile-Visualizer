@@ -5,6 +5,7 @@ import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, apiPost, type DesignOption, type SavedVisualisation } from '../utils/api'
 import { saveImageToDevice } from '../utils/saveImage'
 import { formatTileSize } from '../utils/tileSizeLabel'
+import { dedupeByName } from '../utils/dedupeByName'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
 
@@ -270,7 +271,7 @@ function Results() {
           token,
           controller.signal,
         )
-        if (!controller.signal.aborted) setReasons(list)
+        if (!controller.signal.aborted) setReasons(dedupeByName(list))
       } catch (caught) {
         if (controller.signal.aborted) return
         setAddError(caught instanceof ApiError ? caught.message : 'Could not load the reasons.')

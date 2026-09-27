@@ -215,6 +215,38 @@ function isDuplicateKey(error: unknown): boolean {
   return e?.code === 11000 || Boolean(e?.writeErrors?.some((w) => w.code === 11000))
 }
 
+/**
+ * Collapses any (kind, name) group that already has more than one document
+ * back to one, keeping the first — natural order is insertion order, so
+ * that is the oldest.
+ *
+ * This exists because the seed race that produced this (three cold
+ * instances, one empty collection, three inserts of the whole list) ran
+ * before the fix below could stop it, on databases that were already live.
+ * A deterministic seed id and a unique index only stop it happening again;
+ * they do nothing about rows that are already there, and this process has
+ * no way to reach into a showroom's database from outside the app to clean
+ * them by hand. So the app cleans itself: the first request after this
+ * deploys runs this once, logs exactly what it removed, and every request
+ * after that finds nothing left to do.
+ */
+async function healDuplicates(collection: Awaited<ReturnType<typeof getCollection<DesignOptionDoc>>>): Promise<void> {
+  const all = await collection.find({}).toArray()
+  const seen = new Map<string, DesignOptionDoc>()
+  const remove: DesignOptionDoc[] = []
+  for (const doc of all) {
+    const key = `${doc.kind} ${(doc.name ?? '').trim().toLowerCase()}`
+    if (seen.has(key)) remove.push(doc)
+    else seen.set(key, doc)
+  }
+  if (remove.length === 0) return
+  await collection.deleteMany({ _id: { $in: remove.map((doc) => doc._id) } })
+  console.error(
+    `[designOptions] removed ${remove.length} duplicate(s): ` +
+      remove.map((doc) => `${doc.kind}:"${doc.name}"`).join(', '),
+  )
+}
+
 let ready: Promise<void> | null = null
 
 async function ensureReady(): Promise<void> {
@@ -222,15 +254,19 @@ async function ensureReady(): Promise<void> {
     ready = (async () => {
       const collection = await getCollection<DesignOptionDoc>(COLLECTION)
       await collection.createIndex({ kind: 1, order: 1 })
+      await healDuplicates(collection)
 
-      // One option of a kind per name. Enforced by the database rather than by
-      // the code that writes, so a second writer this process cannot see is
-      // caught too. Best-effort: a collection that already holds duplicates
-      // rejects this, and a catalogue nobody can read would be a worse outcome
-      // than one showing something twice, so the failure is logged and the
-      // rest carries on. Run the dedupe script to clear it.
+      // One option of a kind per name, case-insensitive — so "Minimal" and a
+      // hand-typed "minimal" collide too. Enforced by the database rather
+      // than by the code that writes, so a second writer this process cannot
+      // see is caught as well. Best-effort: if something still collides —
+      // healDuplicates just ran, but a write could land between that and
+      // this — the failure is logged rather than left to break every read.
       try {
-        await collection.createIndex({ kind: 1, name: 1 }, { unique: true })
+        await collection.createIndex(
+          { kind: 1, name: 1 },
+          { unique: true, collation: { locale: 'en', strength: 2 } },
+        )
       } catch (error: unknown) {
         console.error('[designOptions] unique index not created:', error)
       }
@@ -307,6 +343,13 @@ export async function listAllDesignOptions(): Promise<DesignOption[]> {
   return docs.map(toOption)
 }
 
+const KIND_LABEL: Record<DesignOptionKind, string> = {
+  style: 'style',
+  joint: 'joint width',
+  pattern: 'laying pattern',
+  reason: 'reason',
+}
+
 export async function createDesignOption(input: Record<string, unknown>): Promise<DesignOption> {
   await ensureReady()
   const collection = await getCollection<DesignOptionDoc>(COLLECTION)
@@ -316,11 +359,13 @@ export async function createDesignOption(input: Record<string, unknown>): Promis
   // A joint is named by its width, so the two can never disagree.
   const name = kind === 'joint' ? `${valueMm} mm` : requireName(input.name)
 
-  // Checked here as well as by the unique index, so adding something that is
-  // already on the list reads as "that is already there" rather than as a
-  // driver error.
-  if (await collection.findOne({ kind, name })) {
-    throw new DesignOptionsError(`"${name}" is already on this list.`, 409)
+  // Case-insensitive, so "Minimal" blocks a second "minimal" or "MINIMAL" —
+  // checked here as well as by the unique index, so adding something that is
+  // already on the list reads as a plain rejection rather than a driver
+  // error the admin form has to interpret.
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (await collection.findOne({ kind, name: { $regex: `^${escaped}$`, $options: 'i' } })) {
+    throw new DesignOptionsError(`This ${KIND_LABEL[kind]} already exists.`, 409)
   }
 
   const last = await collection.find({ kind }).sort({ order: -1 }).limit(1).toArray()
