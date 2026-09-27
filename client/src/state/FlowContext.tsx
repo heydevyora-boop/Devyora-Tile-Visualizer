@@ -53,6 +53,14 @@ type FlowContextValue = {
   jointOption: DesignOption | null
   patternOption: DesignOption | null
   /**
+   * How the tile participates in the design — base, highlighter, accent,
+   * and so on. Null when the salesperson skipped the choice; the generation
+   * request still carries a definite value, substituted server-side from
+   * whichever role the showroom marked as the default, so this staying
+   * null never means the model receives nothing.
+   */
+  tileRoleOption: DesignOption | null
+  /**
    * Anything the customer asked for that the fixed choices do not cover —
    * "warm lighting rakhna hai", "vanity floating honi chahiye". Optional, and
    * usually blank.
@@ -71,6 +79,7 @@ type FlowContextValue = {
   setJointWidthMm: (jointWidthMm: number | null) => void
   setJointOption: (jointOption: DesignOption | null) => void
   setPatternOption: (patternOption: DesignOption | null) => void
+  setTileRoleOption: (tileRoleOption: DesignOption | null) => void
   setAdditionalRequirement: (additionalRequirement: string) => void
   setGeneratedResult: (generatedResult: GeneratedResult | null) => void
 }
@@ -90,6 +99,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const [jointWidthMm, setJointWidthMm] = useState<number | null>(null)
   const [jointOption, setJointOption] = useState<DesignOption | null>(null)
   const [patternOption, setPatternOption] = useState<DesignOption | null>(null)
+  const [tileRoleOption, setTileRoleOption] = useState<DesignOption | null>(null)
   const [additionalRequirement, setAdditionalRequirement] = useState('')
   const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null)
 
@@ -108,6 +118,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         jointWidthMm,
         jointOption,
         patternOption,
+        tileRoleOption,
         additionalRequirement,
         generatedResult,
         setCustomer,
@@ -122,6 +133,7 @@ export function FlowProvider({ children }: { children: ReactNode }) {
         setJointWidthMm,
         setJointOption,
         setPatternOption,
+        setTileRoleOption,
         setAdditionalRequirement,
         setGeneratedResult,
       }}

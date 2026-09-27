@@ -17,6 +17,8 @@ export interface GenerateVisualizationInput {
   application?: { name: string; description: string }[]
   jointWidthMm?: number
   layingPattern?: { name: string; description: string }
+  /** How the tile participates in the design — base, highlighter, accent. */
+  tileRole?: { name: string; description: string }
   styleDescription?: string
   additionalRequirement?: string
   /**
@@ -406,6 +408,7 @@ export async function generateVisualization(
     application: input.application,
     jointWidthMm: input.jointWidthMm,
     layingPattern: input.layingPattern,
+    tileRole: input.tileRole,
     styleDescription: input.styleDescription,
     additionalRequirement: input.additionalRequirement,
     revisionReasons: input.revisionReasons,

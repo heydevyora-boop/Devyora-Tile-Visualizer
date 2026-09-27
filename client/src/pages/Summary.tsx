@@ -76,6 +76,7 @@ function Summary() {
     style,
     jointWidthMm,
     patternOption,
+    tileRoleOption,
     additionalRequirement,
     setAdditionalRequirement,
   } = useFlow()
@@ -209,6 +210,20 @@ function Summary() {
               to="/style"
               editLabel="Change the laying pattern"
             />
+            {/* Only shown for a deliberate choice. Skipping this selector is
+                the common case, and it still reaches the generation as
+                "Base / Background" — but that is a silent substitution, not
+                something the salesperson decided, so it does not belong on
+                a screen that shows only what will actually be sent because
+                someone chose it. */}
+            {tileRoleOption && (
+              <Row
+                label="Tile role"
+                value={tileRoleOption.name}
+                to="/style"
+                editLabel="Change the tile role"
+              />
+            )}
           </div>
 
           <div className="px-margin pt-space-lg flex flex-col gap-1.5">

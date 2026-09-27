@@ -7,6 +7,7 @@ import { SpaceNodesError, resolveApplicationPath } from '../services/spaceNodesS
 import {
   DesignOptionsError,
   findActiveOption,
+  findDefaultOption,
   requireJointWidth,
 } from '../services/designOptionsStore'
 import { getArchitect, getCustomer, toOwnerScope } from '../services/clientsStore'
@@ -36,6 +37,7 @@ router.post('/generate', async (req, res) => {
     jointOptionId,
     jointWidthMm,
     patternOptionId,
+    roleOptionId,
     customerId,
     additionalRequirement,
     conceptIndex,
@@ -92,6 +94,13 @@ router.post('/generate', async (req, res) => {
     const styleOption = styleOptionId
       ? await findActiveOption('style', String(styleOptionId))
       : null
+    // A role the salesperson picked is verified like any other option. One
+    // they skipped falls back to whichever role the showroom marked as the
+    // default — silently, here, so nothing upstream has to know a default
+    // exists at all. Null only if no active default is configured.
+    const roleOption = roleOptionId
+      ? await findActiveOption('role', String(roleOptionId))
+      : await findDefaultOption('role')
     // Reasons are looked up rather than trusted: only what the showroom
     // configured can steer a regeneration, and a disabled reason cannot.
     const reasons = Array.isArray(reasonIds)
@@ -133,6 +142,7 @@ router.post('/generate', async (req, res) => {
         styleId: styleOption?.styleId ?? styleOption?.name ?? null,
         jointWidthMm: joint ?? null,
         layingPattern: pattern?.name ?? null,
+        tileRole: roleOption?.name ?? null,
         hasAdditionalRequirement: Boolean(requirement),
         conceptIndex: conceptIndex ?? 0,
         revisionReasons: reasons.map((reason) => reason.name),
@@ -150,6 +160,7 @@ router.post('/generate', async (req, res) => {
       styleDescription: styleOption?.styleId ? undefined : styleOption?.description,
       jointWidthMm: joint,
       layingPattern: pattern ? { name: pattern.name, description: pattern.description } : undefined,
+      tileRole: roleOption ? { name: roleOption.name, description: roleOption.description } : undefined,
       additionalRequirement: requirement,
       revisionReasons: reasons.map((reason) => ({
         name: reason.name,

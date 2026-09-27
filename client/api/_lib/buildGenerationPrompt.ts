@@ -21,6 +21,8 @@ export interface PromptInput {
   jointWidthMm?: number
   /** How the tiles are laid out, e.g. a straight grid or a running bond. */
   layingPattern?: { name: string; description: string }
+  /** How the tile participates in the design — base, highlighter, accent. */
+  tileRole?: { name: string; description: string }
   /**
    * A style the showroom added that has no curated config. Its description is
    * used in place of one.
