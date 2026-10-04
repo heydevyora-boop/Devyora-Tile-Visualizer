@@ -1,6 +1,7 @@
 // Local-dev copy of the revision store used by the Express server.
 // KEEP IN SYNC with the deployed Vercel copy in client/api/_lib/revisionsStore.ts.
 import { randomUUID } from 'node:crypto'
+import type { GenerationBrief } from './generationBrief'
 import { describeDbError, getCollection } from './db'
 import type { OwnerScope } from './clientsStore'
 
@@ -37,6 +38,15 @@ export interface GenerationContext {
   plainTileSize?: string | null
   /** Where the highlighter tile was to be used, as it was named at the time. */
   highlighterLocation?: string | null
+  /**
+   * Everything that was selected for this concept, as separate structured values
+   * — sizes, placement, highlighter location, joint, pattern, instructions and
+   * any regeneration reason — exactly as the generation was asked for it. The
+   * fields above are the same facts in the shape the lists and detail screens
+   * read; this is the whole record. Absent on concepts made before it existed.
+   * Holds no photographs.
+   */
+  brief?: GenerationBrief
   /** The top-level area — what a customer's saved work groups by. */
   space: string | null
   /**

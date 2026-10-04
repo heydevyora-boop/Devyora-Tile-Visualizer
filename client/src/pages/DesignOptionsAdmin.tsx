@@ -25,11 +25,6 @@ const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
     label: 'Revision reasons',
     lede: 'Why a salesperson asks for another concept. These are faults to correct, not alternative looks — the description tells the generation what to fix.',
   },
-  {
-    kind: 'role',
-    label: 'Tile roles',
-    lede: 'How a tile participates in the design. The salesperson no longer picks one: the highlighter photo is always given "Highlighter / Decorative", so leave that one enabled — disabling it sends the generation no role at all. The description is what the generation is told.',
-  },
 ]
 
 /**

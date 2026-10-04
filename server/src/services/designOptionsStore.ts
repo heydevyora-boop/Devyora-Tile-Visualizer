@@ -266,15 +266,6 @@ function seedId(kind: string, name: string): string {
   return `seed:${kind}:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
 }
 
-/**
- * The tile role that belongs to the highlighter photo.
- *
- * The flow no longer asks which role the tile plays — a highlighter and a
- * plain tile are two inputs with fixed roles — so the highlighter's role is
- * looked up by its seed id, never by the "default" flag. That flag marks Base /
- * Background, which is exactly what a highlighter must not silently become.
- */
-export const HIGHLIGHTER_ROLE_ID = seedId('role', 'Highlighter / Decorative')
 
 /** True for the driver's duplicate-key error, however it is wrapped. */
 function isDuplicateKey(error: unknown): boolean {

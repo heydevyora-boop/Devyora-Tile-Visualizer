@@ -4,20 +4,24 @@
  * full set of three.
  *
  *   npm run test:generate
- *   npm run test:generate -- "Bathroom" "1200x600"
+ *   npm run test:generate -- --plain 600x600 --location "Shower Area"
  *
- * Deliberately does NOT call generateVisualization(), because that fires all
- * three concepts in parallel.
+ * Builds the same brief and the same ordered request as a real generation (see
+ * sampleBrief.ts for the flags) and sends it once, so the integration, image
+ * quality and cost can be validated before a consultation does the same. With
+ * --plain, the sample photo is sent as BOTH tiles, as two separate images — a
+ * smoke test of the request shape, not of how two different tiles look.
  */
 import 'dotenv/config'
 import { readFileSync, mkdirSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { GoogleGenAI } from '@google/genai'
-import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from '../services/buildGenerationPrompt'
+import { SYSTEM_INSTRUCTION, buildModelRequest } from '../services/buildGenerationPrompt'
 import { parseTileImage } from '../services/generateVisualization'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL as MODEL, IMAGE_SIZE } from '../config/imageModel'
+import { readFlags, sampleBrief } from './sampleBrief'
 
-const [space = 'Bathroom', tileSize = '1200x600'] = process.argv.slice(2)
+const flags = readFlags(process.argv.slice(2))
 
 const TILE_PATH = resolve(__dirname, '../../../client/public/sample-tile.jpg')
 const OUT_DIR = resolve(__dirname, '../../test-output')
@@ -40,19 +44,26 @@ async function main() {
   const tileDataUrl = `data:image/jpeg;base64,${tileBytes.toString('base64')}`
   const tile = parseTileImage(tileDataUrl)
 
-  const prompts = buildGenerationPrompts({ space, tileSize })
-  const prompt = prompts[0] // CONCEPT 1 ONLY - concepts 2 and 3 are intentionally skipped
+  const brief = sampleBrief(flags)
+  const plan = buildModelRequest(brief)
+  const modelInput = plan.parts.map((part) =>
+    part.kind === 'text'
+      ? { type: 'text' as const, text: part.text }
+      : { type: 'image' as const, data: tile.data, mime_type: tile.mimeType },
+  )
 
   console.log('='.repeat(72))
   console.log('SINGLE GENERATION TEST - CONCEPT 1 ONLY')
   console.log('='.repeat(72))
   console.log('model      :', MODEL)
-  console.log('space/size :', space, '/', tileSize)
+  console.log('placement  :', brief.placement.path.join(' > '))
+  console.log('tile size  :', `${brief.tiles.highlighter.sizeMm.lengthMm} x ${brief.tiles.highlighter.sizeMm.breadthMm} mm`)
+  console.log('plain tile :', brief.tiles.plain.provided ? 'supplied' : 'No Plain Tile')
   console.log('tile photo :', TILE_PATH)
-  console.log('tile size  :', tileBytes.length, 'bytes ->', tile.data.length, 'base64 chars')
-  console.log('focus      :', prompt.focus)
-  console.log('prompt len :', prompt.text.length, 'chars')
-  console.log('calls      : 1 (concepts 2 and 3 intentionally NOT run)')
+  console.log('photo       :', tileBytes.length, 'bytes ->', tile.data.length, 'base64 chars')
+  console.log('focus      :', plan.conceptFocus)
+  console.log('parts      :', plan.parts.map((p) => (p.kind === 'text' ? 'text' : `image(${p.tile})`)).join(', '))
+  console.log('calls      : 1')
   console.log('='.repeat(72))
 
   const ai = new GoogleGenAI({ apiKey })
@@ -63,10 +74,7 @@ async function main() {
     interaction = await ai.interactions.create({
       model: MODEL,
       system_instruction: SYSTEM_INSTRUCTION,
-      input: [
-        { type: 'text', text: prompt.text },
-        { type: 'image', data: tile.data, mime_type: tile.mimeType },
-      ],
+      input: modelInput,
       response_modalities: ['text', 'image'],
       generation_config: {
         image_config: {

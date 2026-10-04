@@ -3,6 +3,7 @@
 // (client/), so this cannot import from ../../server/src.
 // KEEP IN SYNC with the local-dev Express copy in server/src/services/.
 import { randomUUID } from 'node:crypto'
+import type { GenerationBrief } from './generationBrief.js'
 import { describeDbError, getCollection } from './db.js'
 import type { OwnerScope } from './clientsStore.js'
 
@@ -39,6 +40,15 @@ export interface GenerationContext {
   plainTileSize?: string | null
   /** Where the highlighter tile was to be used, as it was named at the time. */
   highlighterLocation?: string | null
+  /**
+   * Everything that was selected for this concept, as separate structured values
+   * — sizes, placement, highlighter location, joint, pattern, instructions and
+   * any regeneration reason — exactly as the generation was asked for it. The
+   * fields above are the same facts in the shape the lists and detail screens
+   * read; this is the whole record. Absent on concepts made before it existed.
+   * Holds no photographs.
+   */
+  brief?: GenerationBrief
   /** The top-level area — what a customer's saved work groups by. */
   space: string | null
   /**

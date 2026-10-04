@@ -5,11 +5,11 @@ import { verifyAuthHeader } from '../config/auth'
 import { SpaceNodesError, resolveApplicationPath } from '../services/spaceNodesStore'
 import {
   DesignOptionsError,
-  HIGHLIGHTER_ROLE_ID,
   findActiveOption,
   requireJointWidth,
 } from '../services/designOptionsStore'
 import { GenerateRequestError, toSizeId, validateTiles } from '../services/generateRequest'
+import { buildGenerationBrief } from '../services/generationBrief'
 import { getArchitect, getCustomer, toOwnerScope } from '../services/clientsStore'
 import { recordRevision } from '../services/revisionsStore'
 import { DbError, asDbError } from '../services/db'
@@ -83,7 +83,9 @@ router.post('/generate', async (req, res) => {
     // The browser sends the ids it was shown; the chain is re-checked against
     // the catalogue here, so a stale or hand-edited selection cannot instruct
     // the model with an application the showroom never configured.
-    const resolved = spacePath ? await resolveApplicationPath(spacePath) : null
+    // Mandatory: the placement is a hard constraint, so a request without one
+    // is refused (resolveApplicationPath says so) rather than generated generically.
+    const resolved = await resolveApplicationPath(spacePath)
     // The joint width may be one of the showroom's presets or typed in, so it
     // is validated as a measurement either way. The pattern and the highlighter
     // location are looked up by id, so a disabled or invented option cannot
@@ -114,11 +116,6 @@ router.post('/generate', async (req, res) => {
       })
       return
     }
-    // The image the model is shown is the highlighter, so that is its role. It
-    // is looked up by id and never by the "default" flag: the default is Base /
-    // Background, which a highlighter must not silently become. If the showroom
-    // has disabled the highlighter role there is no role at all, not a wrong one.
-    const roleOption = await findActiveOption('role', HIGHLIGHTER_ROLE_ID)
     // Reasons are looked up rather than trusted: only what the showroom
     // configured can steer a regeneration, and a disabled reason cannot.
     const reasons = Array.isArray(reasonIds)
@@ -148,53 +145,52 @@ router.post('/generate', async (req, res) => {
     const customer = customerId
       ? await getCustomer(toOwnerScope(session), String(customerId))
       : null
+    // Everything the customer selected, as separate structured values. This is
+    // the record of the request: the model's input is rendered from it, and it
+    // is logged here and stored on the concept so that exactly what was asked
+    // can be inspected afterwards. It holds no photographs.
+    const brief = buildGenerationBrief({
+      highlighterDimensions: tiles.highlighterDimensions,
+      plainTileProvided: tiles.plainTileProvided,
+      plainDimensions: tiles.plainDimensions,
+      path: resolved.path,
+      highlighterLocation: {
+        id: highlighterLocation.id,
+        name: highlighterLocation.name,
+        description: highlighterLocation.description,
+      },
+      jointWidthMm: joint ?? null,
+      jointPreset: jointOption?.name ?? null,
+      layingPattern: pattern
+        ? { id: pattern.id, name: pattern.name, description: pattern.description }
+        : null,
+      additionalInstructions: requirement ?? null,
+      reasons: reasons.map((reason) => ({
+        id: reason.id,
+        name: reason.name,
+        description: reason.description,
+      })),
+      note: note || null,
+      parentRevisionId: typeof parentRevisionId === 'string' ? parentRevisionId : null,
+      conceptIndex: typeof conceptIndex === 'number' ? conceptIndex : 0,
+    })
+    // Who this is for stays out of the brief, and out of the prompt: who the
+    // customer is does not belong in an image instruction. It is logged beside
+    // the brief so a generation can be traced to the consultation it came from.
     console.log(
       '[POST /api/generate] context',
       JSON.stringify({
         salespersonId: session.sub,
         customerId: customer?.id ?? null,
         architectId: customer?.architectId ?? null,
-        spaceCategory: resolved?.path[0]?.name ?? null,
-        applicationPath: resolved?.path.map((node) => node.name) ?? null,
-        tileSize,
-        plainTileProvided: tiles.plainTileProvided,
-        plainTileSize: tiles.plainDimensions ? toSizeId(tiles.plainDimensions) : null,
-        highlighterLocation: highlighterLocation.name,
-        jointWidthMm: joint ?? null,
-        layingPattern: pattern?.name ?? null,
-        tileRole: roleOption?.name ?? null,
-        hasAdditionalRequirement: Boolean(requirement),
-        conceptIndex: conceptIndex ?? 0,
-        revisionReasons: reasons.map((reason) => reason.name),
-        isRevision: reasons.length > 0 || Boolean(note),
       }),
     )
+    console.log('[POST /api/generate] brief', JSON.stringify(brief))
+
     const result = await generateVisualization({
+      brief,
       highlighterTileImage: tiles.highlighterTileImage,
       plainTileImage: tiles.plainTileImage,
-      plainTileProvided: tiles.plainTileProvided,
-      highlighterDimensions: tiles.highlighterDimensions,
-      plainDimensions: tiles.plainDimensions,
-      highlighterLocation: {
-        name: highlighterLocation.name,
-        description: highlighterLocation.description,
-      },
-      space: resolved?.spaceId ?? space,
-      application: resolved?.path.map((node) => ({
-        name: node.name,
-        description: node.description,
-      })),
-      jointWidthMm: joint,
-      layingPattern: pattern ? { name: pattern.name, description: pattern.description } : undefined,
-      tileRole: roleOption ? { name: roleOption.name, description: roleOption.description } : undefined,
-      additionalRequirement: requirement,
-      revisionReasons: reasons.map((reason) => ({
-        name: reason.name,
-        description: reason.description,
-      })),
-      revisionNote: note || undefined,
-      conceptIndex,
-      tileSize,
     })
     // Recorded after the image exists, so a failed attempt never leaves a
     // revision claiming a concept that was never produced.
@@ -229,8 +225,11 @@ router.post('/generate', async (req, res) => {
         plainTileImage: result.plainTileImageUrl ?? null,
         plainTileSize: tiles.plainDimensions ? toSizeId(tiles.plainDimensions) : null,
         highlighterLocation: highlighterLocation.name,
-        space: resolved?.path[0]?.name ?? (typeof space === 'string' ? space : null),
-        spacePath: resolved?.path.map((node) => ({ id: node.id, name: node.name })) ?? [],
+        // The full structured record of what was selected, so a concept can be
+        // inspected later exactly as it was asked for.
+        brief,
+        space: resolved.path[0]?.name ?? (typeof space === 'string' ? space : null),
+        spacePath: resolved.path.map((node) => ({ id: node.id, name: node.name })),
         // A design style is no longer part of the flow. The field stays on the
         // record so concepts made before this change still read correctly.
         styleName: null,

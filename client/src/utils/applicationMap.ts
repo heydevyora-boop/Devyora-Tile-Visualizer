@@ -186,7 +186,7 @@ export function buildApplicationMap(path: ApplicationPathNode[]): ApplicationMap
 export function renderApplicationMap(map: ApplicationMap): string {
   return [
     'EXPLICIT APPLICATION MAP — these eight facts are not for you to',
-    'interpret or re-derive from the chain below; they are the answer.',
+    'interpret or re-derive from placement.path above; they are the answer.',
     '',
     `SPACE: ${map.space}`,
     map.subcategory ? `SUBCATEGORY: ${map.subcategory}` : null,

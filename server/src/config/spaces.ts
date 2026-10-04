@@ -14,7 +14,11 @@ export interface SpaceConfig {
   id: string
   /** Human-readable label, matching the values the client sends. */
   label: string
-  /** Surfaces a tile can be applied to in this space. */
+  /**
+   * Surfaces a tile can realistically be applied to in this space.
+   * Not read when a request is built: the placement the customer selected, and
+   * the application map derived from it, decide which surfaces are tiled.
+   */
   surfaces: Surface[]
   /**
    * What the room should realistically contain: fixtures, furniture and
@@ -26,6 +30,11 @@ export interface SpaceConfig {
    * The three concepts generated for this space. Each entry focuses the
    * render on a different surface/viewpoint so the three results are
    * genuinely different concepts rather than three near-identical images.
+   */
+  /**
+   * Per-room viewpoints. No longer read: they named surfaces ("floor as the hero
+   * surface"), which contradicts a wall application. Concept viewpoints are now
+   * camera-only and live in buildGenerationPrompt.ts.
    */
   variationStrategy: [string, string, string]
 }

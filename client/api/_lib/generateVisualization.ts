@@ -4,52 +4,28 @@
 // KEEP IN SYNC with the local-dev Express copy in server/src/.
 import { randomUUID } from 'node:crypto'
 import { GoogleGenAI } from '@google/genai'
-import { SYSTEM_INSTRUCTION, buildGenerationPrompt } from './buildGenerationPrompt.js'
+import { SYSTEM_INSTRUCTION, buildModelRequest } from './buildGenerationPrompt.js'
 import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive.js'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL, IMAGE_SIZE } from './imageModel.js'
-import type { TileDimensions } from './generateRequest.js'
+import type { GenerationBrief } from './generationBrief.js'
 
 export interface GenerateVisualizationInput {
-  /** The highlighter photo — the one tile reference the model is shown. */
+  /**
+   * What the customer selected, as separate structured values: both tile sizes,
+   * the placement, the highlighter location, the joint, the pattern, the
+   * instructions and any regeneration reason. Authoritative — the model's input
+   * is rendered from this, never the reverse, and nothing about a selection is
+   * passed to this service as pre-written prose.
+   */
+  brief: GenerationBrief
+  /** The highlighter photograph. Always required; sent to the model as its own image. */
   highlighterTileImage: string
   /**
-   * The plain / base photo. Validated, stored and carried through, but not yet
-   * shown to the model: the prompt does not refer to it. That wiring belongs to
-   * the prompt rewrite, so it is carried here rather than quietly dropped.
+   * The plain / base photograph, sent to the model as its own second image.
+   * Null exactly when `brief.tiles.plain.provided` is false — the explicit
+   * "No Plain Tile" choice, in which case no second image is sent at all.
    */
-  plainTileImage?: string | null
-  /** True for a supplied plain tile; false only for an explicit "No Plain Tile". */
-  plainTileProvided: boolean
-  space: string
-  /**
-   * "1200x600", built from the numeric dimensions by the route — the form the
-   * prompt's size description already reads. The numbers are the source.
-   */
-  tileSize?: string
-  /** Each tile's own size. Carried so two different products never share a number by assumption. */
-  highlighterDimensions?: TileDimensions
-  plainDimensions?: TileDimensions | null
-  /**
-   * Where the highlighter tile is to be used — a hard placement instruction,
-   * chosen from the showroom's own list. Carried and recorded; the prompt does
-   * not render it yet.
-   */
-  highlighterLocation?: { name: string; description: string }
-  /** The verified application chain, root category first. */
-  application?: { name: string; description: string }[]
-  jointWidthMm?: number
-  layingPattern?: { name: string; description: string }
-  /** How the tile participates in the design — base, highlighter, accent. */
-  tileRole?: { name: string; description: string }
-  additionalRequirement?: string
-  /**
-   * Which concept of this consultation to produce, from zero. Each request
-   * makes exactly one image; asking again with the next index gives a
-   * different viewpoint of the same room.
-   */
-  conceptIndex?: number
-  revisionReasons?: { name: string; description: string }[]
-  revisionNote?: string
+  plainTileImage: string | null
 }
 
 export interface GenerateVisualizationResult {
@@ -421,29 +397,43 @@ export async function generateVisualization(
     throw new GenerationError('This feature is temporarily unavailable. Please contact the team.', 503)
   }
 
+  // The photos must agree with the brief about whether a plain tile exists. A
+  // mismatch is a bug upstream, and it is refused before anything is billed
+  // rather than sent as a request whose structure and images disagree.
+  const { brief } = input
+  if (brief.tiles.plain.provided !== (input.plainTileImage !== null)) {
+    throw new GenerationError(
+      'The plain tile photo does not match the plain tile selection. Please go back and set the plain tile again.',
+      400,
+    )
+  }
+
   // Both are kept: the crop exactly as the salesperson made it, and the
-  // processed copy the model is actually shown.
+  // processed copy the model is actually shown. Each tile is parsed and
+  // processed on its own; the two are never combined.
   const original = parseTileImage(input.highlighterTileImage, 'highlighter tile photo')
-  // Validated here so a malformed plain photo is refused before anything is
-  // billed. It is stored alongside the highlighter but not shown to the model
-  // yet — see `plainTileImage` on the input.
-  const plainOriginal =
-    input.plainTileProvided && input.plainTileImage
-      ? parseTileImage(input.plainTileImage, 'plain tile photo')
-      : null
+  const plainOriginal = input.plainTileImage
+    ? parseTileImage(input.plainTileImage, 'plain tile photo')
+    : null
   const tile = await prepareTileReference(original)
-  const conceptIndex = Math.max(0, Math.trunc(input.conceptIndex ?? 0))
-  const prompt = buildGenerationPrompt({
-    space: input.space,
-    application: input.application,
-    jointWidthMm: input.jointWidthMm,
-    layingPattern: input.layingPattern,
-    tileRole: input.tileRole,
-    additionalRequirement: input.additionalRequirement,
-    revisionReasons: input.revisionReasons,
-    revisionNote: input.revisionNote,
-    tileSize: input.tileSize,
-  }, conceptIndex)
+  const plainTile = plainOriginal ? await prepareTileReference(plainOriginal) : null
+  const conceptIndex = brief.concept.index
+
+  // The brief rendered as ordered input: the structured selections, the facts
+  // computed from them, and each tile photograph as its own part directly after
+  // a label that names it. The system instruction is separate and static.
+  const plan = buildModelRequest(brief)
+  const references = { highlighter: tile, plain: plainTile }
+  const modelInput = plan.parts.map((part) => {
+    if (part.kind === 'text') return { type: 'text' as const, text: part.text }
+    const reference = references[part.tile]
+    if (!reference) throw new GenerationError('A tile photograph was missing from the request.', 400)
+    return { type: 'image' as const, data: reference.data, mime_type: reference.mimeType }
+  })
+  console.log(
+    '[generateVisualization] request parts:',
+    plan.parts.map((part) => (part.kind === 'text' ? 'text' : `image(${part.tile})`)).join(', '),
+  )
   // Generated up front so it can name the Drive files below, and reused
   // as-is on the returned result rather than generating a second, different id.
   const generationId = randomUUID()
@@ -460,10 +450,7 @@ export async function generateVisualization(
         ai.interactions.create({
           model: IMAGE_MODEL,
           system_instruction: SYSTEM_INSTRUCTION,
-          input: [
-            { type: 'text', text: prompt.text },
-            { type: 'image', data: tile.data, mime_type: tile.mimeType },
-          ],
+          input: modelInput,
           response_modalities: ['text', 'image'],
           generation_config: {
             image_config: {
@@ -550,8 +537,8 @@ export async function generateVisualization(
     highlighterTileImageUrl,
     plainTileImageUrl,
     processedTileUrl,
-    space: input.space,
-    tileSize: input.tileSize ?? '',
-    plainTileProvided: input.plainTileProvided,
+    space: brief.placement.space.spaceId ?? brief.placement.space.name,
+    tileSize: `${brief.tiles.highlighter.sizeMm.lengthMm}x${brief.tiles.highlighter.sizeMm.breadthMm}`,
+    plainTileProvided: brief.tiles.plain.provided,
   }
 }
