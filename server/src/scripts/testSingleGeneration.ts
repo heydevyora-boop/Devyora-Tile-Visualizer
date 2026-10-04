@@ -4,7 +4,7 @@
  * full set of three.
  *
  *   npm run test:generate
- *   npm run test:generate -- "Bathroom" "Modern" "1200x600"
+ *   npm run test:generate -- "Bathroom" "1200x600"
  *
  * Deliberately does NOT call generateVisualization(), because that fires all
  * three concepts in parallel.
@@ -17,7 +17,7 @@ import { SYSTEM_INSTRUCTION, buildGenerationPrompts } from '../services/buildGen
 import { parseTileImage } from '../services/generateVisualization'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL as MODEL, IMAGE_SIZE } from '../config/imageModel'
 
-const [space = 'Bathroom', style = 'Modern', tileSize = '1200x600'] = process.argv.slice(2)
+const [space = 'Bathroom', tileSize = '1200x600'] = process.argv.slice(2)
 
 const TILE_PATH = resolve(__dirname, '../../../client/public/sample-tile.jpg')
 const OUT_DIR = resolve(__dirname, '../../test-output')
@@ -40,14 +40,14 @@ async function main() {
   const tileDataUrl = `data:image/jpeg;base64,${tileBytes.toString('base64')}`
   const tile = parseTileImage(tileDataUrl)
 
-  const prompts = buildGenerationPrompts({ space, style, tileSize })
+  const prompts = buildGenerationPrompts({ space, tileSize })
   const prompt = prompts[0] // CONCEPT 1 ONLY - concepts 2 and 3 are intentionally skipped
 
   console.log('='.repeat(72))
   console.log('SINGLE GENERATION TEST - CONCEPT 1 ONLY')
   console.log('='.repeat(72))
   console.log('model      :', MODEL)
-  console.log('space/style:', space, '/', style, '/', tileSize)
+  console.log('space/size :', space, '/', tileSize)
   console.log('tile photo :', TILE_PATH)
   console.log('tile size  :', tileBytes.length, 'bytes ->', tile.data.length, 'base64 chars')
   console.log('focus      :', prompt.focus)

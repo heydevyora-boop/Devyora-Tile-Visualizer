@@ -141,6 +141,9 @@ function SavedConceptDetail() {
             {record.croppedTileImage && (
               <img className="ws__thumb" src={record.croppedTileImage} alt="Cropped tile" />
             )}
+            {record.plainTileImage && (
+              <img className="ws__thumb" src={record.plainTileImage} alt="Plain tile" />
+            )}
           </div>
 
           <h2 className="ws__section-title">How this was made</h2>
@@ -149,8 +152,22 @@ function SavedConceptDetail() {
             <Row label="Architect/contractor" value={record.architectName} />
             <Row label="Client" value={record.customerName} />
             <Row label="Tile size" value={record.tileSize} />
+            {/* Absent on a concept saved before the plain tile existed, so it is
+                shown only when it was recorded — never as a guess. */}
+            <Row
+              label="Plain tile"
+              value={
+                record.plainTileProvided === true
+                  ? 'Supplied'
+                  : record.plainTileProvided === false
+                    ? 'No plain tile'
+                    : null
+              }
+            />
+            <Row label="Highlighter location" value={record.highlighterLocation ?? null} />
             <Row label="Space" value={record.space} />
             <Row label="Application" value={application} />
+            {/* Only concepts made while a design style was still part of the flow. */}
             <Row label="Design style" value={record.styleName} />
             <Row label="Joint" value={joint} />
             <Row label="Laying pattern" value={record.patternName} />

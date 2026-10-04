@@ -1,11 +1,8 @@
 import { getSpaceConfig, type SpaceConfig } from '../config/spaces'
-import { getStyleConfig, resolveStyleValue, type StyleConfig } from '../config/styles'
 import { buildApplicationMap, renderApplicationMap } from './applicationMap'
 
 export interface PromptInput {
   space: string
-  /** May be "surprise" — resolved to a concrete style before prompts are built. */
-  style: string
   tileSize?: string
   /**
    * The application the salesperson chose, root category first — for example
@@ -19,11 +16,6 @@ export interface PromptInput {
   layingPattern?: { name: string; description: string }
   /** How the tile participates in the design — base, highlighter, accent. */
   tileRole?: { name: string; description: string }
-  /**
-   * A style the showroom added that has no curated config. Its description is
-   * used in place of one.
-   */
-  styleDescription?: string
   /**
    * What the customer asked for in their own words, where the fixed choices
    * did not cover it. Optional and usually absent.
@@ -45,12 +37,6 @@ export interface BuiltPrompt {
   focus: string
   /** The full text prompt sent to the image model alongside the tile photo. */
   text: string
-  /**
-   * The concrete style id actually used for this prompt. Equal to the input
-   * style unless the input was "surprise", in which case this is the style
-   * that was randomly picked.
-   */
-  resolvedStyle: string
 }
 
 /**
@@ -59,7 +45,7 @@ export interface BuiltPrompt {
  * Holds everything that is identical for all three concepts: the visualiser's
  * role, the tile-preservation rules that keep the render faithful to the
  * salesperson's physical tile, and the output constraints. Per-request detail
- * (space, style, tile size, concept focus) goes in the prompt text instead.
+ * (space, tile size, concept focus) goes in the prompt text instead.
  *
  * This is backend-only. It must never be returned to the client.
  */
@@ -198,24 +184,6 @@ You are not inventing a new tile design — you are showing how the real supplie
 
 CORE PRINCIPLE: THE ENVIRONMENT CAN BE CREATIVE. THE TILE CANNOT BE REINTERPRETED. THE TILE APPLICATION CANNOT BE INVENTED. THE TILE MUST ONLY APPEAR WHERE THE USER HAS REQUESTED IT.`
 
-function describeStyle(
-  style: StyleConfig | undefined,
-  rawStyle: string,
-  showroomDescription?: string,
-): string {
-  if (!style) {
-    // A style the showroom added itself has no curated cues, so its own
-    // description is the brief.
-    return showroomDescription
-      ? `Design style: ${rawStyle} — ${showroomDescription}`
-      : `Design style: ${rawStyle}.`
-  }
-  return [
-    `Design style: ${style.label} — ${style.description}.`,
-    `Style cues to express in the surrounding architecture, furniture, materials and lighting: ${style.keywords.join(', ')}.`,
-  ].join('\n')
-}
-
 function describeSpace(space: SpaceConfig | undefined, rawSpace: string): string {
   if (!space) {
     return `Space: ${rawSpace}. Apply the tile to the surfaces where it would realistically be used in this kind of space.`
@@ -228,7 +196,7 @@ function describeSpace(space: SpaceConfig | undefined, rawSpace: string): string
 }
 
 /**
- * Builds the three prompts (one per concept) for a given space/style.
+ * Builds the three prompts (one per concept) for a given space.
  *
  * Pure function — makes no network calls, so prompts can be printed and
  * reviewed without spending API credits.
@@ -249,9 +217,7 @@ export function buildGenerationPrompt(input: PromptInput, conceptIndex = 0): Bui
 }
 
 export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
-  const resolvedStyle = resolveStyleValue(input.style)
   const spaceConfig = getSpaceConfig(input.space)
-  const styleConfig = getStyleConfig(resolvedStyle)
 
   const variations: string[] = spaceConfig
     ? [...spaceConfig.variationStrategy]
@@ -264,13 +230,10 @@ export function buildGenerationPrompts(input: PromptInput): BuiltPrompt[] {
   return variations.map((focus, index) => ({
     conceptIndex: index + 1,
     focus,
-    resolvedStyle,
     text: [
       'Using the attached photograph of a physical tile, render a photorealistic interior showing that tile installed in the space described below.',
       '',
       describeSpace(spaceConfig, input.space),
-      '',
-      describeStyle(styleConfig, resolvedStyle, input.styleDescription),
       '',
       describeApplication(input.application),
       describeTileRole(input.tileRole),

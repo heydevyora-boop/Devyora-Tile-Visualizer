@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   DesignOptionsError,
   createDesignOption,
+  isDesignOptionKind,
   listAllDesignOptions,
   listDesignOptions,
   reorderDesignOptions,
@@ -13,7 +14,7 @@ import { DbError, asDbError } from './_lib/db.js'
 /**
  * Design styles, joint widths, laying patterns and revision reasons.
  *
- * GET ?kind=style|joint|pattern|reason|role — the active options of one kind.
+ * GET ?kind=<kind> — the active options of one kind (any kind the catalogue holds).
  * GET ?all=1                         — admin: everything, including disabled.
  * POST / PATCH                       — admin only.
  */
@@ -49,17 +50,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return
       }
       const kind = req.query?.kind
-      // 'reason' and 'role' belong here too: the salesperson's "what would you
-      // like to change?" panel and the tile-role picker both read through this
-      // same route.
-      if (
-        kind !== 'style' &&
-        kind !== 'joint' &&
-        kind !== 'pattern' &&
-        kind !== 'reason' &&
-        kind !== 'role'
-      ) {
-        throw new DesignOptionsError('Ask for style, joint, pattern, reason or role.')
+      // Every screen that reads a list reads it through this route, so the set
+      // of kinds comes from the store rather than being repeated here.
+      if (!isDesignOptionKind(kind)) {
+        throw new DesignOptionsError('Ask for a kind of design option the catalogue holds.')
       }
       res.status(200).json(await listDesignOptions(kind))
       return

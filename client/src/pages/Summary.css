@@ -539,3 +539,18 @@ header.fixed .h-16 img {
   outline: none;
   border-color: var(--color-primary);
 }
+
+/* --- Tile blocks: label above each, and a neutral "No Plain Tile" state ----- */
+
+.summary-tile__label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+}
+
+/* A deliberate choice, so not the error colour .summary-tile__empty uses. */
+.summary-tile__none {
+  color: var(--color-on-surface-variant);
+  font-size: 14px;
+}

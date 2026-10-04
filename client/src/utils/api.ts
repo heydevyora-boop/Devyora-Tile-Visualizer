@@ -186,7 +186,7 @@ export interface SpaceNode {
   active: boolean
 }
 
-export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role'
+export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role' | 'highlighterLocation'
 
 export interface DesignOption {
   id: string
@@ -225,8 +225,18 @@ export interface SavedVisualisation {
   originalTileImage: string | null
   croppedTileImage: string | null
   tileSize: string | null
+  /**
+   * Absent or null on a concept saved before the plain tile existed — that
+   * means "not recorded", not "no plain tile". False is the explicit choice.
+   */
+  plainTileProvided?: boolean | null
+  plainTileImage?: string | null
+  plainTileSize?: string | null
+  /** Where the highlighter tile was to be used. */
+  highlighterLocation?: string | null
   space: string | null
   spacePath: { id: string; name: string }[]
+  /** Only on concepts made when a design style was still part of the flow. */
   styleName: string | null
   jointName: string | null
   jointWidthMm: number | null

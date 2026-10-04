@@ -40,6 +40,18 @@ export interface SavedVisualisation {
   originalTileImage: string | null
   croppedTileImage: string | null
   tileSize: string | null
+  /**
+   * Whether a plain tile photo took part. False means the salesperson chose
+   * "No Plain Tile". Absent on a record made before the plain tile existed —
+   * read that as "not recorded", never as false.
+   */
+  plainTileProvided?: boolean | null
+  /** The cropped plain tile, shaped like `croppedTileImage`. Null when there was none. */
+  plainTileImage?: string | null
+  /** The plain tile's own size ("600x600"), kept apart from the highlighter's `tileSize`. */
+  plainTileSize?: string | null
+  /** Where the highlighter tile was to be used, as it was named at the time. */
+  highlighterLocation?: string | null
   /** The area this belongs under in the client's record. */
   space: string | null
   spacePath: { id: string; name: string }[]
@@ -163,6 +175,10 @@ export async function saveVisualisation(
     originalTileImage: context.originalTileImage ?? optionalImage(input.originalTileImage),
     croppedTileImage: context.croppedTileImage,
     tileSize: context.tileSize,
+    plainTileProvided: context.plainTileProvided ?? null,
+    plainTileImage: context.plainTileImage ?? null,
+    plainTileSize: context.plainTileSize ?? null,
+    highlighterLocation: context.highlighterLocation ?? null,
     space: context.space,
     spacePath: context.spacePath,
     styleName: context.styleName,

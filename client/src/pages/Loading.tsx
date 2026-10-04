@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
-import { buildApplicationMap } from '../utils/applicationMap'
+import { buildGenerateRequest } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Loading.css'
 
@@ -19,15 +19,15 @@ function Loading() {
   const navigate = useNavigate()
   const {
     customer,
-    croppedImage,
+    highlighterTileImage,
+    plainTileImage,
+    plainTileProvided,
     space,
     spacePath,
-    style,
-    styleOption,
+    highlighterLocationOption,
     jointWidthMm,
     jointOption,
     patternOption,
-    tileRoleOption,
     additionalRequirement,
     tileSize,
     setGeneratedResult,
@@ -46,9 +46,22 @@ function Loading() {
 
   const runGeneration = useCallback(
     async (signal: AbortSignal) => {
-      if (!croppedImage) {
-        throw new Error('No tile photo was found. Please go back and retake the tile photo.')
-      }
+      // Throws a readable message if the consultation is incomplete, before
+      // anything is sent — so an unfinished flow is never billed.
+      const requestBody = buildGenerateRequest({
+        customer,
+        highlighterTileImage,
+        plainTileImage,
+        plainTileProvided,
+        tileSize,
+        space,
+        spacePath,
+        highlighterLocationOption,
+        jointWidthMm,
+        jointOption,
+        patternOption,
+        additionalRequirement,
+      })
 
       let response: Response
       try {
@@ -58,33 +71,7 @@ function Loading() {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({
-            tileImage: croppedImage,
-            space,
-            // The ids of the chosen application, re-checked server-side.
-            spacePath: spacePath.map((node) => node.id),
-            // The same eight-field map the server independently derives from
-            // its own re-resolved path — sent so the request itself carries
-            // the explicit application as structured data, not only as ids
-            // the server has to look up to find out what they mean.
-            applicationMap: spacePath.length ? buildApplicationMap(spacePath) : undefined,
-            style,
-            // Ids where the option came from the showroom's list, so the
-            // server verifies it; the millimetres only when typed in.
-            styleOptionId: styleOption?.id,
-            jointOptionId: jointOption?.id,
-            jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
-            patternOptionId: patternOption?.id,
-            // Absent when skipped — the server substitutes the showroom's
-            // default role itself, so nothing here needs to guess at it.
-            roleOptionId: tileRoleOption?.id,
-            tileSize,
-            // Who this is for. The server resolves the architect from the
-            // customer and takes the salesperson from the session, so neither
-            // is sent from here.
-            customerId: customer?.id,
-            additionalRequirement: additionalRequirement.trim() || undefined,
-          }),
+          body: JSON.stringify(requestBody),
           signal,
         })
       } catch (networkError) {
@@ -114,15 +101,15 @@ function Loading() {
       }
     },
     [
-      croppedImage,
+      highlighterTileImage,
+      plainTileImage,
+      plainTileProvided,
       space,
       spacePath,
-      style,
-      styleOption,
+      highlighterLocationOption,
       jointWidthMm,
       jointOption,
       patternOption,
-      tileRoleOption,
       additionalRequirement,
       customer,
       tileSize,

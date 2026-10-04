@@ -7,19 +7,40 @@ import { GoogleGenAI } from '@google/genai'
 import { SYSTEM_INSTRUCTION, buildGenerationPrompt } from './buildGenerationPrompt.js'
 import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive.js'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL, IMAGE_SIZE } from './imageModel.js'
+import type { TileDimensions } from './generateRequest.js'
 
 export interface GenerateVisualizationInput {
-  tileImage: string
+  /** The highlighter photo — the one tile reference the model is shown. */
+  highlighterTileImage: string
+  /**
+   * The plain / base photo. Validated, stored and carried through, but not yet
+   * shown to the model: the prompt does not refer to it. That wiring belongs to
+   * the prompt rewrite, so it is carried here rather than quietly dropped.
+   */
+  plainTileImage?: string | null
+  /** True for a supplied plain tile; false only for an explicit "No Plain Tile". */
+  plainTileProvided: boolean
   space: string
-  style: string
+  /**
+   * "1200x600", built from the numeric dimensions by the route — the form the
+   * prompt's size description already reads. The numbers are the source.
+   */
   tileSize?: string
+  /** Each tile's own size. Carried so two different products never share a number by assumption. */
+  highlighterDimensions?: TileDimensions
+  plainDimensions?: TileDimensions | null
+  /**
+   * Where the highlighter tile is to be used — a hard placement instruction,
+   * chosen from the showroom's own list. Carried and recorded; the prompt does
+   * not render it yet.
+   */
+  highlighterLocation?: { name: string; description: string }
   /** The verified application chain, root category first. */
   application?: { name: string; description: string }[]
   jointWidthMm?: number
   layingPattern?: { name: string; description: string }
   /** How the tile participates in the design — base, highlighter, accent. */
   tileRole?: { name: string; description: string }
-  styleDescription?: string
   additionalRequirement?: string
   /**
    * Which concept of this consultation to produce, from zero. Each request
@@ -37,13 +58,15 @@ export interface GenerateVisualizationResult {
   image: string
   /** Which concept this is, from zero. */
   conceptIndex: number
-  /** The crop exactly as made — a Drive URL, or a base64 fallback. */
-  tileImageUrl: string
-  /** The processed copy the model saw, when processing changed anything. */
+  /** The highlighter crop exactly as made — a Drive URL, or a base64 fallback. */
+  highlighterTileImageUrl: string
+  /** The plain crop, same shape. Absent when there was no plain tile. */
+  plainTileImageUrl?: string
+  /** The processed copy of the highlighter the model saw, when processing changed anything. */
   processedTileUrl?: string
   space: string
-  style: string
   tileSize: string
+  plainTileProvided: boolean
 }
 
 /**
@@ -74,7 +97,7 @@ interface ParsedDataUrl {
  * Accepts either a bare base64 string or a full data URL and returns the raw
  * base64 payload plus its mime type.
  */
-export function parseTileImage(tileImage: string): ParsedDataUrl {
+export function parseTileImage(tileImage: string, label = 'tile photo'): ParsedDataUrl {
   const dataUrlMatch = tileImage.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s)
   if (dataUrlMatch) {
     return { mimeType: dataUrlMatch[1], data: dataUrlMatch[2] }
@@ -83,7 +106,7 @@ export function parseTileImage(tileImage: string): ParsedDataUrl {
     return { mimeType: 'image/jpeg', data: tileImage.replace(/\s/g, '') }
   }
   throw new GenerationError(
-    'The tile photo could not be read. Please retake or re-upload the tile photo.',
+    `The ${label} could not be read. Please retake or re-upload the ${label}.`,
     400,
   )
 }
@@ -400,7 +423,14 @@ export async function generateVisualization(
 
   // Both are kept: the crop exactly as the salesperson made it, and the
   // processed copy the model is actually shown.
-  const original = parseTileImage(input.tileImage)
+  const original = parseTileImage(input.highlighterTileImage, 'highlighter tile photo')
+  // Validated here so a malformed plain photo is refused before anything is
+  // billed. It is stored alongside the highlighter but not shown to the model
+  // yet — see `plainTileImage` on the input.
+  const plainOriginal =
+    input.plainTileProvided && input.plainTileImage
+      ? parseTileImage(input.plainTileImage, 'plain tile photo')
+      : null
   const tile = await prepareTileReference(original)
   const conceptIndex = Math.max(0, Math.trunc(input.conceptIndex ?? 0))
   const prompt = buildGenerationPrompt({
@@ -409,11 +439,9 @@ export async function generateVisualization(
     jointWidthMm: input.jointWidthMm,
     layingPattern: input.layingPattern,
     tileRole: input.tileRole,
-    styleDescription: input.styleDescription,
     additionalRequirement: input.additionalRequirement,
     revisionReasons: input.revisionReasons,
     revisionNote: input.revisionNote,
-    style: input.style,
     tileSize: input.tileSize,
   }, conceptIndex)
   // Generated up front so it can name the Drive files below, and reused
@@ -480,7 +508,7 @@ export async function generateVisualization(
   // it, and the processed copy the model actually saw. When a concept is
   // questioned later, the two together show whether the tile or the
   // processing was at fault.
-  const [image, tileImageUrl, processedTileUrl] = await Promise.all([
+  const [image, highlighterTileImageUrl, processedTileUrl, plainTileImageUrl] = await Promise.all([
     uploadOrFallback(
       compressed[0].buffer,
       compressed[0].mimeType,
@@ -491,8 +519,8 @@ export async function generateVisualization(
     uploadOrFallback(
       Buffer.from(original.data, 'base64'),
       original.mimeType,
-      `${generationId}-tile-source.${extensionFor(original.mimeType)}`,
-      'tile source',
+      `${generationId}-highlighter-tile-source.${extensionFor(original.mimeType)}`,
+      'highlighter tile source',
       cropFolderId,
     ),
     tile.data === original.data
@@ -504,18 +532,26 @@ export async function generateVisualization(
           'processed tile reference',
           cropFolderId,
         ),
+    plainOriginal
+      ? uploadOrFallback(
+          Buffer.from(plainOriginal.data, 'base64'),
+          plainOriginal.mimeType,
+          `${generationId}-plain-tile-source.${extensionFor(plainOriginal.mimeType)}`,
+          'plain tile source',
+          cropFolderId,
+        )
+      : Promise.resolve<string | undefined>(undefined),
   ])
 
   return {
     generationId,
     conceptIndex,
     image,
-    tileImageUrl,
+    highlighterTileImageUrl,
+    plainTileImageUrl,
     processedTileUrl,
     space: input.space,
-    // Echo the concrete style actually used, not the literal "surprise"
-    // the client may have sent.
-    style: prompt.resolvedStyle,
     tileSize: input.tileSize ?? '',
+    plainTileProvided: input.plainTileProvided,
   }
 }

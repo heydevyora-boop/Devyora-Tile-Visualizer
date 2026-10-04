@@ -25,6 +25,18 @@ export interface GenerationContext {
   /** The cropped tile the concept was actually generated from. */
   croppedTileImage: string | null
   tileSize: string | null
+  /**
+   * Whether a plain tile photo took part. False means the salesperson chose
+   * "No Plain Tile". Absent on a record made before the plain tile existed —
+   * read that as "not recorded", never as false.
+   */
+  plainTileProvided?: boolean | null
+  /** The cropped plain tile, shaped like `croppedTileImage`. Null when there was none. */
+  plainTileImage?: string | null
+  /** The plain tile's own size ("600x600"), kept apart from the highlighter's `tileSize`. */
+  plainTileSize?: string | null
+  /** Where the highlighter tile was to be used, as it was named at the time. */
+  highlighterLocation?: string | null
   /** The top-level area — what a customer's saved work groups by. */
   space: string | null
   /**

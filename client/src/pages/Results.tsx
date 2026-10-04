@@ -6,7 +6,7 @@ import { ApiError, apiGet, apiPost, type DesignOption, type SavedVisualisation }
 import { saveImageToDevice } from '../utils/saveImage'
 import { formatTileSize } from '../utils/tileSizeLabel'
 import { dedupeByName } from '../utils/dedupeByName'
-import { buildApplicationMap } from '../utils/applicationMap'
+import { buildGenerateRequest } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Results.css'
 
@@ -22,18 +22,18 @@ function Results() {
   const navigate = useNavigate()
   const {
     customer,
-    tileImage,
-    croppedImage,
+    highlighterSource,
+    highlighterTileImage,
+    plainTileImage,
+    plainTileProvided,
     tileSize,
     tileFormatOption,
     space,
     spacePath,
-    style,
-    styleOption,
+    highlighterLocationOption,
     jointWidthMm,
     jointOption,
     patternOption,
-    tileRoleOption,
     additionalRequirement,
     generatedResult,
     setGeneratedResult,
@@ -68,10 +68,9 @@ function Results() {
   // Summary already showed, rather than a second guess at what they might be.
   const tileSizeLabel = formatTileSize(tileSize, tileFormatOption)
   const spaceLabel = space ?? null
-  const styleLabel = styleOption?.name ?? style ?? null
-  // The one place the real space/style selection is shown. The per-concept
-  // surface strategy stays backend-only and is never surfaced here.
-  const selectionSubtitle = [spaceLabel, styleLabel].filter(Boolean).join(' · ')
+  // The one place the real space selection is shown. The per-concept surface
+  // strategy stays backend-only and is never surfaced here.
+  const selectionSubtitle = spaceLabel ?? ''
 
   const [failedImages, setFailedImages] = useState<Record<number, boolean>>({})
   const handleImageError = (index: number) => {
@@ -133,7 +132,7 @@ function Results() {
    * that the salesperson did not ask to see.
    */
   const handleAnotherConcept = async () => {
-    if (addingConcept || !croppedImage) return
+    if (addingConcept) return
     setAddingConcept(true)
     setAddError(null)
     try {
@@ -144,19 +143,21 @@ function Results() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          tileImage: croppedImage,
-          space,
-          spacePath: spacePath.map((node) => node.id),
-          applicationMap: spacePath.length ? buildApplicationMap(spacePath) : undefined,
-          style,
-          styleOptionId: styleOption?.id,
-          jointOptionId: jointOption?.id,
-          jointWidthMm: jointOption ? undefined : jointWidthMm ?? undefined,
-          patternOptionId: patternOption?.id,
-          roleOptionId: tileRoleOption?.id,
-          tileSize,
-          customerId: customer?.id,
-          additionalRequirement: additionalRequirement.trim() || undefined,
+          // The same brief as the first generation, built by the same function.
+          ...buildGenerateRequest({
+            customer,
+            highlighterTileImage,
+            plainTileImage,
+            plainTileProvided,
+            tileSize,
+            space,
+            spacePath,
+            highlighterLocationOption,
+            jointWidthMm,
+            jointOption,
+            patternOption,
+            additionalRequirement,
+          }),
           conceptIndex: conceptImages.length,
           // What was wrong with the last concept, and which concept that was.
           reasonIds: chosenReasons,
@@ -176,7 +177,6 @@ function Results() {
       }
       const result = (await response.json()) as {
         image?: string
-        tileImageUrl?: string
         revision?: { id?: string } | null
       }
       if (!result.image) throw new Error('No image came back. Please try again.')
@@ -253,7 +253,7 @@ function Results() {
     try {
       const saved = await apiPost<SavedVisualisation>('/api/generations', token, {
         revisionId,
-        originalTileImage: tileImage ?? undefined,
+        originalTileImage: highlighterSource ?? undefined,
       })
       setSavedRevisions((current) => ({ ...current, [revisionId]: saved.id }))
     } catch (error) {

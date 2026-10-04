@@ -6,9 +6,9 @@ import './Workspace.css'
 
 const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
   {
-    kind: 'style',
-    label: 'Styles',
-    lede: 'The look of the room around the tile. Write the description the way you would say it to a customer.',
+    kind: 'highlighterLocation',
+    label: 'Highlighter locations',
+    lede: 'Where the highlighter tile can be used. Whatever a salesperson picks is a hard placement instruction: the description is what the generation is told to follow, so say plainly where the tile goes and that it stays there.',
   },
   {
     kind: 'joint',
@@ -28,7 +28,7 @@ const TABS: { kind: DesignOptionKind; label: string; lede: string }[] = [
   {
     kind: 'role',
     label: 'Tile roles',
-    lede: 'How the tile participates in the design — the whole surface, or one deliberate highlight. "Base / Background" is what a consultation silently uses when the salesperson skips this choice, so leave it enabled — disabling it leaves nothing to fall back to.',
+    lede: 'How a tile participates in the design. The salesperson no longer picks one: the highlighter photo is always given "Highlighter / Decorative", so leave that one enabled — disabling it sends the generation no role at all. The description is what the generation is told.',
   },
 ]
 
@@ -45,7 +45,7 @@ const CACHE_KEY = '/api/design-options?all=1'
 function DesignOptionsAdmin() {
   const { token } = useAuth()
   const [options, setOptions] = useState<DesignOption[] | null>(() => getCached(CACHE_KEY) ?? null)
-  const [kind, setKind] = useState<DesignOptionKind>('style')
+  const [kind, setKind] = useState<DesignOptionKind>('highlighterLocation')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 

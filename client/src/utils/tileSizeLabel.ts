@@ -17,3 +17,19 @@ export function formatTileSize(tileSize: string | null, format: TileFormat | nul
   const match = tileSize.match(/^(\d+)x(\d+)$/)
   return match ? `${match[1]} × ${match[2]} mm` : tileSize
 }
+
+/**
+ * A tile size id such as "1200x600" as the two numbers it stands for.
+ *
+ * The id is the flow's canonical size (the catalogue and the custom fields both
+ * produce it), so this is a reading of structured data rather than a guess at
+ * free text. Null for anything that is not exactly two whole numbers, so a
+ * malformed size is refused rather than sent as something it is not.
+ */
+export function parseTileSizeId(
+  tileSize: string | null,
+): { lengthMm: number; breadthMm: number } | null {
+  const match = tileSize?.match(/^(\d+)x(\d+)$/)
+  if (!match) return null
+  return { lengthMm: Number(match[1]), breadthMm: Number(match[2]) }
+}

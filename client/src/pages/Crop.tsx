@@ -1,13 +1,23 @@
 import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useFlow } from '../state/FlowContext'
+import { useFlow, type TileTarget } from '../state/FlowContext'
 import { getCroppedImage } from '../utils/cropImage'
 import FreeCrop, { type CropRect, type FreeCropHandle } from '../components/FreeCrop'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Crop.css'
 
+/** How each tile is named to the salesperson on this screen. */
+const TILE_LABELS: Record<TileTarget, string> = {
+  highlighter: 'highlighter tile',
+  plain: 'plain tile',
+}
+
 /**
  * Choosing which tile, and only which tile, becomes the design reference.
+ *
+ * Used for both tile inputs. `target` says which one is being cropped, so the
+ * highlighter and the plain tile each get their own photo and their own crop,
+ * and neither can overwrite the other.
  *
  * The selection is free-form: every corner and every edge moves on its own,
  * with no ratio locked in, so a square tile, a long plank and a tall riser are
@@ -16,22 +26,25 @@ import './Crop.css'
  * a hand, packaging, the floor), and the generation would then be working from
  * two materials instead of one.
  */
-function Crop() {
+function Crop({ target }: { target: TileTarget }) {
   const navigate = useNavigate()
-  const { tileImage, setTileImage, setCroppedImage } = useFlow()
+  const { highlighterSource, plainSource, setCroppedTile, clearTile } = useFlow()
+  // The photo being cropped. No fallback image: a crop with nothing behind it
+  // must never become a real tile reference.
+  const tileImage = target === 'plain' ? plainSource : highlighterSource
+  const tileLabel = TILE_LABELS[target]
   const cropRef = useRef<FreeCropHandle>(null)
 
   const [rect, setRect] = useState<CropRect | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [cropError, setCropError] = useState<string | null>(null)
 
-  const handleReturn = () => navigate('/camera')
+  const handleReturn = () => navigate('/tile-input')
 
-  /** Throws the photo away and goes back for another one. */
+  /** Throws this tile's photo away and goes back for another one. */
   const handleClearPreview = () => {
-    setTileImage(null)
-    setCroppedImage(null)
-    navigate('/camera')
+    clearTile(target)
+    navigate('/tile-input')
   }
 
   const handleReset = () => {
@@ -55,8 +68,8 @@ function Crop() {
         width: Math.round(rect.width),
         height: Math.round(rect.height),
       })
-      setCroppedImage(dataUrl)
-      navigate('/tile-size')
+      setCroppedTile(target, dataUrl)
+      navigate('/tile-input')
     } catch (error) {
       console.error('Failed to crop tile image', error)
       // Both buttons stay enabled so the crop can be adjusted and retried.
@@ -69,14 +82,14 @@ function Crop() {
     return (
       <div className="crop-page bg-surface text-on-surface flex flex-col items-center justify-center min-h-screen px-margin gap-space-md">
         <p className="font-body-md text-body-md text-on-surface-variant text-center">
-          No tile photo was found. Please take or choose one first.
+          No {tileLabel} photo was found. Please take or choose one first.
         </p>
         <button
           className="h-[52px] px-space-lg rounded-lg bg-primary text-on-primary font-title-md text-title-md"
           type="button"
-          onClick={() => navigate('/camera')}
+          onClick={() => navigate('/tile-input')}
         >
-          Back to capture
+          Back to tile input
         </button>
       </div>
     )
@@ -121,7 +134,7 @@ function Crop() {
 
           <div className="px-margin pt-space-xs pb-space-sm flex flex-col gap-1">
             <h1 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-wide">
-              Crop the tile
+              Crop the {tileLabel}
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant">
               Drag the corners and edges so only the tile is selected — no background, packaging or

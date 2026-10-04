@@ -13,7 +13,7 @@ import { getCollection } from './db'
  * Keeping them together means one admin screen and one set of rules rather
  * than three near-identical copies.
  */
-export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role'
+export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role' | 'highlighterLocation'
 
 export interface DesignOption {
   id: string
@@ -59,7 +59,7 @@ export class DesignOptionsError extends Error {
 }
 
 const COLLECTION = 'designOptions'
-const KINDS: DesignOptionKind[] = ['style', 'joint', 'pattern', 'reason', 'role']
+const KINDS: DesignOptionKind[] = ['style', 'joint', 'pattern', 'reason', 'role', 'highlighterLocation']
 
 /**
  * What a new showroom starts with.
@@ -229,6 +229,25 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     order,
     active: true,
   })),
+  // Where the highlighter tile goes. These are hard placement instructions for
+  // the highlighter, not descriptions of the room: the description is what the
+  // generation is told to follow, so the showroom can sharpen the wording
+  // without a redeploy.
+  ...([
+    ['Basin / Vanity', 'The highlighter tile is used around the basin / vanity area — the wall zone directly behind and beside the basin and vanity. It stays there; it is not moved to another part of the room.'],
+    ['Shower Area', 'The highlighter tile is used in the shower area — the shower wall or enclosure. It stays there; it is not moved to another part of the room.'],
+    ['Plain Wall', 'The highlighter tile is the selected plain-wall feature: one plain wall carries it as the highlight area. It stays on that wall; it is not moved to another part of the room.'],
+  ] as [string, string][]).map(([name, description], order) => ({
+    kind: 'highlighterLocation' as const,
+    name,
+    description,
+    imageUrl: null,
+    valueMm: null,
+    styleId: null,
+    isDefault: false,
+    order,
+    active: true,
+  })),
 ]
 
 /**
@@ -246,6 +265,16 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
 function seedId(kind: string, name: string): string {
   return `seed:${kind}:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
 }
+
+/**
+ * The tile role that belongs to the highlighter photo.
+ *
+ * The flow no longer asks which role the tile plays — a highlighter and a
+ * plain tile are two inputs with fixed roles — so the highlighter's role is
+ * looked up by its seed id, never by the "default" flag. That flag marks Base /
+ * Background, which is exactly what a highlighter must not silently become.
+ */
+export const HIGHLIGHTER_ROLE_ID = seedId('role', 'Highlighter / Decorative')
 
 /** True for the driver's duplicate-key error, however it is wrapped. */
 function isDuplicateKey(error: unknown): boolean {
@@ -285,6 +314,33 @@ async function healDuplicates(collection: Awaited<ReturnType<typeof getCollectio
   )
 }
 
+/**
+ * Kinds added after the first release, whose seed must reach showrooms that
+ * were seeded before they existed.
+ *
+ * Safe to key on "no rows of this kind at all": options can be disabled but
+ * never deleted, so an empty kind has never been seeded rather than emptied on
+ * purpose. The deterministic seed ids make a concurrent second writer collide
+ * with the first and be discarded, exactly as for the original seed.
+ */
+const BACKFILL_KINDS: DesignOptionKind[] = ['highlighterLocation']
+
+async function insertSeeds(
+  collection: Awaited<ReturnType<typeof getCollection<DesignOptionDoc>>>,
+  docs: Omit<DesignOptionDoc, '_id'>[],
+): Promise<void> {
+  if (docs.length === 0) return
+  try {
+    await collection.insertMany(
+      docs.map((doc) => ({ _id: seedId(doc.kind, doc.name), ...doc })),
+      { ordered: false },
+    )
+  } catch (error: unknown) {
+    // Another instance seeded first. Its rows are the same rows.
+    if (!isDuplicateKey(error)) throw error
+  }
+}
+
 let ready: Promise<void> | null = null
 
 async function ensureReady(): Promise<void> {
@@ -311,16 +367,19 @@ async function ensureReady(): Promise<void> {
 
       // Guarded by a count: once the showroom has edited these, an empty list
       // means they emptied it deliberately.
-      if ((await collection.countDocuments({})) > 0) return
-      try {
-        await collection.insertMany(
-          SEED.map((doc) => ({ _id: seedId(doc.kind, doc.name), ...doc })),
-          { ordered: false },
-        )
-      } catch (error: unknown) {
-        // Another instance seeded first. Its rows are the same rows.
-        if (!isDuplicateKey(error)) throw error
+      if ((await collection.countDocuments({})) > 0) {
+        // An existing showroom. Its lists are its own, so nothing is re-seeded
+        // — except a kind that did not exist when it was first seeded, which
+        // would otherwise stay empty forever: the whole-collection guard above
+        // can never fire for a database that already has rows.
+        for (const kind of BACKFILL_KINDS) {
+          if ((await collection.countDocuments({ kind })) === 0) {
+            await insertSeeds(collection, SEED.filter((doc) => doc.kind === kind))
+          }
+        }
+        return
       }
+      await insertSeeds(collection, SEED)
     })().catch((error: unknown) => {
       ready = null
       throw error
@@ -332,6 +391,17 @@ async function ensureReady(): Promise<void> {
 function toOption(doc: DesignOptionDoc): DesignOption {
   const { _id, ...rest } = doc
   return { id: _id, ...rest }
+}
+
+/**
+ * True for a kind the catalogue holds.
+ *
+ * The one allow-list: the HTTP routes ask this rather than keeping a list of
+ * their own, because a second copy is how a kind added here once came back
+ * from the API as a 400.
+ */
+export function isDesignOptionKind(value: unknown): value is DesignOptionKind {
+  return typeof value === 'string' && (KINDS as string[]).includes(value)
 }
 
 function requireKind(value: unknown): DesignOptionKind {
@@ -387,6 +457,7 @@ const KIND_LABEL: Record<DesignOptionKind, string> = {
   pattern: 'laying pattern',
   reason: 'reason',
   role: 'tile role',
+  highlighterLocation: 'highlighter location',
 }
 
 export async function createDesignOption(input: Record<string, unknown>): Promise<DesignOption> {

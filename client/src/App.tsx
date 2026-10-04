@@ -5,11 +5,14 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AdminShell from './components/AdminShell'
 import Login from './pages/Login'
 import Home from './pages/Home'
-import Camera from './pages/Camera'
+import TileInput from './pages/TileInput'
 import Crop from './pages/Crop'
 import TileSize from './pages/TileSize'
 import Space from './pages/Space'
-import Style from './pages/Style'
+import HighlighterLocation from './pages/HighlighterLocation'
+import Joint from './pages/Joint'
+import Pattern from './pages/Pattern'
+import Instructions from './pages/Instructions'
 import Summary from './pages/Summary'
 import Loading from './pages/Loading'
 import Results from './pages/Results'
@@ -52,11 +55,18 @@ const WORKSPACE_ROUTES = [
  */
 const FLOW_ROUTES = [
   { path: '/home', element: <Home /> },
-  { path: '/camera', element: <Camera /> },
-  { path: '/crop', element: <Crop /> },
+  { path: '/tile-input', element: <TileInput /> },
+  // One Crop screen for both tiles. Keyed so the two never share a crop
+  // rectangle: React would otherwise reuse one instance between these routes.
+  { path: '/crop/highlighter', element: <Crop key="highlighter" target="highlighter" /> },
+  { path: '/crop/plain', element: <Crop key="plain" target="plain" /> },
   { path: '/tile-size', element: <TileSize /> },
+  // Placement.
   { path: '/space', element: <Space /> },
-  { path: '/style', element: <Style /> },
+  { path: '/highlighter-location', element: <HighlighterLocation /> },
+  { path: '/joint', element: <Joint /> },
+  { path: '/pattern', element: <Pattern /> },
+  { path: '/instructions', element: <Instructions /> },
   { path: '/summary', element: <Summary /> },
   { path: '/loading', element: <Loading /> },
   { path: '/results', element: <Results /> },

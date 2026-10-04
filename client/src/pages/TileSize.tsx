@@ -100,7 +100,7 @@ function TileSize() {
             <button
               aria-label="Return"
               className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
-              onClick={() => navigate('/crop')}
+              onClick={() => navigate('/tile-input')}
               type="button"
             >
               <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
@@ -121,7 +121,7 @@ function TileSize() {
             <button
               aria-label="Previous step"
               className="flex items-center gap-space-xs text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
-              onClick={() => navigate('/crop')}
+              onClick={() => navigate('/tile-input')}
               type="button"
             >
               <span className="material-symbols-outlined text-[18px]">west</span>
@@ -130,7 +130,7 @@ function TileSize() {
             <div className="flex items-center gap-space-xs bg-surface-container-high px-space-sm py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
               <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary font-medium">
-                Step 03 / 06
+                Step 02 / 08
               </span>
             </div>
           </div>

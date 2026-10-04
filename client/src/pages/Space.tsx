@@ -90,7 +90,7 @@ function Space() {
             <span className="font-label-caps text-label-caps uppercase text-primary tracking-widest">DEVYORA</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="font-headline-sm text-headline-sm uppercase text-on-surface">Space Selection</span>
+            <span className="font-headline-sm text-headline-sm uppercase text-on-surface">Placement</span>
             <span className="font-label-caps text-label-caps text-outline uppercase tracking-wider">Visualizer</span>
           </div>
           <HeaderUserMenu />
@@ -111,7 +111,7 @@ function Space() {
             <div className="flex items-center gap-space-xs bg-surface-container-high px-space-sm py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
               <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary font-medium">
-                Step 04 / 06
+                Step 03 / 08
               </span>
             </div>
           </div>
@@ -196,7 +196,7 @@ function Space() {
                 id="continue-btn"
                 type="button"
                 disabled={!atLeaf}
-                onClick={() => navigate('/style')}
+                onClick={() => navigate('/highlighter-location')}
               >
                 <span>Continue</span>
                 <span className="material-symbols-outlined text-[20px]">east</span>

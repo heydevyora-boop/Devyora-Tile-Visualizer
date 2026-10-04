@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
+import { useFlow } from '../state/FlowContext'
 import './Home.css'
 
 const TILE_SRC =
@@ -8,12 +9,17 @@ const TILE_SRC =
 function Home() {
   const navigate = useNavigate()
   const { userName, logout } = useAuth()
+  const { resetTileInputs } = useFlow()
   const handleLogout = () => {
     logout()
     navigate('/', { replace: true })
   }
   const handleStart = () => {
-    navigate('/camera')
+    // Starting a consultation always begins with empty tile inputs. The tile
+    // screen treats "a highlighter and a plain decision" as complete, so
+    // without this the previous customer's tiles would already satisfy it.
+    resetTileInputs()
+    navigate('/tile-input')
   }
 
   return (
