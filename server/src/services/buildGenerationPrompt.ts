@@ -192,6 +192,38 @@ function describeRegeneration(brief: GenerationBrief): string {
 }
 
 /**
+ * Whether this request is for a bathroom, read from the chosen chain: the root
+ * space's own id, or any level named like one (washroom, powder room, toilet).
+ */
+function isBathroom(brief: GenerationBrief): boolean {
+  if (brief.placement.space.spaceId === 'bathroom') return true
+  return brief.placement.path.some((name) => /bath|wash\s?room|powder|toilet|\bwc\b/i.test(name))
+}
+
+/**
+ * A concrete fixture plan for every bathroom request.
+ *
+ * The rule against a WC in front of the basin also lives in the system
+ * instruction, but a rule buried in a long instruction, and phrased as what not
+ * to do, was not enough: the model still put the WC in the open floor in front
+ * of the vanity by default, while the same advice given in the request (as a
+ * correction) was followed. So every bathroom request now carries the layout
+ * itself, stated positively — where each fixture goes — beside the other facts.
+ * It arranges the room only; it never moves a tile or the highlighter location.
+ */
+function describeBathroomLayout(): string {
+  return [
+    'BATHROOM LAYOUT — arrange the fixtures exactly like this. This is a bathroom, and the layout is part of the request.',
+    '- The vanity with the basin stands against one wall. The floor directly in front of it is kept clear for a person to stand and wash.',
+    '- The WC stands EITHER against the same wall as the vanity, beside it with a clear gap of at least 30 cm, OR against a side wall near the far corner of the room. It faces into the open floor of the room.',
+    '- Nothing stands in the clear floor in front of the vanity: the WC is never placed there, and never directly opposite the basin facing it across the room.',
+    '- If the room has a shower or a bath, it takes the far end or a corner, behind glass, clear of the WC and the vanity.',
+    '- From the door there is a clear walking path to the vanity, the WC and the shower. Every fixture is wall-mounted or floor-standing as a real installation would be.',
+    'This arranges the fixtures only. The tiles, the surfaces they cover and the highlighter location stay exactly as the structured selections specify.',
+  ].join('\n')
+}
+
+/**
  * Turns a brief into the model's ordered input.
  *
  * The brief is rendered, not flattened: the selections go in as one JSON object
@@ -220,6 +252,7 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
   })
 
   parts.push({ kind: 'text', text: describeDerivedFacts(brief) })
+  if (isBathroom(brief)) parts.push({ kind: 'text', text: describeBathroomLayout() })
 
   parts.push({
     kind: 'text',
