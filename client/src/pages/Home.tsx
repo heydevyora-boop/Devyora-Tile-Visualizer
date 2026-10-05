@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { useFlow } from '../state/FlowContext'
 import { haptic } from '../utils/haptic'
+import { prefetchFlowData } from '../utils/flowData'
 import './Home.css'
 
 const TILE_SRC =
@@ -9,8 +11,11 @@ const TILE_SRC =
 
 function Home() {
   const navigate = useNavigate()
-  const { userName, logout } = useAuth()
+  const { userName, logout, token } = useAuth()
   const { resetTileInputs } = useFlow()
+  // The steps after Start read these lists; asking now means they are there
+  // by the time each step opens.
+  useEffect(() => prefetchFlowData(token), [token])
   const handleLogout = () => {
     logout()
     navigate('/', { replace: true })

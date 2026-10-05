@@ -4,6 +4,7 @@ import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { useFlow } from '../state/FlowContext'
 import { ApiError, apiGet, apiPost, type Architect, type Customer } from '../utils/api'
+import { prefetchFlowData } from '../utils/flowData'
 import './Workspace.css'
 
 type Mode = 'customer' | 'architect' | 'new'
@@ -26,6 +27,8 @@ const MODES: { id: Mode; label: string }[] = [
 function ClientSelect() {
   const navigate = useNavigate()
   const { token } = useAuth()
+  // The consultation's steps come next; fetch their option lists meanwhile.
+  useEffect(() => prefetchFlowData(token), [token])
   const { setCustomer } = useFlow()
 
   const [mode, setMode] = useState<Mode>('customer')

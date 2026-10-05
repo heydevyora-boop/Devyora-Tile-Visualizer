@@ -14,6 +14,7 @@ import { DbError, asDbError } from './_lib/db.js'
  * The space catalogue: categories, their applications, and any deeper choices.
  *
  * GET  ?parentId=<id|root>  — the active children at one level, for the flow.
+ *      ?tree=1              — every active entry, in order, for the flow.
  *      ?all=1               — admin: the whole tree including disabled entries.
  * POST / PATCH              — admin only.
  */
@@ -46,6 +47,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
       if (req.query?.all === '1' && session.role === 'admin') {
         res.status(200).json(await listSpaceNodes(true))
+        return
+      }
+      // The whole active catalogue in one answer, so the flow can open every
+      // level without a round trip per level.
+      if (req.query?.tree === '1') {
+        res.status(200).json(await listSpaceNodes(false))
         return
       }
       const raw = req.query?.parentId

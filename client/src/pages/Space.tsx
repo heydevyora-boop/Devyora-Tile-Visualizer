@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
-import { ApiError, apiGet, type SpaceNode } from '../utils/api'
+import { ApiError, type SpaceNode } from '../utils/api'
+import { getCached } from '../utils/apiCache'
+import { loadSpaceNodes, spaceNodesKey } from '../utils/flowData'
 import { haptic } from '../utils/haptic'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Space.css'
@@ -34,17 +36,18 @@ function Space() {
 
   const current = spacePath[spacePath.length - 1] ?? null
   const currentParentId = current?.id ?? null
-  const options = loaded && loaded.parentId === currentParentId ? loaded.nodes : null
+  // A level already fetched (the whole catalogue is prefetched when the
+  // consultation starts) shows at once; the effect below still confirms it.
+  const options =
+    loaded && loaded.parentId === currentParentId
+      ? loaded.nodes
+      : (getCached<SpaceNode[]>(spaceNodesKey(currentParentId)) ?? null)
 
   useEffect(() => {
     const controller = new AbortController()
     void (async () => {
       try {
-        const nodes = await apiGet<SpaceNode[]>(
-          `/api/space-nodes?parentId=${currentParentId ? encodeURIComponent(currentParentId) : 'root'}`,
-          token,
-          controller.signal,
-        )
+        const nodes = await loadSpaceNodes(currentParentId, token)
         if (!controller.signal.aborted) setLoaded({ parentId: currentParentId, nodes })
       } catch (caught) {
         if (controller.signal.aborted) return

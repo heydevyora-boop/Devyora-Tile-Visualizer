@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
-import { ApiError, apiGet, type TileFormat } from '../utils/api'
+import { ApiError, type TileFormat } from '../utils/api'
+import { getCached } from '../utils/apiCache'
+import { TILE_FORMATS_KEY, loadTileFormats } from '../utils/flowData'
 import { haptic } from '../utils/haptic'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './TileSize.css'
@@ -32,7 +34,10 @@ function TileSize() {
   const { tileSize, setTileSize, setTileFormatOption } = useFlow()
   const { token } = useAuth()
 
-  const [formats, setFormats] = useState<TileFormat[] | null>(null)
+  // Normally prefetched when the consultation started, so it is already here.
+  const [formats, setFormats] = useState<TileFormat[] | null>(
+    () => getCached<TileFormat[]>(TILE_FORMATS_KEY) ?? null,
+  )
   const [loadError, setLoadError] = useState<string | null>(null)
   // null means "the salesperson has not touched this yet", so the panel and
   // the fields can follow the already-chosen size until they do. Derived at
@@ -48,7 +53,7 @@ function TileSize() {
     const controller = new AbortController()
     void (async () => {
       try {
-        const list = await apiGet<TileFormat[]>('/api/tile-formats', token, controller.signal)
+        const list = await loadTileFormats(token)
         if (!controller.signal.aborted) setFormats(list)
       } catch (caught) {
         if (controller.signal.aborted) return
@@ -59,6 +64,17 @@ function TileSize() {
     })()
     return () => controller.abort()
   }, [token])
+
+  // With no size chosen yet, the first standard format (300 × 600 mm) is the
+  // default, so the screen opens on a real selection rather than on nothing —
+  // which, with only the Custom row visible while formats loaded, read as
+  // Custom. A size the salesperson already chose, standard or custom, is kept.
+  const defaultFormat = formats?.[0]
+  useEffect(() => {
+    if (tileSize || !defaultFormat) return
+    setTileSize(toSizeId(defaultFormat.lengthMm, defaultFormat.breadthMm))
+    setTileFormatOption(defaultFormat)
+  }, [tileSize, defaultFormat, setTileSize, setTileFormatOption])
 
   // A size already chosen that is not one of the standard formats can only
   // have come from the custom fields, so the panel opens showing it rather

@@ -89,7 +89,7 @@ type FlowContextValue = {
   clearTile: (target: TileTarget) => void
   /** The explicit "No Plain Tile" choice. Discards any plain photo already taken. */
   selectNoPlainTile: () => void
-  /** Forgets both tile references, so a new consultation cannot inherit the last one. */
+  /** Forgets both tile references and the tile size, so a new consultation cannot inherit the last one. */
   resetTileInputs: () => void
   setTileSize: (tileSize: string | null) => void
   setTileFormatOption: (tileFormatOption: TileFormat | null) => void
@@ -162,6 +162,10 @@ export function FlowProvider({ children }: { children: ReactNode }) {
     setPlainSource(null)
     setPlainTileImage(null)
     setPlainTileProvided(null)
+    // The size belongs to the tile, so a new consultation does not inherit the
+    // previous customer's (often custom) size; Tile Size opens on its default.
+    setTileSize(null)
+    setTileFormatOption(null)
   }
 
   return (

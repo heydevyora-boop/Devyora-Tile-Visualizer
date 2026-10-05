@@ -55,6 +55,12 @@ router.get('/space-nodes', async (req, res) => {
       res.json(await listSpaceNodes(true))
       return
     }
+    // The whole active catalogue in one answer, so the flow can open every
+    // level without a round trip per level.
+    if (req.query.tree === '1') {
+      res.json(await listSpaceNodes(false))
+      return
+    }
     const raw = req.query.parentId
     const parentId = typeof raw === 'string' && raw && raw !== 'root' ? raw : null
     res.json(await listChildren(parentId))
