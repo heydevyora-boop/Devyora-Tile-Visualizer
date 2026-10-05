@@ -14,10 +14,8 @@ function OptionCard({
     <button
       type="button"
       aria-pressed={selected}
-      className={`w-full text-left rounded-xl overflow-hidden shadow-sm flex items-stretch transition-all ${
-        selected
-          ? 'bg-surface-container ring-1 ring-primary'
-          : 'bg-surface-container-low hover:bg-surface-container'
+      className={`option-card w-full text-left rounded-xl overflow-hidden shadow-sm flex items-stretch transition-all ${
+        selected ? 'is-selected' : 'bg-surface-container-low hover:bg-surface-container'
       }`}
       onClick={() => onSelect(option)}
     >
@@ -34,6 +32,11 @@ function OptionCard({
         {option.description && (
           <span className="font-body-sm text-body-sm text-on-surface-variant">{option.description}</span>
         )}
+      </span>
+      {/* Shown on every card, filled on the chosen one — the same radio the
+          tile-size cards use, so a selection reads the same on every screen. */}
+      <span className="material-symbols-outlined option-card__check" aria-hidden="true">
+        {selected ? 'radio_button_checked' : 'radio_button_unchecked'}
       </span>
     </button>
   )

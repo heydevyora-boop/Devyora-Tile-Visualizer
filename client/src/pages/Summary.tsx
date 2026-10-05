@@ -150,7 +150,6 @@ function Summary() {
     !tileSize && 'the tile size',
     spacePath.length === 0 && 'the placement',
     !highlighterLocationOption && 'the highlighter location',
-    !patternOption && 'the laying pattern',
   ].filter((item): item is string => Boolean(item))
   const ready = missing.length === 0
   const instructions = additionalRequirement.trim()
@@ -279,7 +278,7 @@ function Summary() {
             />
             <Row
               label="Laying pattern"
-              value={patternOption?.name ?? NOT_SELECTED}
+              value={patternOption?.name ?? 'Not specified'}
               to="/pattern"
               editLabel="Change the laying pattern"
             />

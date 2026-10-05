@@ -302,3 +302,29 @@ textarea {
 #root .pb-32 {
   padding-bottom: var(--action-bar-reserve, 8rem);
 }
+
+/* ==========================================================================
+   SELECTED OPTION CARD — shared by the list screens (laying pattern,
+   highlighter location, and the chosen placement).
+
+   The selected card used to differ from the others by a four-level background
+   shade; the outline it asked for (`ring-primary`) had no CSS, so nothing marked
+   the choice. This is the same recipe the tile-size cards already use — a gold
+   2px outline, the raised background and a soft glow — plus a filled radio.
+   ========================================================================== */
+.option-card.is-selected {
+  background-color: #292a2b;
+  box-shadow: 0 0 0 2px #e2c399, 0 0 16px rgba(197, 168, 128, 0.28);
+}
+
+.option-card__check {
+  align-self: center;
+  flex: none;
+  padding-right: 0.75rem;
+  font-size: 20px;
+  color: var(--color-outline);
+}
+
+.option-card.is-selected .option-card__check {
+  color: var(--color-primary);
+}

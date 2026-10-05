@@ -162,6 +162,24 @@ function Space() {
               <p className="font-body-sm text-body-sm text-on-surface-variant">Loading…</p>
             )}
 
+            {/* The chain is complete, so there is no list to pick from — show what
+                is chosen, marked as selected, rather than an empty screen. */}
+            {atLeaf && current && (
+              <div className="option-card is-selected w-full text-left rounded-xl overflow-hidden flex items-stretch">
+                {current.imageUrl && (
+                  <span className="space-card__thumb">
+                    <img src={current.imageUrl} alt={current.name} loading="lazy" />
+                  </span>
+                )}
+                <span className="flex-1 min-w-0 p-space-md flex flex-col justify-center gap-1">
+                  <span className="font-title-md text-title-md text-on-surface">{current.name}</span>
+                </span>
+                <span className="material-symbols-outlined option-card__check" aria-hidden="true">
+                  radio_button_checked
+                </span>
+              </div>
+            )}
+
             {(options ?? []).map((node) => (
               <button
                 key={node.id}

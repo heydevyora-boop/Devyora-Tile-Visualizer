@@ -16,10 +16,10 @@ function Pattern() {
       step="Step 06 / 08"
       backTo="/joint"
       heading="Laying pattern"
-      lede="How the tiles are set out. The result will follow it."
+      lede="Optional. How the tiles are set out — skip it and the result uses a conventional layout."
       continueTo="/instructions"
-      canContinue={selected !== null}
-      blockedReason="Choose a laying pattern to continue."
+      // Optional: a pattern is never required, and none is chosen for the user.
+      canContinue
     >
       {error && (
         <p className="px-margin font-body-sm text-body-sm text-error" role="alert">
@@ -35,7 +35,8 @@ function Pattern() {
             key={option.id}
             option={option}
             selected={selected?.id === option.id}
-            onSelect={setPatternOption}
+            // Tapping the chosen pattern again clears it, so an optional choice can be undone.
+            onSelect={(picked) => setPatternOption(selected?.id === picked.id ? null : picked)}
           />
         ))}
       </div>
