@@ -7,6 +7,7 @@ import {
   saveVisualisation,
 } from './_lib/savedVisualisationsStore.js'
 import { toOwnerScope } from './_lib/clientsStore.js'
+import { listGenerationActivity } from './_lib/revisionsStore.js'
 import { verifyAuthHeader } from './_lib/auth.js'
 import { DbError, asDbError } from './_lib/db.js'
 
@@ -15,6 +16,7 @@ import { DbError, asDbError } from './_lib/db.js'
  *
  * GET  /api/generations                 — everything this caller may see.
  * GET  /api/generations?customerId=…    — one client's record.
+ * GET  /api/generations?view=activity   — the admin log: every generation, saved or not.
  * GET  /api/generations?id=…            — one saved concept, in full. This
  *                                         reads the stored record; it never
  *                                         regenerates the image.
@@ -61,6 +63,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return
         }
         res.status(200).json(saved)
+        return
+      }
+      // The admin activity log: every generation, saved to a client or not.
+      if (req.query?.view === 'activity') {
+        const salesperson =
+          typeof req.query?.salesperson === 'string' ? req.query.salesperson : undefined
+        res.status(200).json(await listGenerationActivity(scope, { salesperson }))
         return
       }
       const customerId =

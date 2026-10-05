@@ -14,29 +14,28 @@ type GenerationRecord = {
   timestamp: string
 }
 
-/** The saved record as the API returns it — one kept concept, with its context. */
-type SavedRecord = {
+/** One generation as the activity log returns it. */
+type ActivityRecord = {
   id: string
   salespersonName?: string
   croppedTileImage?: string | null
-  image: string
-  savedAt: string
+  imageUrl: string
+  createdAt: string
 }
 
 /**
- * A saved concept is one image, not a set, so each becomes its own card.
+ * A generation is one image, so each becomes its own card.
  *
- * This screen used to show every generation as it happened. It now shows what
- * was kept: rejected experiments never reach the client's record, and so never
- * reach here either.
+ * This is the log of everything that was generated — whether or not the
+ * salesperson then saved it to a client, which is a separate record.
  */
-function toCard(saved: SavedRecord): GenerationRecord {
+function toCard(item: ActivityRecord): GenerationRecord {
   return {
-    generationId: saved.id,
-    userName: saved.salespersonName ?? 'Unknown',
-    croppedImage: saved.croppedTileImage ?? saved.image,
-    generatedImages: [saved.image],
-    timestamp: saved.savedAt,
+    generationId: item.id,
+    userName: item.salespersonName ?? 'Unknown',
+    croppedImage: item.croppedTileImage ?? item.imageUrl,
+    generatedImages: [item.imageUrl],
+    timestamp: item.createdAt,
   }
 }
 
@@ -61,7 +60,7 @@ function formatTimestamp(timestamp: string): { date: string; time: string } {
 // SavedVisualisation[] that Dashboard, RecentGenerations and SavedConcepts
 // fetch from the same endpoint and cache under the plain URL. Sharing a key
 // across two different shapes would hand one of them the other's data.
-const CACHE_KEY = '/api/generations::history-cards'
+const CACHE_KEY = '/api/generations::activity-cards'
 
 function History() {
   const navigate = useNavigate()
@@ -81,8 +80,8 @@ function History() {
         // real, specific cause ("could not be reached", "rejected the
         // sign-in", …) rather than a bare status code. A raw fetch() that
         // only checks response.ok throws that detail away.
-        const data = await apiGet<unknown>('/api/generations', token, signal)
-        const cards = Array.isArray(data) ? (data as SavedRecord[]).map(toCard) : []
+        const data = await apiGet<unknown>('/api/generations?view=activity', token, signal)
+        const cards = Array.isArray(data) ? (data as ActivityRecord[]).map(toCard) : []
         setRecords(cards)
         setCached(CACHE_KEY, cards)
       } catch (loadError) {
@@ -172,8 +171,8 @@ function History() {
             <h1 className="history-title">All Generations</h1>
             <p className="history-subtitle">
               {records === null
-                ? 'Loading saved consultations…'
-                : `${records.length} saved ${records.length === 1 ? 'consultation' : 'consultations'}, newest first.`}
+                ? 'Loading generations…'
+                : `${records.length} ${records.length === 1 ? 'generation' : 'generations'}, newest first.`}
             </p>
           </section>
 
@@ -187,9 +186,9 @@ function History() {
           {records !== null && records.length === 0 && !error && (
             <div className="history-empty" id="historyEmpty">
               <span className="material-symbols-outlined history-empty-icon">inventory_2</span>
-              <p className="history-empty-title">Nothing saved yet</p>
+              <p className="history-empty-title">Nothing generated yet</p>
               <p className="history-empty-text">
-                Concepts appear here once a salesperson saves one to a client.
+                Every concept a salesperson generates appears here.
               </p>
             </div>
           )}

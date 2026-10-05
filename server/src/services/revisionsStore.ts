@@ -122,6 +122,8 @@ async function ensureIndexes(): Promise<void> {
         // The chain for one consultation, in order.
         collection.createIndex({ generationId: 1, revision: 1 }),
         collection.createIndex({ salesperson: 1, createdAt: -1 }),
+        // The admin activity log: everyone's generations, newest first.
+        collection.createIndex({ createdAt: -1 }),
       ])
     })().catch((error: unknown) => {
       // Retry on a later request rather than caching the failure.
@@ -240,4 +242,113 @@ export async function recordRevision(input: {
   }
   await collection.insertOne(doc)
   return toRevision(doc)
+}
+
+/**
+ * One generation as the admin activity log shows it.
+ *
+ * Every successful generation is recorded as a revision — whether or not the
+ * salesperson went on to save it to a client — so this is the log of what was
+ * actually generated, by whom and when. It is deliberately a different thing
+ * from a client's saved record, which holds only what was kept.
+ */
+export interface GenerationActivity {
+  id: string
+  generationId: string
+  revision: number
+  parentRevisionId: string | null
+  /** Who generated it, from the verified session when it was made. */
+  salesperson: string
+  salespersonName: string
+  customerId: string | null
+  customerName: string | null
+  createdAt: string
+  /** The concept — a Drive URL, or a base64 fallback. Stored with the record, never regenerated. */
+  imageUrl: string
+  croppedTileImage: string | null
+  plainTileImage: string | null
+  plainTileProvided: boolean | null
+  tileSize: string | null
+  space: string | null
+  spacePath: string[]
+  highlighterLocation: string | null
+  jointWidthMm: number | null
+  patternName: string | null
+  additionalRequirement: string | null
+  /** Why another concept was asked for, where this was one. */
+  reasons: string[]
+  note: string
+  /** True once the salesperson also kept it in a client's record. */
+  savedToClient: boolean
+}
+
+/** The most the activity list returns at once; see `MAX_ACTIVITY_BYTES`. */
+const ACTIVITY_LIMIT = 100
+/**
+ * Hosting caps a response at about 4.5MB. Where images fall back to inline
+ * base64 they are large, so the list is cut to what fits rather than allowed to
+ * fail outright — newest first, so what is dropped is the oldest.
+ */
+const MAX_ACTIVITY_BYTES = 3_500_000
+
+/**
+ * Every generation this caller may see, newest first.
+ *
+ * An admin sees everyone's; anyone else sees only their own. The owner filter is
+ * spread after the optional salesperson filter, so narrowing can only ever
+ * narrow a scope and never reach beyond it.
+ */
+export async function listGenerationActivity(
+  scope: OwnerScope,
+  options: { salesperson?: string; limit?: number } = {},
+): Promise<GenerationActivity[]> {
+  await ensureIndexes()
+  const collection = await getCollection<RevisionDoc>(COLLECTION)
+  const limit = Math.min(Math.max(Math.trunc(options.limit ?? ACTIVITY_LIMIT), 1), ACTIVITY_LIMIT)
+  const docs = await collection
+    .find({
+      ...(options.salesperson ? { salesperson: options.salesperson.trim().toLowerCase() } : {}),
+      ...(scope.isAdmin ? {} : { salesperson: scope.salesperson }),
+    })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray()
+
+  const rows: GenerationActivity[] = []
+  let bytes = 0
+  for (const doc of docs) {
+    const context = doc.context
+    const row: GenerationActivity = {
+      id: doc._id,
+      generationId: doc.generationId,
+      revision: doc.revision,
+      parentRevisionId: doc.parentRevisionId,
+      salesperson: doc.salesperson,
+      salespersonName: context.salespersonName,
+      customerId: doc.customerId,
+      customerName: context.customerName,
+      createdAt: doc.createdAt,
+      imageUrl: doc.imageUrl,
+      croppedTileImage: context.croppedTileImage,
+      plainTileImage: context.plainTileImage ?? null,
+      plainTileProvided: context.plainTileProvided ?? null,
+      tileSize: context.tileSize,
+      space: context.space,
+      spacePath: context.spacePath.map((node) => node.name),
+      highlighterLocation: context.highlighterLocation ?? null,
+      jointWidthMm: context.jointWidthMm,
+      patternName: context.patternName,
+      additionalRequirement: context.additionalRequirement,
+      reasons: doc.reasonNames,
+      note: doc.note,
+      savedToClient: doc.savedAt !== null,
+    }
+    bytes += JSON.stringify(row).length
+    if (rows.length > 0 && bytes > MAX_ACTIVITY_BYTES) {
+      console.warn(`[revisions] activity list cut at ${rows.length} of ${docs.length} (response size cap)`)
+      break
+    }
+    rows.push(row)
+  }
+  return rows
 }

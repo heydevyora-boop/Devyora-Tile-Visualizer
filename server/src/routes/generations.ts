@@ -8,6 +8,7 @@ import {
   saveVisualisation,
 } from '../services/savedVisualisationsStore'
 import { toOwnerScope } from '../services/clientsStore'
+import { listGenerationActivity } from '../services/revisionsStore'
 import { verifyAuthHeader } from '../config/auth'
 import { DbError, asDbError } from '../services/db'
 
@@ -59,6 +60,13 @@ router.get('/generations', async (req, res) => {
         return
       }
       res.status(200).json(saved)
+      return
+    }
+    // The admin activity log: every generation, saved to a client or not.
+    if (req.query?.view === 'activity') {
+      const salesperson =
+        typeof req.query?.salesperson === 'string' ? req.query.salesperson : undefined
+      res.status(200).json(await listGenerationActivity(scope, { salesperson }))
       return
     }
     const customerId = typeof req.query?.customerId === 'string' ? req.query.customerId : undefined

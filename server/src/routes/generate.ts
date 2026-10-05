@@ -241,7 +241,9 @@ router.post('/generate', async (req, res) => {
       console.error('[POST /api/generate] could not record the revision:', error)
       return null
     })
-    res.json({ ...result, revision })
+    // `historyRecorded` lets the caller tell "the image was made" from "the
+    // image was made and logged" — the log is what the admin history reads.
+    res.json({ ...result, revision, historyRecorded: revision !== null })
   } catch (error) {
     // Generation failures must not take the server down.
     // A database that cannot be reached is not a generation failure, and saying

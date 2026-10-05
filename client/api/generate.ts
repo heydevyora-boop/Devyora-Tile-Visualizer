@@ -375,7 +375,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[POST /api/generate] could not record the revision:', error)
       return null
     })
-    const payload = JSON.stringify({ ...result, revision })
+    // `historyRecorded` lets the caller tell "the image was made" from "the
+    // image was made and logged" — the log is what the admin history reads.
+    const payload = JSON.stringify({ ...result, revision, historyRecorded: revision !== null })
     const payloadBytes = Buffer.byteLength(payload, 'utf8')
     console.log(
       '[POST /api/generate] done in',
