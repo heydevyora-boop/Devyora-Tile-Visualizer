@@ -31,8 +31,8 @@ The JSON fields mean:
 - placement.highlighterLocation — where the highlighter tile goes.
 - installation.jointWidthMm, installation.layingPattern — how the tile is installed.
 - additionalInstructions — free text from the salesperson, or null.
-- regeneration — present when this is a correction of an earlier concept.
-- concept.index — which concept of the consultation this is, from zero.
+- regeneration — isRegeneration is true when this is a correction of an earlier concept. It carries reasons (what was wrong), additionalInstruction (the salesperson's own words, or null), mayChange (what the correction may touch) and mustKeep (what it must hold exactly). A request headed REGENERATION explains it in full. See section 13.
+- concept.index — which concept of the consultation this is, from zero. concept.viewpoint — which camera viewpoint the request's concept focus uses.
 
 There is deliberately no design style field. See section 11.
 
@@ -130,14 +130,19 @@ The request names a concept focus (a viewpoint). It only chooses the camera. If 
 ══════════════════════════════════════
 13. REGENERATION
 ══════════════════════════════════════
-When regeneration.isRegeneration is true, this is a correction of an earlier concept. regeneration.reasons and regeneration.note say what was wrong. Change ONLY what they target and keep every other approved selection exactly as specified. Do not take it as licence to reinterpret the room.
-- Tile placement: correct where or how the tile is applied.
-- Overall look: improve the architecture, tiles and application fixed.
-- Tile scale: correct apparent scale within the exact dimensions.
-- Tile coverage: correct how much of the designated surface is covered, size, joint and pattern unchanged.
-- Colour / material combination: change the surrounding materials only, tiles fixed.
-- Composition: change the camera and arrangement only.
-- Anything else: follow the written correction directly, changing only what it targets.
+When regeneration.isRegeneration is true, this is a CORRECTION of a concept the customer has already seen. It is not a fresh design and not a request to "make it better".
+- Every approved selection in the request is unchanged: both tiles and their exact sizes, whether a plain tile exists, the space, subcategory, further options and application, the highlighter location, the joint width, the laying pattern and the additional instructions. regeneration.mustKeep lists what must be held exactly. Rebuild the same room, from the same selections, with only the correction applied.
+- regeneration.reasons says what was wrong. regeneration.mayChange says the only things you may change. Nothing outside it changes.
+- Apply each reason as follows.
+  - Tile Placement: correct only where and how the tile is applied, so it matches the placement and highlighter location exactly. Do not change the tile size.
+  - Overall Look: improve the overall architecture of the room. Do not change the approved tile requirements, and do not introduce a design style.
+  - Tile Scale: correct the visual scale within the exact dimensions. Do not change the placement.
+  - Tile Coverage: correct how much of each designated surface receives the tile, within what the application authorises.
+  - Colour / Material Combination: change the surrounding materials and colours only. Do not replace or alter the tiles.
+  - Composition: change the view and framing only.
+  - Something Else: follow regeneration.additionalInstruction exactly as written.
+- When regeneration.additionalInstruction is present, it states the correction in the salesperson's own words. Follow it, but only within regeneration.mayChange — it can never override an approved selection.
+- Several reasons may apply together. You may then change what any of them names, and nothing else.
 
 ══════════════════════════════════════
 14. PRIORITY ORDER

@@ -47,7 +47,6 @@ function Results() {
   const [reasons, setReasons] = useState<DesignOption[] | null>(null)
   const [chosenReasons, setChosenReasons] = useState<string[]>([])
   const [reasonNote, setReasonNote] = useState('')
-  const [lastRevisionId, setLastRevisionId] = useState<string | null>(null)
   // The two actions on a concept are tracked separately, because they mean
   // different things: one puts a copy on this device, the other puts it in the
   // client's permanent record.
@@ -162,7 +161,7 @@ function Results() {
           // What was wrong with the last concept, and which concept that was.
           reasonIds: chosenReasons,
           revisionNote: reasonNote.trim() || undefined,
-          parentRevisionId: lastRevisionId ?? undefined,
+          parentRevisionId: conceptRevisionIds[conceptRevisionIds.length - 1] ?? undefined,
         }),
       })
       if (!response.ok) {
@@ -181,7 +180,6 @@ function Results() {
       }
       if (!result.image) throw new Error('No image came back. Please try again.')
 
-      if (result.revision?.id) setLastRevisionId(result.revision.id)
       // Reset the sheet: the next correction is about the new concept.
       setAskingWhy(false)
       setChosenReasons([])

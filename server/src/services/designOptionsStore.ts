@@ -2,6 +2,7 @@
 // KEEP IN SYNC with the deployed Vercel copy in client/api/_lib/designOptionsStore.ts.
 import { randomUUID } from 'node:crypto'
 import { getCollection } from './db'
+import { RETIRED_REASON_IDS } from './regenerationRules'
 
 /**
  * The lists the showroom maintains for a consultation: the design style, the
@@ -46,6 +47,12 @@ export interface DesignOption {
 
 interface DesignOptionDoc extends Omit<DesignOption, 'id'> {
   _id: string
+  /**
+   * Set on an option the product no longer has, as opposed to one an admin
+   * switched off. It is never listed and never accepted, and an admin cannot
+   * bring it back — there is nothing for it to mean any more.
+   */
+  retired?: boolean
 }
 
 export class DesignOptionsError extends Error {
@@ -178,17 +185,6 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
   },
   {
     kind: 'reason' as const,
-    name: 'Style',
-    description: 'The room does not read as the style that was chosen.',
-    imageUrl: null,
-    valueMm: null,
-    styleId: null,
-    isDefault: false,
-    order: 5,
-    active: true,
-  },
-  {
-    kind: 'reason' as const,
     name: 'Composition',
     description: 'The framing, viewpoint or arrangement of the room needs to change.',
     imageUrl: null,
@@ -316,6 +312,29 @@ async function healDuplicates(collection: Awaited<ReturnType<typeof getCollectio
  */
 const BACKFILL_KINDS: DesignOptionKind[] = ['highlighterLocation']
 
+/**
+ * Takes the old "Style" correction reason out of a showroom that already has it.
+ *
+ * Design Style is gone from the flow, so "the room does not read as the style
+ * that was chosen" has nothing to refer to, and offering it would invite a
+ * style back into a correction. It was seeded into live databases, and seeding
+ * only ever adds, so it is retired here — once per process, idempotently, and
+ * by marking rather than deleting so past revisions that cite it still read.
+ */
+async function retireRemovedReasons(
+  collection: Awaited<ReturnType<typeof getCollection<DesignOptionDoc>>>,
+): Promise<void> {
+  const retire = { $set: { active: false, retired: true } }
+  for (const id of RETIRED_REASON_IDS) {
+    await collection.updateMany({ _id: id, retired: { $ne: true } }, retire)
+  }
+  // Also by name, for a row from before ids were deterministic.
+  await collection.updateMany(
+    { kind: 'reason', name: { $regex: '^style$', $options: 'i' }, retired: { $ne: true } },
+    retire,
+  )
+}
+
 async function insertSeeds(
   collection: Awaited<ReturnType<typeof getCollection<DesignOptionDoc>>>,
   docs: Omit<DesignOptionDoc, '_id'>[],
@@ -368,6 +387,7 @@ async function ensureReady(): Promise<void> {
             await insertSeeds(collection, SEED.filter((doc) => doc.kind === kind))
           }
         }
+        await retireRemovedReasons(collection)
         return
       }
       await insertSeeds(collection, SEED)
@@ -380,7 +400,7 @@ async function ensureReady(): Promise<void> {
 }
 
 function toOption(doc: DesignOptionDoc): DesignOption {
-  const { _id, ...rest } = doc
+  const { _id, retired: _retired, ...rest } = doc
   return { id: _id, ...rest }
 }
 
@@ -429,7 +449,11 @@ export async function listDesignOptions(
   await ensureReady()
   const collection = await getCollection<DesignOptionDoc>(COLLECTION)
   const docs = await collection
-    .find(includeDisabled ? { kind } : { kind, active: true })
+    .find(
+      includeDisabled
+        ? { kind, retired: { $ne: true } }
+        : { kind, active: true, retired: { $ne: true } },
+    )
     .sort({ order: 1 })
     .toArray()
   return docs.map(toOption)
@@ -438,7 +462,10 @@ export async function listDesignOptions(
 export async function listAllDesignOptions(): Promise<DesignOption[]> {
   await ensureReady()
   const collection = await getCollection<DesignOptionDoc>(COLLECTION)
-  const docs = await collection.find({}).sort({ order: 1 }).toArray()
+  const docs = await collection
+    .find({ retired: { $ne: true } })
+    .sort({ order: 1 })
+    .toArray()
   return docs.map(toOption)
 }
 
@@ -538,7 +565,7 @@ export async function findActiveOption(
 ): Promise<DesignOption | null> {
   await ensureReady()
   const collection = await getCollection<DesignOptionDoc>(COLLECTION)
-  const doc = await collection.findOne({ _id: id, kind, active: true })
+  const doc = await collection.findOne({ _id: id, kind, active: true, retired: { $ne: true } })
   return doc ? toOption(doc) : null
 }
 

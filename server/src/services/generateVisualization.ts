@@ -22,6 +22,18 @@ export interface GenerateVisualizationInput {
    * "No Plain Tile" choice, in which case no second image is sent at all.
    */
   plainTileImage: string | null
+  /**
+   * The consultation this concept belongs to. A correction passes its parent's
+   * id so the whole chain shares one; a first concept omits it and gets a new one.
+   */
+  generationId?: string
+  /**
+   * Epoch milliseconds after which no new model call may start. The route stops
+   * waiting at its own budget, but cannot cancel a call already in flight, so
+   * without this a retry could begin after the caller had given up — a billed
+   * generation nobody receives.
+   */
+  deadlineMs?: number
 }
 
 export interface GenerateVisualizationResult {
@@ -112,7 +124,7 @@ function toGenerationError(error: unknown): GenerationError {
       error,
     )
   }
-  if (status === 429 || haystack.includes('rate limit') || haystack.includes('quota') || haystack.includes('resource_exhausted')) {
+  if (status === 429 || status === 503 || haystack.includes('rate limit') || haystack.includes('quota') || haystack.includes('resource_exhausted')) {
     return new GenerationError(
       'The image service is busy right now. Please wait a moment and try again.',
       503,
@@ -162,8 +174,14 @@ const RETRY_BASE_DELAY_MS = 500
  * Takes a thunk rather than the call's params so the create() call at the
  * call site keeps its normal (non-streaming) overload resolution.
  */
-async function withRetry<T>(call: () => Promise<T>, conceptIndex: number): Promise<T> {
+async function withRetry<T>(
+  call: () => Promise<T>,
+  conceptIndex: number,
+  deadlineMs: number | undefined,
+  counter: { attempts: number },
+): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
+    counter.attempts = attempt + 1
     try {
       return await call()
     } catch (error) {
@@ -171,6 +189,14 @@ async function withRetry<T>(call: () => Promise<T>, conceptIndex: number): Promi
       const retryable = status === 429 || status === 503
       if (!retryable || attempt >= MAX_RETRIES) throw error
       const delayMs = RETRY_BASE_DELAY_MS * 2 ** attempt
+      // A retry that would start after the caller has stopped waiting is a
+      // billed call nobody can receive, so the original error stands instead.
+      if (deadlineMs !== undefined && Date.now() + delayMs >= deadlineMs) {
+        console.warn(
+          `[generateVisualization] concept ${conceptIndex + 1}: got ${status}, not retrying — out of time`,
+        )
+        throw error
+      }
       console.warn(
         `[generateVisualization] concept ${conceptIndex + 1}: got ${status}, retrying in ${delayMs}ms ` +
           `(attempt ${attempt + 1}/${MAX_RETRIES})`,
@@ -377,11 +403,10 @@ async function uploadOrFallback(
 }
 
 /**
- * Generates three architectural tile visualizations for the given input.
+ * Generates ONE architectural tile visualization for the given brief.
  *
- * Calls the Gemini image model once per concept, each with a different
- * variation focus taken from the space config, so the three results are
- * genuinely different concepts rather than three near-identical images.
+ * One request is one model call and one image. Asking for another concept —
+ * or a correction of this one — is a new request.
  */
 export async function generateVisualization(
   input: GenerateVisualizationInput,
@@ -432,7 +457,7 @@ export async function generateVisualization(
   )
   // Generated up front so it can name the Drive files below, and reused
   // as-is on the returned result rather than generating a second, different id.
-  const generationId = randomUUID()
+  const generationId = input.generationId ?? randomUUID()
 
   const ai = new GoogleGenAI({ apiKey })
 
@@ -440,6 +465,7 @@ export async function generateVisualization(
   // generated alongside it and discarded: every call here is billed, and a
   // consultation only ever shows what the salesperson asked to see.
   let interaction
+  const counter = { attempts: 0 }
   try {
     interaction = await withRetry(
       () =>
@@ -456,8 +482,13 @@ export async function generateVisualization(
           },
         }),
       conceptIndex,
+      input.deadlineMs,
+      counter,
     )
   } catch (error) {
+    console.warn(
+      `[generateVisualization] concept ${conceptIndex + 1} failed after ${counter.attempts} model call(s)`,
+    )
     throw toGenerationError(error)
   }
 
@@ -466,6 +497,8 @@ export async function generateVisualization(
     JSON.stringify({
       model: IMAGE_MODEL,
       interactionId: interaction.id,
+      // Every attempt is a billed call; one request normally makes exactly one.
+      attempts: counter.attempts,
       usage: (interaction as { usage?: unknown }).usage,
     }),
   )

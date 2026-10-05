@@ -7,6 +7,7 @@ import { renderApplicationMap } from './applicationMap.js'
 import { SYSTEM_INSTRUCTION } from './systemInstruction.js'
 import { toModelView, type GenerationBrief } from './generationBrief.js'
 import type { TileDimensions } from './generateRequest.js'
+import { ASPECT_TEXT, ruleFor, type Aspect, type ChangeScope } from './regenerationRules.js'
 
 // The permanent rules live in their own module and are re-exported here so the
 // service has one place to import "what the model is told" from.
@@ -146,8 +147,49 @@ const CONCEPT_FOCUSES = [
 ]
 
 function pickConceptFocus(brief: GenerationBrief): string {
-  const index = brief.concept.index
+  // The viewpoint, not the concept number: a correction keeps its parent's
+  // camera unless the correction is about the camera.
+  const index = brief.concept.viewpoint
   return CONCEPT_FOCUSES[((index % CONCEPT_FOCUSES.length) + CONCEPT_FOCUSES.length) % CONCEPT_FOCUSES.length]
+}
+
+/**
+ * What this correction is, in words the model can act on.
+ *
+ * Derived from the brief's regeneration fields alone: what was wrong, what may
+ * change, what must stay exactly as approved. It restates the approved
+ * selections as a held constraint, so a correction is never a bare "do it
+ * again" — it is the same request with one thing named as wrong.
+ */
+function describeRegeneration(brief: GenerationBrief): string {
+  const { reasons, additionalInstruction, mayChange, mustKeep } = brief.regeneration
+  const listAspects = (aspects: Aspect[]) => aspects.map((aspect) => `- ${ASPECT_TEXT[aspect]}`).join('\n')
+  const named = mayChange.filter((scope): scope is Aspect => scope !== 'asWritten')
+  const asWritten = (mayChange as ChangeScope[]).includes('asWritten')
+
+  const lines: string[] = [
+    'REGENERATION — this is a correction of an earlier concept, not a new design.',
+    'Everything in the structured selections above is what the customer already approved. It is unchanged. This request differs only in what is named below.',
+    '',
+    `WHAT WAS WRONG: ${reasons.length ? reasons.map((reason) => reason.name).join(', ') : 'see the written correction'}.`,
+  ]
+  if (additionalInstruction) {
+    lines.push(`THE SALESPERSON'S WRITTEN CORRECTION, verbatim: "${additionalInstruction}"`)
+  }
+  lines.push('', 'HOW TO CORRECT IT:')
+  for (const reason of reasons) lines.push(`- ${ruleFor(reason).how}`)
+  if (!reasons.length) {
+    lines.push('- Follow the written correction exactly as written, and change only what it targets.')
+  }
+  if (named.length) lines.push('', 'YOU MAY CHANGE ONLY:', listAspects(named))
+  if (asWritten) {
+    lines.push(
+      '',
+      'AND whatever the written correction names, nothing beyond it. It can never change an approved selection.',
+    )
+  }
+  lines.push('', 'KEEP EXACTLY AS APPROVED AND AS BEFORE:', listAspects(mustKeep))
+  return lines.join('\n')
 }
 
 /**
@@ -208,6 +250,10 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
         'The customer explicitly chose No Plain Tile, so there is no second reference image. This is intended, not an error. Do not invent a plain tile product and do not use the highlighter as one.',
       ].join('\n'),
     })
+  }
+
+  if (brief.regeneration.isRegeneration) {
+    parts.push({ kind: 'text', text: describeRegeneration(brief) })
   }
 
   parts.push({

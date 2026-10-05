@@ -11,11 +11,12 @@ import {
 } from './_lib/designOptionsStore.js'
 import { GenerateRequestError, toSizeId, validateTiles } from './_lib/generateRequest.js'
 import { buildGenerationBrief } from './_lib/generationBrief.js'
+import { assertSelectionsUnchanged, resolveCorrection } from './_lib/correctionRequest.js'
 import { getArchitect, getCustomer, toOwnerScope } from './_lib/clientsStore.js'
 import { DbError, asDbError } from './_lib/db.js'
 import { recordRevision } from './_lib/revisionsStore.js'
 
-// A real 3-concept generation takes roughly 15-25s. Vercel's default function
+// One concept takes roughly 15-25s, and a retry on a busy service can double that. Vercel's default function
 // timeout is 10s, which would abort every request before Gemini answers.
 export const maxDuration = 60
 
@@ -244,19 +245,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
       return
     }
-    // Reasons are looked up rather than trusted: only what the showroom
-    // configured can steer a regeneration, and a disabled reason cannot.
-    const reasons = Array.isArray(reasonIds)
-      ? (
-          await Promise.all(
-            (reasonIds as unknown[]).slice(0, 8).map((id) => findActiveOption('reason', String(id))),
-          )
-        ).filter((option): option is NonNullable<typeof option> => Boolean(option))
-      : []
-    const note =
-      typeof revisionNote === 'string' && revisionNote.trim()
-        ? revisionNote.trim().slice(0, 300)
-        : ''
+    // A request for another concept is checked against the concept it corrects
+    // before anything is billed: the parent must exist and be this salesperson's,
+    // the reason must be one the showroom still offers, and the written
+    // correction is capped. Null for a first concept.
+    const correction = await resolveCorrection(toOwnerScope(session), {
+      parentRevisionId,
+      conceptIndex,
+      reasonIds,
+      revisionNote,
+    })
     // Length-capped here as well as in the browser: the field is free text and
     // reaches the model, so an unbounded value is not accepted on trust.
     const requirement =
@@ -293,15 +291,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? { id: pattern.id, name: pattern.name, description: pattern.description }
         : null,
       additionalInstructions: requirement ?? null,
-      reasons: reasons.map((reason) => ({
-        id: reason.id,
-        name: reason.name,
-        description: reason.description,
-      })),
-      note: note || null,
-      parentRevisionId: typeof parentRevisionId === 'string' ? parentRevisionId : null,
-      conceptIndex: typeof conceptIndex === 'number' ? conceptIndex : 0,
+      reasons: correction?.reasons ?? [],
+      additionalInstruction: correction?.note ?? null,
+      parentRevisionId: correction?.parent.id ?? null,
+      conceptIndex: correction && typeof conceptIndex === 'number' ? conceptIndex : 0,
+      viewpoint: correction?.viewpoint ?? 0,
     })
+    // A correction carries every approved selection of the concept it corrects,
+    // unchanged. One that does not is a different brief, and is refused here.
+    if (correction) assertSelectionsUnchanged(correction.parent, brief)
     // Who this is for stays out of the brief, and out of the prompt: who the
     // customer is does not belong in an image instruction. It is logged beside
     // the brief so a generation can be traced to the consultation it came from.
@@ -321,6 +319,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         brief,
         highlighterTileImage: tiles.highlighterTileImage,
         plainTileImage: tiles.plainTileImage,
+        // A correction joins its parent's consultation.
+        generationId: correction?.generationId,
+        // No new model call may start once this route has stopped waiting.
+        deadlineMs: startedAt + INTERNAL_BUDGET_MS,
       }),
       INTERNAL_BUDGET_MS,
     )
@@ -336,9 +338,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       scope: toOwnerScope(session),
       generationId: result.generationId,
       customerId: customer?.id ?? null,
-      parentRevisionId: typeof parentRevisionId === 'string' ? parentRevisionId : null,
-      reasons: reasons.map((reason) => ({ id: reason.id, name: reason.name })),
-      note,
+      parentRevisionId: correction?.parent.id ?? null,
+      reasons: (correction?.reasons ?? []).map((reason) => ({ id: reason.id, name: reason.name })),
+      note: correction?.note ?? '',
       imageUrl: result.image,
       // Captured now, not rebuilt later: the catalogue can be edited, and a
       // record that re-read today's version would describe a concept nobody

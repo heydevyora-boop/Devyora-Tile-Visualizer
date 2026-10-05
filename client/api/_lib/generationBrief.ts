@@ -4,6 +4,7 @@
 // KEEP IN SYNC with the local-dev Express copy in server/src/services/.
 import { buildApplicationMap, type ApplicationMap } from './applicationMap.js'
 import type { TileDimensions } from './generateRequest.js'
+import { regenerationScope, type Aspect, type ChangeScope } from './regenerationRules.js'
 
 /** A catalogue entry the customer chose, carried with the id it has in the showroom's list. */
 export interface BriefOption {
@@ -65,16 +66,35 @@ export interface GenerationBrief {
   }
   /** Free text from the salesperson. Subordinate to everything structured above. */
   additionalInstructions: string | null
+  /**
+   * Present on every brief; only meaningful when `isRegeneration` is true.
+   *
+   * A regeneration is NOT a vague request to do better. It carries the same
+   * approved selections as the concept it corrects (everything above), and adds
+   * what was wrong and what the correction is allowed to touch.
+   */
   regeneration: {
     isRegeneration: boolean
+    /** The reason(s) the salesperson chose, from the showroom's list. */
     reasons: BriefOption[]
-    note: string | null
+    /** The salesperson's own words, exactly as written. Null if they wrote none. */
+    additionalInstruction: string | null
+    /** What this correction may change. Derived from the reasons; see regenerationRules.ts. */
+    mayChange: ChangeScope[]
+    /** What it must hold exactly as it was. Always includes every approved selection. */
+    mustKeep: Aspect[]
     /** Stored for traceability. Not shown to the model — an id means nothing to it. */
     parentRevisionId: string | null
   }
   concept: {
     /** Which concept of the consultation this is, from zero. */
     index: number
+    /**
+     * Which camera viewpoint to use. A correction keeps its parent's viewpoint
+     * unless the correction is about the camera, so that fixing the tile scale
+     * does not also move the camera.
+     */
+    viewpoint: number
   }
 }
 
@@ -91,9 +111,12 @@ export interface BriefSource {
   layingPattern?: BriefOption | null
   additionalInstructions?: string | null
   reasons?: BriefOption[]
-  note?: string | null
+  /** The salesperson's own words for a correction. */
+  additionalInstruction?: string | null
   parentRevisionId?: string | null
   conceptIndex?: number
+  /** The camera viewpoint, when it is not simply the concept index. */
+  viewpoint?: number
 }
 
 const toOption = ({ id, name, description }: BriefOption): BriefOption => ({ id, name, description })
@@ -116,7 +139,12 @@ export function buildGenerationBrief(source: BriefSource): GenerationBrief {
 
   const [root, subcategory, ...furtherOptions] = source.path
   const reasons = (source.reasons ?? []).map(toOption)
-  const note = source.note?.trim() || null
+  const correction = source.additionalInstruction?.trim() || null
+  const isRegeneration = reasons.length > 0 || correction !== null
+  const scope = isRegeneration
+    ? regenerationScope(reasons, correction !== null)
+    : { mayChange: [] as ChangeScope[], mustKeep: [] as Aspect[] }
+  const conceptIndex = Math.max(0, Math.trunc(source.conceptIndex ?? 0))
   const instructions = source.additionalInstructions?.trim() || null
   const joint = source.jointWidthMm ?? null
 
@@ -144,13 +172,54 @@ export function buildGenerationBrief(source: BriefSource): GenerationBrief {
     },
     additionalInstructions: instructions,
     regeneration: {
-      isRegeneration: reasons.length > 0 || note !== null,
+      isRegeneration,
       reasons,
-      note,
+      additionalInstruction: correction,
+      mayChange: scope.mayChange,
+      mustKeep: scope.mustKeep,
       parentRevisionId: source.parentRevisionId ?? null,
     },
-    concept: { index: Math.max(0, Math.trunc(source.conceptIndex ?? 0)) },
+    concept: {
+      index: conceptIndex,
+      viewpoint: Math.max(0, Math.trunc(source.viewpoint ?? conceptIndex)),
+    },
   }
+}
+
+/**
+ * The approved selections of a brief, in a form two briefs can be compared by.
+ *
+ * Deliberately only what the customer chose. What a correction asks for
+ * (reasons, scope) and which concept this is are expected to differ between a
+ * concept and its correction, so they are not here. The tile photographs are not
+ * here either: a brief holds none.
+ */
+function approvedSelections(brief: GenerationBrief): Record<string, unknown> {
+  return {
+    tileDimensions: [brief.tiles.highlighter.sizeMm, brief.tiles.plain.sizeMm],
+    plainTileState: brief.tiles.plain.provided,
+    spaceAndApplication: brief.placement.path.length
+      ? [brief.placement.space.id, brief.placement.subcategory?.id ?? null, brief.placement.furtherOptions.map((o) => o.id)]
+      : null,
+    highlighterLocation: brief.placement.highlighterLocation.id,
+    joint: brief.installation.jointWidthMm,
+    layingPattern: brief.installation.layingPattern?.id ?? null,
+    additionalInstructions: brief.additionalInstructions,
+  }
+}
+
+/**
+ * Which approved selections differ between two briefs, by aspect name. Empty
+ * when they agree.
+ *
+ * This is what lets a correction be held to the concept it corrects: a request
+ * to fix the tile scale that also arrives with a different joint width is not a
+ * scale correction, and the route refuses it before anything is billed.
+ */
+export function differingSelections(a: GenerationBrief, b: GenerationBrief): Aspect[] {
+  const left = approvedSelections(a)
+  const right = approvedSelections(b)
+  return (Object.keys(left) as Aspect[]).filter((key) => JSON.stringify(left[key]) !== JSON.stringify(right[key]))
 }
 
 /**

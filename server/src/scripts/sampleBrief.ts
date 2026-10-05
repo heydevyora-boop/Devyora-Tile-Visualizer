@@ -35,7 +35,20 @@ export const USAGE = `Flags (all optional):
   --joint 2                     joint width in mm (omit for none)
   --pattern "Straight / Grid"   or "Running Bond / Brick"
   --notes "Keep the vanity floating."
-  --concept 0                   which concept, from zero`
+  --concept 0                   which concept, from zero
+  --reason tile-scale           make it a correction: tile-placement | overall-look | tile-scale |
+                                tile-coverage | colour-material-combination | composition | something-else
+  --correction "Make it less busy."   the salesperson's written correction`
+
+const REASON_NAMES: Record<string, string> = {
+  'tile-placement': 'Tile Placement',
+  'overall-look': 'Overall Look',
+  'tile-scale': 'Tile Scale',
+  'tile-coverage': 'Tile Coverage',
+  'colour-material-combination': 'Colour / Material Combination',
+  composition: 'Composition',
+  'something-else': 'Something Else',
+}
 
 export function sampleBrief(flags: SampleFlags): GenerationBrief {
   const names = [flags.space ?? 'Bathroom', flags.sub ?? 'Powder Washroom', flags.further ?? 'Half Height']
@@ -65,5 +78,10 @@ export function sampleBrief(flags: SampleFlags): GenerationBrief {
     layingPattern: { id: `sample:pattern:${pattern.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, name: pattern, description: '' },
     additionalInstructions: flags.notes ?? null,
     conceptIndex: Number(flags.concept ?? 0),
+    reasons: flags.reason
+      ? [{ id: `seed:reason:${flags.reason}`, name: REASON_NAMES[flags.reason] ?? flags.reason, description: '' }]
+      : [],
+    additionalInstruction: flags.correction ?? null,
+    parentRevisionId: flags.reason || flags.correction ? 'sample:parent' : null,
   })
 }

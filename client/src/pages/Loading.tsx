@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useFlow } from '../state/FlowContext'
+import { useFlow, type GeneratedResult } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
 import { buildGenerateRequest } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
@@ -14,6 +14,12 @@ const GENERATE_ENDPOINT = `${API_BASE_URL}/api/generate`
 
 // Generation normally takes 15-25s. Give it room, but never hang forever.
 const REQUEST_TIMEOUT_MS = 75_000
+
+/** What the server returns for one generation: one image, and the concept it was recorded as. */
+type GenerateResponse = GeneratedResult & {
+  image?: string
+  revision?: { id?: string } | null
+}
 
 function Loading() {
   const navigate = useNavigate()
@@ -117,27 +123,46 @@ function Loading() {
     ],
   )
 
-  useEffect(() => {
-    const controller = new AbortController()
-    let cancelled = false
-    let timedOut = false
-    const timeoutId = window.setTimeout(() => {
-      timedOut = true
-      controller.abort()
-    }, REQUEST_TIMEOUT_MS)
+  // The one in-flight request for this attempt. Held in a ref so that the effect
+  // below running again — React StrictMode re-runs effects in development, and
+  // any dependency changing re-runs it anywhere — attaches to the request already
+  // made instead of sending another. Every request is a billed generation, and
+  // aborting the browser's fetch does not stop the server from finishing it.
+  const inFlight = useRef<{
+    attempt: number
+    timedOut: boolean
+    promise: Promise<GenerateResponse>
+  } | null>(null)
 
-    runGeneration(controller.signal)
+  useEffect(() => {
+    let cancelled = false
+
+    if (inFlight.current?.attempt !== attempt) {
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => {
+        created.timedOut = true
+        controller.abort()
+      }, REQUEST_TIMEOUT_MS)
+      const created = {
+        attempt,
+        timedOut: false,
+        promise: runGeneration(controller.signal).finally(() => window.clearTimeout(timeoutId)),
+      }
+      inFlight.current = created
+    }
+    const record = inFlight.current as NonNullable<typeof inFlight.current>
+
+    record.promise
       .then((result) => {
         if (cancelled) return
-        window.clearTimeout(timeoutId)
         // One request returns one image. It becomes the first concept of this
         // consultation; asking for another appends to the same set.
-        const first = (result as { image?: string }).image
-        const revisionId = (result as { revision?: { id?: string } | null }).revision?.id ?? null
+        const { image, revision } = result
+        if (!image) throw new Error('No image came back. Please try again.')
         setGeneratedResult({
           ...result,
-          images: first ? [first] : (result.images ?? []),
-          revisionIds: first ? [revisionId] : (result.images ?? []).map(() => null),
+          images: [image],
+          revisionIds: [revision?.id ?? null],
         })
         // Deliberately not saved here. A concept is temporary until the
         // salesperson keeps it for the client: most are looked at once and
@@ -145,13 +170,11 @@ function Loading() {
         navigate('/results')
       })
       .catch((requestError: unknown) => {
-        window.clearTimeout(timeoutId)
         if (cancelled) return
-        if (timedOut) {
+        if (record.timedOut) {
           setError('This is taking longer than expected. Please try again.')
           return
         }
-        if (controller.signal.aborted) return
         setError(
           requestError instanceof Error && requestError.message
             ? requestError.message
@@ -161,8 +184,6 @@ function Loading() {
 
     return () => {
       cancelled = true
-      window.clearTimeout(timeoutId)
-      controller.abort()
     }
   }, [attempt, navigate, runGeneration, setGeneratedResult])
 
