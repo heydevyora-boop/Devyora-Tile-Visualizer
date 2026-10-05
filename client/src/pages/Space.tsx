@@ -101,7 +101,7 @@ function Space() {
         <div className="flex flex-col w-full pb-32">
           <div className="px-margin pt-space-md pb-space-sm flex items-center justify-between">
             <button
-              className="flex items-center gap-space-xs text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+              className="tap-target flex items-center gap-space-xs text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
               onClick={back}
               type="button"
             >
@@ -125,7 +125,7 @@ function Space() {
                   {index > 0 && <span className="text-outline">/</span>}
                   <button
                     type="button"
-                    className="font-label-caps text-label-caps uppercase tracking-wider text-primary hover:underline"
+                    className="tap-target font-label-caps text-label-caps uppercase tracking-wider text-primary hover:underline"
                     onClick={() => {
                       const next = spacePath.slice(0, index + 1)
                       setSpacePath(next)

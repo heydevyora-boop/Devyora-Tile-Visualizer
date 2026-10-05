@@ -74,8 +74,21 @@ body {
   padding: 0;
   height: auto;
   min-height: 100%;
+}
+
+/* html is the one scroller: it clips sideways overflow. body must NOT also be
+   overflow-x: hidden — that makes it a second scroll container nested in the
+   viewport, which is what lets a phone drag the whole page left and right.
+   `clip` clips without creating a scroll container; hidden is the fallback. */
+html {
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 #root {
@@ -184,3 +197,97 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+
+/* ==========================================================================
+   MOBILE INTERACTION CONTRACT — shared by every screen.
+
+   1. The page pans vertically only. `pan-y pinch-zoom` on the root means a
+      sideways drag cannot move the page, while pinch zoom stays available.
+      Controls and inner scrollers/croppers set their own touch-action, which
+      is combined with this one — the crop surface's `none` still wins there.
+   2. `manipulation` on every control turns off double-tap-to-zoom. Without it
+      the browser holds a tap back to see whether a second one follows, and on
+      a fast phone a first tap can be swallowed — the "had to tap twice" bug.
+   3. Form fields are 16px on touch devices. Anything smaller makes iOS zoom the
+      page when the field is focused, and the page is then wider than the
+      screen: the "had to zoom out and drag it back" bug. Scoped to touch
+      devices so desktop keeps its smaller type.
+   4. Anything a thumb must hit is at least 44 x 44.
+   ========================================================================== */
+html,
+body {
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+button,
+a[href],
+[role='button'],
+[role='tab'],
+summary,
+label,
+select,
+input,
+textarea {
+  touch-action: manipulation;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  #root input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']),
+  #root textarea,
+  #root select {
+    font-size: 16px;
+  }
+}
+
+/* A small visible control with a full-size hit area (Back, breadcrumb links). */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Icons are a font, and on a slow or blocked connection the font has not
+   arrived: each icon then renders as its NAME ("photo_camera",
+   "arrow_back_ios_new") as ordinary text, many times wider than the glyph. That
+   is enough to push a row past the edge of a phone. Boxing the icon to its own
+   1em square means it can never be wider than the glyph that replaces it.
+   :where() keeps this at zero specificity so any explicit icon sizing wins. */
+:where(.material-symbols-outlined) {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* ==========================================================================
+   UTILITY CLASSES THE MARKUP ALREADY USES BUT NO STYLESHEET DEFINED.
+
+   This project has no Tailwind: each page's CSS carries a hand-copied subset of
+   utility rules, so a class that was never copied silently does nothing. These
+   sixteen were used in the TSX with no rule anywhere. The layout ones mattered
+   most — without `flex-wrap`, rows of options (joint widths, correction
+   reasons, breadcrumbs) ran off the right edge of the phone and were clipped,
+   leaving "5 mm", "Custom" and the custom-size input out of reach. A disabled
+   button with no disabled style looks live, so a tap on it seems to do nothing.
+   ========================================================================== */
+.flex-wrap { flex-wrap: wrap; }
+.items-stretch { align-items: stretch; }
+.items-baseline { align-items: baseline; }
+.self-center { align-self: center; }
+.self-end { align-self: flex-end; }
+.pr-space-sm { padding-right: 0.5rem; }
+.px-space-lg { padding-left: 1.5rem; padding-right: 1.5rem; }
+.border { border-width: 1px; border-style: solid; }
+.border-outline-variant { border-color: var(--color-outline-variant); }
+.text-error { color: var(--color-error); }
+.text-\[24px\] { font-size: 24px; }
+.text-\[40px\] { font-size: 40px; }
+.hover\:underline:hover { text-decoration: underline; }
+.hover\:border-primary:hover { border-color: var(--color-primary); }
+.focus\:border-primary:focus { border-color: var(--color-primary); }
+.disabled\:opacity-60:disabled { opacity: 0.6; }

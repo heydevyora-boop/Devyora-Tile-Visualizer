@@ -182,7 +182,7 @@ function Summary() {
         <div className="flex flex-col w-full pb-32">
           <div className="px-margin pt-space-md pb-space-sm flex items-center justify-between">
             <button
-              className="flex items-center gap-space-xs text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+              className="tap-target flex items-center gap-space-xs text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
               onClick={() => navigate('/instructions')}
               type="button"
             >

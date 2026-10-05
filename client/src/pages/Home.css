@@ -19,6 +19,7 @@
   min-height: 100dvh;
   height: auto;
   overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: visible;
   box-sizing: border-box;
   background-color: var(--color-surface);

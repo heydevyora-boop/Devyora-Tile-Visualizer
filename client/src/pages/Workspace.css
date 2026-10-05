@@ -163,6 +163,17 @@
   padding: 0.125rem 0.5rem;
 }
 
+/* The pill stays small to look at; as a button its hit area is extended to 44px
+   with an invisible layer, so it is easy to hit without changing how it looks. */
+button.ws__badge {
+  position: relative;
+}
+button.ws__badge::after {
+  content: '';
+  position: absolute;
+  inset: -10px -6px;
+}
+
 /* --- Thumbnails ----------------------------------------------------------- */
 
 .ws__thumbs {
@@ -200,7 +211,7 @@
 
 .ws__definition {
   display: grid;
-  grid-template-columns: minmax(6rem, auto) 1fr;
+  grid-template-columns: minmax(6rem, auto) minmax(0, 1fr);
   gap: 0.5rem 1rem;
   margin: 0;
 }
@@ -243,7 +254,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0.375rem 0.625rem;
   border: none;
   border-radius: 0.375rem;
@@ -370,12 +381,12 @@
 /* Two short fields sit side by side where there is room, and stack on a
    phone rather than being squeezed. */
 .ws__edit-fields--pair {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 @media (min-width: 30rem) {
   .ws__edit-fields--pair {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

@@ -120,7 +120,7 @@ function TileSize() {
           <div className="px-margin pt-space-md pb-space-sm flex items-center justify-between">
             <button
               aria-label="Previous step"
-              className="flex items-center gap-space-xs text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+              className="tap-target flex items-center gap-space-xs text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
               onClick={() => navigate('/tile-input')}
               type="button"
             >

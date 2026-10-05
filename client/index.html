@@ -7,18 +7,30 @@
   these — the exact class of bug that broke scrolling before. Do not remove
   these attributes; if a rule in index.css ever needs to change this
   behavior, change it here too so the two can never disagree.
+
+  Horizontal: html clips sideways overflow (the viewport is the one scroller).
+  body uses overflow-x: clip, which does NOT make it a second scroll container —
+  overflow-x: hidden on both html and body did, which let a phone drag the page
+  sideways. The hidden line stays first as the fallback for browsers without clip.
 -->
 <html lang="en" style="height: auto; overflow-y: auto; overflow-x: hidden;">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Fixed to the device width, and extended under the notch / home indicator so
+      the env(safe-area-inset-*) padding the pages use is actually non-zero.
+      Pinch zoom is deliberately left available (no maximum-scale): the layout
+      must not NEED zoom, and inputs are kept at 16px so a browser never zooms
+      the page on focus, but a person who wants to zoom may.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link href="https://fonts.googleapis.com/css2?family=Metrophobic&family=Hanken+Grotesk:wght@300;400;600&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <title>Devyora Tile Visualizer</title>
   </head>
-  <body style="height: auto; overflow-y: auto; overflow-x: hidden; margin: 0;">
+  <body style="height: auto; overflow-y: visible; overflow-x: hidden; overflow-x: clip; margin: 0;">
     <div id="root" style="height: auto; overflow: visible;"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
