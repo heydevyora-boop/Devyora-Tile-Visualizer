@@ -230,9 +230,6 @@ router.post('/generate', async (req, res) => {
         brief,
         space: resolved.path[0]?.name ?? (typeof space === 'string' ? space : null),
         spacePath: resolved.path.map((node) => ({ id: node.id, name: node.name })),
-        // A design style is no longer part of the flow. The field stays on the
-        // record so concepts made before this change still read correctly.
-        styleName: null,
         jointName: jointOption?.name ?? null,
         jointWidthMm: joint ?? null,
         patternName: pattern?.name ?? null,
@@ -268,7 +265,7 @@ router.post('/generate', async (req, res) => {
       failure instanceof DbError ||
       failure instanceof GenerationError
         ? failure.message
-        : 'We could not create your concepts. Please try again.'
+        : 'We could not create your concept. Please try again.'
     console.error('[POST /api/generate] generation failed:', error)
     res.status(status).json({ error: message })
   }

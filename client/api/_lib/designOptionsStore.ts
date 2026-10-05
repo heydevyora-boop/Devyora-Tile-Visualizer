@@ -7,16 +7,16 @@ import { getCollection } from './db.js'
 import { RETIRED_REASON_IDS } from './regenerationRules.js'
 
 /**
- * The lists the showroom maintains for a consultation: the design style, the
- * grout joint width, the laying pattern, and the reasons a salesperson gives
- * when asking for another concept.
+ * The lists the showroom maintains for a consultation: the grout joint width,
+ * the laying pattern, where the highlighter goes, and the reasons a salesperson
+ * gives when asking for another concept.
  *
  * They share one collection because they are the same shape — an ordered,
  * switchable list the showroom maintains — and differ only in what they mean.
  * Keeping them together means one admin screen and one set of rules rather
  * than three near-identical copies.
  */
-export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role' | 'highlighterLocation'
+export type DesignOptionKind = 'joint' | 'pattern' | 'reason' | 'highlighterLocation'
 
 export interface DesignOption {
   id: string
@@ -68,35 +68,15 @@ export class DesignOptionsError extends Error {
 }
 
 const COLLECTION = 'designOptions'
-const KINDS: DesignOptionKind[] = ['style', 'joint', 'pattern', 'reason', 'role', 'highlighterLocation']
+const KINDS: DesignOptionKind[] = ['joint', 'pattern', 'reason', 'highlighterLocation']
 
 /**
  * What a new showroom starts with.
  *
- * Style descriptions are written the way the showroom talks to customers, so a
- * salesperson can read one aloud and a customer knows what they are getting.
+ * Descriptions are written the way the showroom talks to customers. For the
+ * highlighter locations the description is what the generation is told to follow.
  */
 const SEED: Omit<DesignOptionDoc, '_id'>[] = [
-  ...[
-    ['minimal', 'Minimal', 'Simple aur clean interior, kam decoration, simple shapes aur open space.'],
-    ['modern', 'Modern', 'Clean lines, modern furniture, simple shapes aur stylish lighting wala interior.'],
-    ['luxury', 'Luxury', 'Premium look, rich materials, elegant furniture, beautiful lighting aur luxurious finishing.'],
-    ['warm', 'Warm', 'Warm colours, wood, soft lighting aur comfortable, welcoming feel.'],
-    ['contemporary', 'Contemporary', 'Modern aur stylish interior, balanced colours, clean furniture aur latest design feel.'],
-    ['earthy', 'Earthy', 'Natural colours, wood, stone aur earthy textures ke saath calm aur natural look.'],
-    ['indian', 'Indian', 'Indian design elements, warm colours, traditional touches aur modern interior ka combination.'],
-    ['elegant', 'Elegant', 'Simple but premium look, balanced colours, sophisticated furniture aur subtle detailing.'],
-  ].map(([styleId, name, description], order) => ({
-    kind: 'style' as const,
-    name,
-    description,
-    imageUrl: null,
-    valueMm: null,
-    styleId,
-    isDefault: false,
-    order,
-    active: true,
-  })),
   ...[1, 2, 3, 5].map((valueMm, order) => ({
     kind: 'joint' as const,
     name: `${valueMm} mm`,
@@ -207,26 +187,6 @@ const SEED: Omit<DesignOptionDoc, '_id'>[] = [
     order: 7,
     active: true,
   },
-  ...([
-    ['Base / Background', 'The tile that covers the designated surface as the primary material — the room\'s field tile.', true],
-    ['Highlighter / Decorative', 'Used selectively, in one coherent area, to draw the eye — never the room\'s default surface.', false],
-    ['Feature', 'The centrepiece of one wall or zone, meant to be seen and admired on its own.', false],
-    ['Accent', 'A small, deliberate touch of contrast against the base material.', false],
-    ['Border / Strip', 'A narrow trim or listello running along an edge or transition.', false],
-    ['Mosaic', 'Small-format pieces set as a textured decorative field, usually within a larger surface.', false],
-    ['Large-Format', 'A big-format slab used for broad, minimal-joint coverage.', false],
-    ['Other', 'Any other role the showroom wants to specify by hand — describe it in the additional requirement.', false],
-  ] as [string, string, boolean][]).map(([name, description, isDefault], order) => ({
-    kind: 'role' as const,
-    name,
-    description,
-    imageUrl: null,
-    valueMm: null,
-    styleId: null,
-    isDefault,
-    order,
-    active: true,
-  })),
   // Where the highlighter tile goes. These are hard placement instructions for
   // the highlighter, not descriptions of the room: the description is what the
   // generation is told to follow, so the showroom can sharpen the wording
@@ -323,6 +283,8 @@ const BACKFILL_KINDS: DesignOptionKind[] = ['highlighterLocation']
  * only ever adds, so it is retired here — once per process, idempotently, and
  * by marking rather than deleting so past revisions that cite it still read.
  */
+const LEGACY_KINDS = ['style', 'role']
+
 async function retireRemovedReasons(
   collection: Awaited<ReturnType<typeof getCollection<DesignOptionDoc>>>,
 ): Promise<void> {
@@ -330,6 +292,14 @@ async function retireRemovedReasons(
   for (const id of RETIRED_REASON_IDS) {
     await collection.updateMany({ _id: id, retired: { $ne: true } }, retire)
   }
+  // Design Style and tile role are no longer part of the flow at all. Their
+  // rows stay in the database — old records name them — but are never listed.
+  await collection.updateMany(
+    { kind: { $in: LEGACY_KINDS }, retired: { $ne: true } } as unknown as Parameters<
+      typeof collection.updateMany
+    >[0],
+    retire,
+  )
   // Also by name, for a row from before ids were deterministic.
   await collection.updateMany(
     { kind: 'reason', name: { $regex: '^style$', $options: 'i' }, retired: { $ne: true } },
@@ -472,11 +442,9 @@ export async function listAllDesignOptions(): Promise<DesignOption[]> {
 }
 
 const KIND_LABEL: Record<DesignOptionKind, string> = {
-  style: 'style',
   joint: 'joint width',
   pattern: 'laying pattern',
   reason: 'reason',
-  role: 'tile role',
   highlighterLocation: 'highlighter location',
 }
 
@@ -568,21 +536,5 @@ export async function findActiveOption(
   await ensureReady()
   const collection = await getCollection<DesignOptionDoc>(COLLECTION)
   const doc = await collection.findOne({ _id: id, kind, active: true, retired: { $ne: true } })
-  return doc ? toOption(doc) : null
-}
-
-/**
- * The option a kind silently falls back to when nothing was selected.
- *
- * Used for tile role: a salesperson who skips the choice on Design
- * Direction never sees a default named, and the generation still needs a
- * definite answer rather than an absent one — so this looks up whichever
- * active row the seed marked isDefault, and null if none is (an admin
- * disabled it, or this kind has no such row at all).
- */
-export async function findDefaultOption(kind: DesignOptionKind): Promise<DesignOption | null> {
-  await ensureReady()
-  const collection = await getCollection<DesignOptionDoc>(COLLECTION)
-  const doc = await collection.findOne({ kind, isDefault: true, active: true })
   return doc ? toOption(doc) : null
 }

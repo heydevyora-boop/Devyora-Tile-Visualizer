@@ -305,7 +305,7 @@ function Summary() {
                 disabled={!ready}
                 onClick={() => navigate('/loading')}
               >
-                <span>Generate concepts</span>
+                <span>Generate concept</span>
                 <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
               </button>
             </div>

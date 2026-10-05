@@ -56,7 +56,12 @@ export interface GenerationContext {
    * subcategory and any further selection, each as it was named at the time.
    */
   spacePath: { id: string; name: string }[]
-  styleName: string | null
+  /**
+   * Only on concepts made while a design style was still part of the flow.
+   * New concepts do not set it, and nothing requires it; it is kept so an old
+   * record still reads as it did.
+   */
+  styleName?: string | null
   jointName: string | null
   jointWidthMm: number | null
   patternName: string | null

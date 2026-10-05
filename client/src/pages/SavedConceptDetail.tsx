@@ -168,7 +168,7 @@ function SavedConceptDetail() {
             <Row label="Space" value={record.space} />
             <Row label="Application" value={application} />
             {/* Only concepts made while a design style was still part of the flow. */}
-            <Row label="Design style" value={record.styleName} />
+            <Row label="Design style" value={record.styleName ?? null} />
             <Row label="Joint" value={joint} />
             <Row label="Laying pattern" value={record.patternName} />
             <Row label="Additional requirement" value={record.additionalRequirement} />

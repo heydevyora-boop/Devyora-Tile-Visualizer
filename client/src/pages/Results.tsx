@@ -119,9 +119,6 @@ function Results() {
   const handleReturn = () => {
     navigate('/summary')
   }
-  const handleRegenerate = () => {
-    navigate('/loading')
-  }
   /**
    * Asks for one more concept of the same room.
    *
@@ -564,16 +561,6 @@ function Results() {
           {/* Fixed Sticky Showroom Consultation Dock */}
           <aside className="fixed bottom-3 inset-x-0 z-40 px-margin pointer-events-none">
             <div className="max-w-md mx-auto pointer-events-auto bg-surface-container/95 backdrop-blur-2xl rounded-full shadow-[0_16px_40px_-8px_rgba(0,0,0,0.75)] p-2 flex items-center gap-2">
-              {/* Regenerate Action */}
-              <button
-                className="flex-1 h-[52px] bg-surface-container-high active:bg-surface-bright text-on-surface font-title-md text-title-md rounded-full flex items-center justify-center gap-1.5 transition-colors"
-                id="regenerateBtn"
-                type="button"
-                onClick={handleRegenerate}
-              >
-                <span className="material-symbols-outlined text-[18px] text-primary">autorenew</span>
-                <span>Regenerate</span>
-              </button>
               {/* Primary Start New CTA */}
               <button
                 className="flex-1 h-[52px] bg-primary active:bg-primary-container text-on-primary font-title-md text-title-md rounded-full flex items-center justify-center gap-1.5 transition-colors shadow-[0_0_16px_rgba(197,168,128,0.22)]"

@@ -154,7 +154,7 @@ function toGenerationError(error: unknown): GenerationError {
     // catch-all: an SDK error can name the provider, a model, or a host, and
     // this is the one branch that would otherwise say whatever it is handed.
     // It is not lost — `cause` carries it to the server log below.
-    'We could not create your concepts. Please try again.',
+    'We could not create your concept. Please try again.',
     502,
     error,
   )

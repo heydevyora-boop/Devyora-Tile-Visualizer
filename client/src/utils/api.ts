@@ -186,7 +186,7 @@ export interface SpaceNode {
   active: boolean
 }
 
-export type DesignOptionKind = 'style' | 'joint' | 'pattern' | 'reason' | 'role' | 'highlighterLocation'
+export type DesignOptionKind = 'joint' | 'pattern' | 'reason' | 'highlighterLocation'
 
 export interface DesignOption {
   id: string
@@ -237,11 +237,13 @@ export interface SavedVisualisation {
   space: string | null
   spacePath: { id: string; name: string }[]
   /** Only on concepts made when a design style was still part of the flow. */
-  styleName: string | null
+  styleName?: string | null
   jointName: string | null
   jointWidthMm: number | null
   patternName: string | null
   additionalRequirement: string | null
+  /** The concept this one corrected, where it was a correction. */
+  parentRevisionId?: string | null
   image: string
   generatedAt: string
   savedAt: string

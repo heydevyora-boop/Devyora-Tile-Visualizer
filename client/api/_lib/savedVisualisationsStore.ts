@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { describeDbError, getCollection } from './db.js'
 import type { OwnerScope } from './clientsStore.js'
 import { getRevision, markRevisionSaved, type GenerationContext } from './revisionsStore.js'
+import type { GenerationBrief } from './generationBrief.js'
 
 /**
  * A client's permanent record: the concepts a salesperson chose to keep.
@@ -55,11 +56,22 @@ export interface SavedVisualisation {
   /** The area this belongs under in the client's record. */
   space: string | null
   spacePath: { id: string; name: string }[]
-  styleName: string | null
+  /** Only on concepts made while a design style was still part of the flow. */
+  styleName?: string | null
   jointName: string | null
   jointWidthMm: number | null
   patternName: string | null
   additionalRequirement: string | null
+  /**
+   * The whole structured request this concept was generated from — both tile
+   * sizes, the placement chain, highlighter location, joint, pattern,
+   * instructions and any correction — so it can be understood or reproduced
+   * without guessing. Absent on concepts made before briefs were recorded.
+   * Holds no photographs.
+   */
+  brief?: GenerationBrief
+  /** The concept this one corrected, where it was a correction. */
+  parentRevisionId?: string | null
   /** The kept image itself — a Drive URL, or a base64 fallback. */
   image: string
   /** When the concept was produced, and when it was kept. */
@@ -181,11 +193,13 @@ export async function saveVisualisation(
     highlighterLocation: context.highlighterLocation ?? null,
     space: context.space,
     spacePath: context.spacePath,
-    styleName: context.styleName,
+    ...(context.styleName ? { styleName: context.styleName } : {}),
     jointName: context.jointName,
     jointWidthMm: context.jointWidthMm,
     patternName: context.patternName,
     additionalRequirement: context.additionalRequirement,
+    ...(context.brief ? { brief: context.brief } : {}),
+    parentRevisionId: revision.parentRevisionId,
     image: revision.imageUrl,
     generatedAt: revision.createdAt,
     savedAt: new Date().toISOString(),

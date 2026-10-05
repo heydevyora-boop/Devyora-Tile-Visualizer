@@ -178,7 +178,7 @@ function Loading() {
         setError(
           requestError instanceof Error && requestError.message
             ? requestError.message
-            : 'Something went wrong while creating your concepts.',
+            : 'Something went wrong while creating your concept.',
         )
       })
 
