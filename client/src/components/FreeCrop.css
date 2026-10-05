@@ -96,20 +96,34 @@
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
-/* --- Corners: a right angle, drawn inside the rectangle ------------------- */
+/* --- Hit areas -------------------------------------------------------------
+
+   The marks drawn below are small so they never hide the tile; what a thumb has
+   to hit is the invisible box behind each one, and that is now generous.
+
+   Edges: the whole length of the side, 56px thick, centred on the line — so
+   anywhere along the top, bottom, left or right edge, inside or outside it, is
+   the handle. Corners: 80px squares centred on the corner, drawn above the edge
+   strips where they overlap, so the corner wins at the ends of a side.
+
+   On a very small selection the boxes are capped to a share of the rectangle
+   (min(...)), so the corners and edges cannot swallow one another and the middle
+   of the box can still be dragged to move it. The visible marks stay exactly
+   where they were: each is positioned from the centre of its own hit area. */
 
 .freecrop__grip--nw,
 .freecrop__grip--ne,
 .freecrop__grip--sw,
 .freecrop__grip--se {
-  width: 36px;
-  height: 36px;
+  width: min(80px, 36%);
+  height: min(80px, 36%);
+  z-index: 3;
 }
 
-.freecrop__grip--nw { left: -18px; top: -18px; cursor: nwse-resize; }
-.freecrop__grip--ne { right: -18px; top: -18px; cursor: nesw-resize; }
-.freecrop__grip--sw { left: -18px; bottom: -18px; cursor: nesw-resize; }
-.freecrop__grip--se { right: -18px; bottom: -18px; cursor: nwse-resize; }
+.freecrop__grip--nw { left: 0; top: 0; transform: translate(-50%, -50%); cursor: nwse-resize; }
+.freecrop__grip--ne { left: 100%; top: 0; transform: translate(-50%, -50%); cursor: nesw-resize; }
+.freecrop__grip--sw { left: 0; top: 100%; transform: translate(-50%, -50%); cursor: nesw-resize; }
+.freecrop__grip--se { left: 100%; top: 100%; transform: translate(-50%, -50%); cursor: nwse-resize; }
 
 .freecrop__grip--nw::after,
 .freecrop__grip--ne::after,
@@ -122,37 +136,39 @@
   box-shadow: none;
 }
 
-.freecrop__grip--nw::after { left: 16px; top: 16px; border-right: none; border-bottom: none; }
-.freecrop__grip--ne::after { right: 16px; top: 16px; border-left: none; border-bottom: none; }
-.freecrop__grip--sw::after { left: 16px; bottom: 16px; border-right: none; border-top: none; }
-.freecrop__grip--se::after { right: 16px; bottom: 16px; border-left: none; border-top: none; }
+/* The mark's outer corner sits 2px outside the rectangle's corner, as before. */
+.freecrop__grip--nw::after { left: 50%; top: 50%; margin: -2px 0 0 -2px; border-right: none; border-bottom: none; }
+.freecrop__grip--ne::after { right: 50%; top: 50%; margin: -2px -2px 0 0; border-left: none; border-bottom: none; }
+.freecrop__grip--sw::after { left: 50%; bottom: 50%; margin: 0 0 -2px -2px; border-right: none; border-top: none; }
+.freecrop__grip--se::after { right: 50%; bottom: 50%; margin: 0 -2px -2px 0; border-left: none; border-top: none; }
 
-/* --- Edges: a short bar, centred on each side ----------------------------- */
+/* --- Edges: the full side is the handle; a short bar marks its middle ------ */
 
 .freecrop__grip--n,
 .freecrop__grip--s {
-  left: 50%;
-  width: 56px;
-  margin-left: -28px;
+  left: 0;
+  width: 100%;
+  height: min(56px, 40%);
   cursor: ns-resize;
 }
 
 .freecrop__grip--w,
 .freecrop__grip--e {
-  top: 50%;
-  height: 56px;
-  margin-top: -28px;
+  top: 0;
+  height: 100%;
+  width: min(56px, 40%);
   cursor: ew-resize;
 }
 
-.freecrop__grip--n { top: -16px; }
-.freecrop__grip--s { bottom: -16px; }
-.freecrop__grip--w { left: -16px; }
-.freecrop__grip--e { right: -16px; }
+.freecrop__grip--n { top: 0; transform: translateY(-50%); }
+.freecrop__grip--s { top: 100%; transform: translateY(-50%); }
+.freecrop__grip--w { left: 0; transform: translateX(-50%); }
+.freecrop__grip--e { left: 100%; transform: translateX(-50%); }
 
 .freecrop__grip--n::after,
 .freecrop__grip--s::after {
   left: 50%;
+  top: calc(50% - 1.5px);
   width: 22px;
   height: 3px;
   margin-left: -11px;
@@ -161,12 +177,8 @@
 .freecrop__grip--w::after,
 .freecrop__grip--e::after {
   top: 50%;
+  left: calc(50% - 1.5px);
   width: 3px;
   height: 22px;
   margin-top: -11px;
 }
-
-.freecrop__grip--n::after { top: 14px; }
-.freecrop__grip--s::after { bottom: 14px; }
-.freecrop__grip--w::after { left: 14px; }
-.freecrop__grip--e::after { right: 14px; }

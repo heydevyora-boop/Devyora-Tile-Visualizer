@@ -92,6 +92,44 @@
 .capture-modal__corner--bl { bottom: 20px; left: 20px; border-bottom-width: 2px; border-left-width: 2px; }
 .capture-modal__corner--br { bottom: 20px; right: 20px; border-bottom-width: 2px; border-right-width: 2px; }
 
+/* Zoom steps, laid over the bottom of the viewfinder so the screen's layout does
+   not change. Each button is 44px tall with a wide target. */
+.capture-modal__zoom {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background-color: rgba(13, 14, 15, 0.6);
+  z-index: 2;
+}
+
+.capture-modal__zoom-button {
+  min-width: 52px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #e3e2e3;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.capture-modal__zoom-button.is-active {
+  background-color: #e2c399;
+  color: #402d0f;
+}
+
+.capture-modal__zoom-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .capture-modal__overlay-note {
   position: absolute;
   inset: 0;

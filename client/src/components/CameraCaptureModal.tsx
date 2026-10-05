@@ -10,6 +10,12 @@ const PREVIEW_NOT_READY_MESSAGE =
 
 type CaptureStatus = 'starting' | 'live' | 'error'
 
+/** The zoom steps offered. 1x is the default; the others need the camera to support them. */
+const ZOOM_LEVELS = [0.5, 1, 1.5] as const
+
+/** `zoom` is a real camera capability, but not in TypeScript's built-in track types yet. */
+type ZoomCapabilities = { zoom?: { min: number; max: number; step?: number } }
+
 type CameraCaptureModalProps = {
   /** Which tile is being photographed, e.g. "Highlighter tile". */
   title: string
@@ -27,6 +33,12 @@ function CameraCaptureModal({ title, onCapture, onClose }: CameraCaptureModalPro
   const videoRef = useRef<HTMLVideoElement>(null)
   const [status, setStatus] = useState<CaptureStatus>('starting')
   const [message, setMessage] = useState<string | null>(null)
+  // The camera's own zoom range, or null where the camera/browser has no zoom
+  // control. There is deliberately no fallback to CSS scaling: that would crop
+  // the preview and the captured frame digitally and lose resolution.
+  const trackRef = useRef<MediaStreamTrack | null>(null)
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null)
+  const [zoom, setZoom] = useState<number>(1)
 
   useEffect(() => {
     // Scoped to this effect run, not a shared ref: StrictMode mounts, cleans
@@ -64,6 +76,12 @@ function CameraCaptureModal({ title, onCapture, onClose }: CameraCaptureModalPro
           return
         }
         stream = acquired
+        const track = acquired.getVideoTracks()[0] ?? null
+        trackRef.current = track
+        const capabilities = (track?.getCapabilities?.() ?? {}) as ZoomCapabilities
+        if (capabilities.zoom) {
+          setZoomRange({ min: capabilities.zoom.min, max: capabilities.zoom.max })
+        }
         if (video) {
           video.srcObject = acquired
           await video.play()
@@ -83,9 +101,23 @@ function CameraCaptureModal({ title, onCapture, onClose }: CameraCaptureModalPro
       cancelled = true
       stream?.getTracks().forEach((track) => track.stop())
       stream = null
+      trackRef.current = null
       if (video) video.srcObject = null
     }
   }, [])
+
+  // Applied to the camera itself, so the preview and the captured frame are
+  // both genuinely zoomed. Left at the previous level if the camera refuses.
+  const handleZoom = async (level: number) => {
+    const track = trackRef.current
+    if (!track) return
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: level } as MediaTrackConstraintSet] })
+      setZoom(level)
+    } catch {
+      /* the camera did not accept this level; keep the current one */
+    }
+  }
 
   const handleCapture = () => {
     const video = videoRef.current
@@ -135,6 +167,25 @@ function CameraCaptureModal({ title, onCapture, onClose }: CameraCaptureModalPro
           <span className="capture-modal__corner capture-modal__corner--br" />
           {status === 'starting' ? (
             <p className="capture-modal__overlay-note">Starting camera…</p>
+          ) : null}
+          {zoomRange ? (
+            <div className="capture-modal__zoom" role="group" aria-label="Camera zoom">
+              {ZOOM_LEVELS.map((level) => {
+                const supported = level >= zoomRange.min && level <= zoomRange.max
+                return (
+                  <button
+                    aria-pressed={zoom === level}
+                    className={`capture-modal__zoom-button${zoom === level ? ' is-active' : ''}`}
+                    disabled={!supported || status !== 'live'}
+                    key={level}
+                    onClick={() => void handleZoom(level)}
+                    type="button"
+                  >
+                    {level}x
+                  </button>
+                )
+              })}
+            </div>
           ) : null}
         </div>
         <p className="capture-modal__hint">
