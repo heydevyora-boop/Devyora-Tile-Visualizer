@@ -1,0 +1,66 @@
+/* The microphone sits inside the text area's top-right corner. The text area
+   keeps its own look; only its right padding grows, so typed or spoken text
+   never runs underneath the button. */
+.speech-field {
+  position: relative;
+  width: 100%;
+}
+
+#root .speech-field > textarea {
+  padding-right: 3.25rem;
+}
+
+.speech-field__mic {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.speech-field__mic .material-symbols-outlined {
+  font-size: 22px;
+}
+
+/* Listening: the button fills with the theme gold and pulses, so it is
+   unmistakable that the microphone is open. */
+.speech-field__mic.is-listening {
+  background-color: var(--color-primary);
+  color: #402d0f;
+  animation: speech-field-pulse 1.4s ease-out infinite;
+}
+
+@keyframes speech-field-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(226, 195, 153, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba(226, 195, 153, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speech-field__mic.is-listening {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(226, 195, 153, 0.45);
+  }
+}
+
+.speech-field__status {
+  margin: 0.375rem 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-primary);
+}
+
+.speech-field__status.is-error {
+  color: var(--color-error);
+}

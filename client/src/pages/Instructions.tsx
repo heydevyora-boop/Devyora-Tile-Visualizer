@@ -1,5 +1,6 @@
 import { useFlow } from '../state/FlowContext'
 import FlowStep from '../components/FlowStep'
+import SpeechTextarea from '../components/SpeechTextarea'
 
 /** The longest a free-text instruction may be, matching the server's limit. */
 const MAX_REQUIREMENT = 300
@@ -25,17 +26,21 @@ function Instructions() {
     >
       <div className="px-margin flex flex-col gap-1.5">
         <label className="flex flex-col gap-1.5">
-          <span className="font-label-caps text-label-caps uppercase tracking-widest text-outline">
+          <span
+            className="font-label-caps text-label-caps uppercase tracking-widest text-outline"
+            id="additional-instructions-label"
+          >
             Additional instructions — optional
           </span>
-          <textarea
+          <SpeechTextarea
+            aria-labelledby="additional-instructions-label"
             className="step-textarea"
             id="additional-instructions"
             rows={5}
             maxLength={MAX_REQUIREMENT}
             placeholder="Jaise: warm lighting rakhna hai. Vanity floating honi chahiye. Upper wall plain rakhni hai."
             value={additionalRequirement}
-            onChange={(event) => setAdditionalRequirement(event.target.value)}
+            onValueChange={setAdditionalRequirement}
           />
         </label>
         <span className="font-body-sm text-body-sm text-outline self-end">

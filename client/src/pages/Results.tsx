@@ -8,6 +8,7 @@ import { formatTileSize } from '../utils/tileSizeLabel'
 import { dedupeByName } from '../utils/dedupeByName'
 import { buildGenerateRequest } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
+import SpeechTextarea from '../components/SpeechTextarea'
 import './Results.css'
 
 // Same-origin by default, matching the rest of the app.
@@ -517,16 +518,20 @@ function Results() {
                   </div>
 
                   <label className="flex flex-col gap-1">
-                    <span className="font-label-caps text-label-caps uppercase tracking-widest text-outline">
+                    <span
+                      className="font-label-caps text-label-caps uppercase tracking-widest text-outline"
+                      id="revision-note-label"
+                    >
                       Anything else to say — optional
                     </span>
-                    <textarea
+                    <SpeechTextarea
+                      aria-labelledby="revision-note-label"
                       className="w-full box-border p-space-sm rounded-lg bg-surface-container-low text-on-surface border border-outline-variant focus:border-primary focus:outline-none font-body-sm text-body-sm"
                       rows={2}
                       maxLength={300}
                       placeholder="Jaise: tile sirf vanity ke peeche feature wall par chahiye."
                       value={reasonNote}
-                      onChange={(event) => setReasonNote(event.target.value)}
+                      onValueChange={setReasonNote}
                     />
                   </label>
 
