@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type SpaceNode } from '../utils/api'
+import { haptic } from '../utils/haptic'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Space.css'
 
@@ -214,7 +215,10 @@ function Space() {
                 id="continue-btn"
                 type="button"
                 disabled={!atLeaf}
-                onClick={() => navigate('/highlighter-location')}
+                onClick={() => {
+                  haptic()
+                  navigate('/highlighter-location')
+                }}
               >
                 <span>Continue</span>
                 <span className="material-symbols-outlined text-[20px]">east</span>

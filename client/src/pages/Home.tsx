@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { useFlow } from '../state/FlowContext'
+import { haptic } from '../utils/haptic'
 import './Home.css'
 
 const TILE_SRC =
@@ -15,6 +16,7 @@ function Home() {
     navigate('/', { replace: true })
   }
   const handleStart = () => {
+    haptic()
     // Starting a consultation always begins with empty tile inputs. The tile
     // screen treats "a highlighter and a plain decision" as complete, so
     // without this the previous customer's tiles would already satisfy it.

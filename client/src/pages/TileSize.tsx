@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type TileFormat } from '../utils/api'
+import { haptic } from '../utils/haptic'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './TileSize.css'
 
@@ -89,6 +90,7 @@ function TileSize() {
 
   const handleContinue = () => {
     if (!tileSize) return
+    haptic()
     navigate('/space')
   }
 

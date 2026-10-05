@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow, type TileTarget } from '../state/FlowContext'
 import { readTileFile } from '../utils/readTileFile'
+import { haptic } from '../utils/haptic'
 import CameraCaptureModal from '../components/CameraCaptureModal'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './TileInput.css'
@@ -236,7 +237,10 @@ function TileInput() {
               className="tile-input__continue"
               data-testid="tile-input-continue"
               disabled={!canContinue}
-              onClick={() => navigate('/tile-size')}
+              onClick={() => {
+                haptic()
+                navigate('/tile-size')
+              }}
               type="button"
             >
               Continue
