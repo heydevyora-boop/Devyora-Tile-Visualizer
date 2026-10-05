@@ -9,6 +9,15 @@ const DEV_API_TARGET = process.env.VITE_DEV_API_PROXY ?? 'http://localhost:3001'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // The CSS is minified for older phones too. Left to the default, the
+    // minifier rewrites `@media (max-width: 640px)` as `@media (width<=640px)`,
+    // which Safari before iOS 16.4 does not understand, so it skips every such
+    // block: on those iPhones the phone-only layout (crop frame, touch targets,
+    // desktop frame) silently never applied. These targets keep the classic
+    // form every phone browser in use reads.
+    cssTarget: ['safari14', 'ios14', 'chrome87', 'firefox78', 'edge88'],
+  },
   server: {
     proxy: {
       '/api': {
