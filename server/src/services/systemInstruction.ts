@@ -52,6 +52,15 @@ A tile reference is a reference for the TILE ONLY — not for the showroom, back
 
 Preserve each supplied tile's visual identity: colour, pattern, print, texture, finish, marble or stone veins, grain, geometry and distinctive details — including how the pattern is distributed. Do not redesign it. Do not invent a substantially different tile. Do not substitute it with another tile, stone, marble, wood, concrete or wallpaper. Do not claim exact colour calibration: the goal is a faithful, realistic representation.
 
+The source photograph is the authority at EVERY scale — the fine detail as much as the overall look. Reproduce, as closely as possible, what is actually in it:
+- minor patterns and small motifs inside the tile, and any printed detail;
+- small and hairline veins, with their real direction, density and placement;
+- fine texture, speckles, flecks, grain, pores and fossil-like marks;
+- subtle tonal variation and natural stone variation across the face;
+- the surface character and finish (matt, satin, polished, textured, glazed).
+Do not simplify the tile into a smoother or cleaner version. Do not replace its fine detail with similar-looking, random or generic detail. Do not invent a pattern that only resembles it. Do not reinterpret it as another material. Up close, a tile in the image must read as the same product as the one in the photograph. Where a tile repeats across a surface, every tile carries this same detail at its real size; natural variation between pieces is fine, a different design is not.
+The surrounding interior may be designed creatively. The tile itself is never creatively redesigned.
+
 Respect each tile's implied orientation. Do not arbitrarily rotate a rectangular tile or individual pieces; keep directional grain, vein direction and decorative orientation unless the request says otherwise.
 
 ══════════════════════════════════════
@@ -111,6 +120,14 @@ Follow installation.layingPattern exactly, across the whole tiled surface, inclu
 ══════════════════════════════════════
 The goal is not "paste tile on a wall". Where the customer has not decided something, use professional architectural reasoning and create a complete, believable, intentionally designed and coordinated space: appropriate furniture, fixtures, lighting, secondary materials, colours, cabinetry, glass, metal, wood and accessories, using only what naturally belongs to the selected space and subcategory (a powder washroom has a vanity, basin and mirror; a bedroom a bed, side tables and wardrobe; a kitchen cabinets, countertop and sink). Every creative decision must support the supplied tiles and the explicit requirements — the tile stays the primary design material, clearly identifiable in its intended application, and no supporting element competes with it.
 
+BATHROOM PLANNING — applies to every bathroom, whatever its look. Plan the fixtures as a real bathroom would be built:
+- The WC (commode) is never placed directly in front of the basin or vanity, facing it or blocking the space in front of it. Put the WC on its own side or wall, offset from the basin, with clear floor space in front of each fixture.
+- The WC does not touch or collide with the vanity, the basin, the shower enclosure or a door swing. Leave normal clearances: space beside the WC, a clear zone in front of it, and room to stand at the basin.
+- The basin, WC and shower or bath are coordinated on the walls, with a practical path from the door to each of them.
+- If the room is too narrow to put the WC comfortably anywhere except opposite the basin, choose a more realistic side or alternate wall for it rather than forcing that position.
+- Do not solve this by leaving the WC out where the bathroom would normally have one. Keep it, and place it realistically. Every fixture must look physically installable, with believable plumbing positions.
+These rules arrange the room; they never move the tiles, the highlighter location or the application the request specifies.
+
 ══════════════════════════════════════
 11. NO DESIGN STYLE
 ══════════════════════════════════════
@@ -158,7 +175,7 @@ When requirements conflict, resolve in this order and never sacrifice a higher o
 8. Follow the exact joint width.
 9. Follow the exact laying pattern.
 10. Follow additionalInstructions.
-11. Design the surrounding architecture to support everything above.
+11. Design the surrounding architecture to support everything above, with realistic fixture planning (in a bathroom: the WC never in front of the basin).
 12. Optimise the camera and composition for a clear, presentable result.
 
 ══════════════════════════════════════
@@ -177,6 +194,8 @@ Verify internally, and correct any violation before producing the image:
 10. Did I follow the space, subcategory, further options and height?
 11. Did I follow the additional instructions without breaking a structured selection?
 12. Does the room look like a properly designed architectural space, with the tiles physically installed?
+13. Up close, does each tile show the same fine detail as its photograph — minor pattern, small veins, texture, speckles, tonal variation and finish — rather than a simplified or invented version?
+14. In a bathroom, is the WC on its own side or wall with proper clearance, not facing, blocking or touching the basin or vanity, and is every fixture realistically placed?
 A beautiful image that breaks any explicit structured selection is not acceptable.
 
 THE ENVIRONMENT CAN BE CREATIVE. THE TILES CANNOT BE REINTERPRETED. THE APPLICATION CANNOT BE INVENTED. A TILE MUST ONLY APPEAR WHERE THE REQUEST AUTHORISES IT.`

@@ -227,6 +227,7 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
       'REFERENCE IMAGE 1 — HIGHLIGHTER TILE.',
       'This is the highlighter tile (tiles.highlighter): the decorative / highlight product, used at placement.highlighterLocation only.',
       'Use only the tile in this photograph, not its background.',
+      'Reproduce this tile exactly, down to its fine detail: minor pattern, small veins, texture, speckles, tonal variation and finish. Do not simplify it or invent a similar design.',
     ].join('\n'),
   })
   parts.push({ kind: 'image', tile: 'highlighter' })
@@ -238,6 +239,7 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
         'REFERENCE IMAGE 2 — PLAIN / BASE TILE.',
         'This is the plain tile (tiles.plain): the separate plain / base product. It is not the highlighter and the highlighter is not it.',
         'Use only the tile in this photograph, not its background.',
+        'Reproduce this tile exactly, down to its fine detail: subtle texture, speckles, tonal variation and finish. A plain tile still has surface character; do not flatten it or invent one.',
       ].join('\n'),
     })
     parts.push({ kind: 'image', tile: 'plain' })
