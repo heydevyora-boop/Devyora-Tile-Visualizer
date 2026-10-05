@@ -477,3 +477,30 @@ p {
 .crop-page #cropCanvas {
   max-width: min(420px, 42svh);
 }
+
+/* PHONE WIDTHS: a wide crop section, not a small centred box.
+
+   The frame used to be a square capped at min(420px, 42svh), so on a 390px phone
+   it was 294px wide with a 48px black gap each side. On a phone it now takes the
+   width of the screen less a small even margin, keeps (very slightly more than)
+   the height it had, and gets a thin warm hairline in place of the heavy shadow.
+   The photo inside is still fitted by its own aspect ratio (FreeCrop), so it is
+   never stretched; a wider frame only gives a landscape photo room to be larger.
+   Tablets and desktop keep the square above. */
+@media (max-width: 640px) {
+  .crop-page .crop-canvas-wrap {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .crop-page #cropCanvas {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    aspect-ratio: auto;
+    height: min(440px, 44svh);
+    border: 1px solid rgba(226, 195, 153, 0.34);
+    border-radius: 0.5rem;
+    box-shadow: none;
+  }
+}

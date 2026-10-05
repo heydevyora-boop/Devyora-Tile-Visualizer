@@ -183,7 +183,7 @@ function Crop({ target }: { target: TileTarget }) {
             </div>
           </div>
 
-          <div className="px-margin flex flex-col items-center">
+          <div className="crop-canvas-wrap px-margin flex flex-col items-center">
             <div
               className="relative w-full aspect-square max-w-[420px] bg-surface-container-lowest rounded-xl overflow-hidden shadow-2xl"
               id="cropCanvas"

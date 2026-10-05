@@ -182,3 +182,32 @@
   height: 22px;
   margin-top: -11px;
 }
+
+/* PHONE WIDTHS: larger invisible touch zones still. A thumb covers about 9mm, so
+   a handle should be reachable without aiming at the line. Edges become 72px
+   thick strips along the whole side, corners 104px squares; the same min(...)
+   caps keep them from swallowing a small selection. Only the size of the touch
+   area changes: the visible marks, and everything the handles do, are as above. */
+@media (max-width: 640px) {
+  /* The proportional caps are chosen together: a corner zone is always larger
+     (40% of the side) than the overlap of the two edge strips beside it (34% of
+     the side each, so 17% either way), so the corner wins near the corner and an
+     edge strip is never stolen from by the perpendicular one. */
+  .freecrop__grip--nw,
+  .freecrop__grip--ne,
+  .freecrop__grip--sw,
+  .freecrop__grip--se {
+    width: min(104px, 40%);
+    height: min(104px, 40%);
+  }
+
+  .freecrop__grip--n,
+  .freecrop__grip--s {
+    height: min(72px, 34%);
+  }
+
+  .freecrop__grip--w,
+  .freecrop__grip--e {
+    width: min(72px, 34%);
+  }
+}
