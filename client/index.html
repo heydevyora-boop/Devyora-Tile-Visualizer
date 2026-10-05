@@ -18,13 +18,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!--
-      Fixed to the device width, and extended under the notch / home indicator so
-      the env(safe-area-inset-*) padding the pages use is actually non-zero.
-      Pinch zoom is deliberately left available (no maximum-scale): the layout
-      must not NEED zoom, and inputs are kept at 16px so a browser never zooms
-      the page on focus, but a person who wants to zoom may.
+      Fixed to the device width. Deliberately NOT viewport-fit=cover: with it the
+      page is drawn under the notch and home indicator and every
+      env(safe-area-inset-*) becomes real, but the page layouts are built for the
+      safe area the browser gives by default. With cover, the fixed header hid the
+      top of each page's content and the page heights overshot the screen, so a
+      screen that fits scrolled anyway. Pinch zoom is left available (no
+      maximum-scale): inputs are 16px, so a browser never zooms on focus.
     -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="https://fonts.googleapis.com/css2?family=Metrophobic&family=Hanken+Grotesk:wght@300;400;600&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />

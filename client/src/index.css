@@ -218,7 +218,10 @@ code {
 html,
 body {
   touch-action: pan-y pinch-zoom;
-  overscroll-behavior-x: none;
+  /* No pull-to-refresh and no rubber-band at the ends of the page. This does not
+     stop a long page scrolling; it stops a page that fits (Login, the option
+     steps) from being dragged up and down by a swipe that has nowhere to go. */
+  overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -291,3 +294,11 @@ textarea {
 .hover\:border-primary:hover { border-color: var(--color-primary); }
 .focus\:border-primary:focus { border-color: var(--color-primary); }
 .disabled\:opacity-60:disabled { opacity: 0.6; }
+
+/* The room a screen keeps under its content for the fixed action bar. Defaults to
+   the old 8rem; ActionBarReserve.tsx sets --action-bar-reserve to the bar's real
+   height so a screen whose content fits does not scroll for nothing. The id
+   makes this win over the per-page copies of the same utility. */
+#root .pb-32 {
+  padding-bottom: var(--action-bar-reserve, 8rem);
+}

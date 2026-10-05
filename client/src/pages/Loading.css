@@ -101,7 +101,7 @@ svg {
 .h-56 { height: 14rem; }
 .h-\[2px\] { height: 2px; }
 .min-h-screen { min-height: 100dvh; }
-.min-h-\[calc\(100vh-4rem\)\] { min-height: calc(100vh - 4rem); }
+.min-h-\[calc\(100vh-4rem\)\] { min-height: calc(100vh - 4rem); min-height: calc(100dvh - 4rem); }
 .min-w-0 { min-width: 0; }
 .max-w-sm { max-width: 24rem; }
 .max-w-xs { max-width: 20rem; }

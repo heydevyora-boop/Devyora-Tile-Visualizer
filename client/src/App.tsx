@@ -31,6 +31,7 @@ import UserDetail from './pages/UserDetail'
 import CustomerDetail from './pages/CustomerDetail'
 import SavedConceptDetail from './pages/SavedConceptDetail'
 import RequireClient from './components/RequireClient'
+import ActionBarReserve from './components/ActionBarReserve'
 import './App.css'
 
 /**
@@ -76,6 +77,7 @@ function App() {
   return (
     <AuthProvider>
       <FlowProvider>
+        <ActionBarReserve />
         <Routes>
           <Route path="/" element={<Login />} />
           {WORKSPACE_ROUTES.map(({ path, element }) => (
