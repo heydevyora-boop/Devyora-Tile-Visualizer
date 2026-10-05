@@ -209,6 +209,27 @@ export interface DesignOption {
  * it was recorded server-side when the image was made, so opening it shows what
  * was actually agreed rather than what today's catalogue would produce.
  */
+/**
+ * One generated concept, as GET /api/generations?view=activity returns it — every
+ * concept a salesperson generated, saved or not. The server scopes it to the
+ * signed-in salesperson (an admin sees everyone's).
+ */
+export interface GenerationActivity {
+  /** The concept's revision id: what Save sends, and how a saved copy refers back to it. */
+  id: string
+  generationId: string
+  revision: number
+  salesperson: string
+  salespersonName: string
+  customerId: string | null
+  customerName: string | null
+  createdAt: string
+  imageUrl: string
+  space: string | null
+  /** True once it has been saved (it then also appears in Saved Concepts). */
+  savedToClient: boolean
+}
+
 export interface SavedVisualisation {
   id: string
   salesperson: string

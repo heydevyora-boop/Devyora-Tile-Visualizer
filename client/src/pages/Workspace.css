@@ -478,6 +478,33 @@ button.ws__badge::after {
   border-color: var(--color-primary);
 }
 
+/* A card that is not itself a link (Recent Generations): only its action is. */
+.ws__card--static {
+  cursor: default;
+}
+
+.ws__card--static:hover {
+  border-color: var(--color-outline-variant);
+}
+
+.ws__card-actions {
+  display: flex;
+  padding: 0 0.625rem 0.625rem;
+}
+
+.ws__badge--action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.ws__badge--action .material-symbols-outlined {
+  font-size: 14px;
+}
+
 .ws__card-image {
   width: 100%;
   aspect-ratio: 1 / 1;

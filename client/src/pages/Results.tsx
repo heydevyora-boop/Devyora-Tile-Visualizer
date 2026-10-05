@@ -404,7 +404,7 @@ function Results() {
                     </h2>
                     {isSaved(index) && (
                       <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">
-                        Saved to client
+                        Saved
                       </span>
                     )}
                   </div>
@@ -438,10 +438,10 @@ function Results() {
                       </span>
                       <span>
                         {isSaved(index)
-                          ? 'In client record'
+                          ? 'Saved'
                           : savingToClient === index
                             ? 'Saving…'
-                            : 'Save to Client'}
+                            : 'Save'}
                       </span>
                     </button>
                   </div>
