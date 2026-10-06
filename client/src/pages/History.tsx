@@ -5,18 +5,25 @@ import { ApiError, apiGet } from '../utils/api'
 import { getCached, setCached } from '../utils/apiCache'
 import './History.css'
 
-/** What this screen draws: one saved concept, flattened to what a card needs. */
-type GenerationRecord = {
+/** One generated concept, flattened to what its row needs. */
+type Concept = {
   generationId: string
-  userName: string
   croppedImage: string
-  generatedImages: string[]
+  image: string
   timestamp: string
+}
+
+/** Everything one user generated: their card, holding their concepts. */
+type UserGroup = {
+  userId: string
+  userName: string
+  concepts: Concept[]
 }
 
 /** One generation as the activity log returns it. */
 type ActivityRecord = {
   id: string
+  salesperson?: string
   salespersonName?: string
   croppedTileImage?: string | null
   imageUrl: string
@@ -24,22 +31,41 @@ type ActivityRecord = {
 }
 
 /**
- * A generation is one image, so each becomes its own card.
+ * The log of everything that was generated — whether or not the salesperson
+ * then saved it to a client, which is a separate record — gathered into one
+ * card per user.
  *
- * This is the log of everything that was generated — whether or not the
- * salesperson then saved it to a client, which is a separate record.
+ * Grouped by the stable account id the server recorded with each generation,
+ * never by the display name, so two people with the same name stay apart and
+ * a renamed account stays together. The name is only the heading. The log
+ * arrives newest first, so each user's concepts keep that order, and users
+ * appear in order of their most recent generation.
  */
-function toCard(item: ActivityRecord): GenerationRecord {
-  return {
-    generationId: item.id,
-    userName: item.salespersonName ?? 'Unknown',
-    croppedImage: item.croppedTileImage ?? item.imageUrl,
-    generatedImages: [item.imageUrl],
-    timestamp: item.createdAt,
+function groupByUser(items: ActivityRecord[]): UserGroup[] {
+  const groups = new Map<string, UserGroup>()
+  for (const item of items) {
+    // A record written before user ids were stored falls back to its name.
+    const userId = item.salesperson || `name:${item.salespersonName ?? 'Unknown'}`
+    const group = groups.get(userId) ?? {
+      userId,
+      userName: item.salespersonName ?? 'Unknown',
+      concepts: [],
+    }
+    group.concepts.push({
+      generationId: item.id,
+      croppedImage: item.croppedTileImage ?? item.imageUrl,
+      image: item.imageUrl,
+      timestamp: item.createdAt,
+    })
+    groups.set(userId, group)
   }
+  return [...groups.values()]
 }
 
-/** Open lightbox target: which record, and which image within it. */
+/** "01", "02", … — a concept's number within its user's group. */
+const conceptNumber = (index: number) => String(index + 1).padStart(2, '0')
+
+/** Open lightbox target: which user's group, and which concept within it. */
 type LightboxTarget = { recordIndex: number; imageIndex: number }
 
 function formatTimestamp(timestamp: string): { date: string; time: string } {
@@ -56,16 +82,16 @@ function formatTimestamp(timestamp: string): { date: string; time: string } {
 }
 
 // Not '/api/generations' on its own: this screen caches the mapped
-// GenerationRecord[] it derives from that response, not the raw
+// UserGroup[] it derives from that response, not the raw
 // SavedVisualisation[] that Dashboard, RecentGenerations and SavedConcepts
 // fetch from the same endpoint and cache under the plain URL. Sharing a key
 // across two different shapes would hand one of them the other's data.
-const CACHE_KEY = '/api/generations::activity-cards'
+const CACHE_KEY = '/api/generations::activity-by-user'
 
 function History() {
   const navigate = useNavigate()
   const { logout, token } = useAuth()
-  const [records, setRecords] = useState<GenerationRecord[] | null>(() => getCached(CACHE_KEY) ?? null)
+  const [records, setRecords] = useState<UserGroup[] | null>(() => getCached(CACHE_KEY) ?? null)
   const [error, setError] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<LightboxTarget | null>(null)
   const lightboxCloseRef = useRef<HTMLButtonElement>(null)
@@ -81,9 +107,9 @@ function History() {
         // sign-in", …) rather than a bare status code. A raw fetch() that
         // only checks response.ok throws that detail away.
         const data = await apiGet<unknown>('/api/generations?view=activity', token, signal)
-        const cards = Array.isArray(data) ? (data as ActivityRecord[]).map(toCard) : []
-        setRecords(cards)
-        setCached(CACHE_KEY, cards)
+        const groups = Array.isArray(data) ? groupByUser(data as ActivityRecord[]) : []
+        setRecords(groups)
+        setCached(CACHE_KEY, groups)
       } catch (loadError) {
         if (signal?.aborted) return
         if (loadError instanceof ApiError && loadError.status === 401) {
@@ -114,7 +140,8 @@ function History() {
   }, [loadHistory])
 
   const activeRecord = lightbox === null ? null : records?.[lightbox.recordIndex] ?? null
-  const activeImages = activeRecord?.generatedImages ?? []
+  const activeImages = activeRecord?.concepts.map((concept) => concept.image) ?? []
+  const generationCount = (records ?? []).reduce((total, group) => total + group.concepts.length, 0)
 
   // Escape / arrow keys and background scroll lock while the lightbox is open,
   // matching the behaviour already established on Results.
@@ -172,7 +199,7 @@ function History() {
             <p className="history-subtitle">
               {records === null
                 ? 'Loading generations…'
-                : `${records.length} ${records.length === 1 ? 'generation' : 'generations'}, newest first.`}
+                : `${generationCount} ${generationCount === 1 ? 'generation' : 'generations'} by ${records.length} ${records.length === 1 ? 'user' : 'users'}, newest first.`}
             </p>
           </section>
 
@@ -195,9 +222,10 @@ function History() {
 
           <div className="history-list" id="historyList">
             {(records ?? []).map((record, recordIndex) => {
-              const { date, time } = formatTimestamp(record.timestamp)
+              const latest = record.concepts[0]
+              const { date, time } = formatTimestamp(latest?.timestamp ?? '')
               return (
-                <article className="history-card" key={record.generationId}>
+                <article className="history-card" key={record.userId}>
                   <div className="history-card-head">
                     <div className="history-user">
                       <span className="history-user-avatar">
@@ -206,46 +234,56 @@ function History() {
                       <span className="history-user-name">{record.userName}</span>
                     </div>
                     <div className="history-stamp">
-                      <span className="history-stamp-date">{date}</span>
+                      <span className="history-stamp-date">
+                        {record.concepts.length}{' '}
+                        {record.concepts.length === 1 ? 'concept' : 'concepts'}
+                      </span>
+                      <span className="history-stamp-time">{date}</span>
                       {time && <span className="history-stamp-time">{time}</span>}
                     </div>
                   </div>
 
-                  <div className="history-card-body">
-                    <figure className="history-source">
-                      <img
-                        alt={`Tile uploaded by ${record.userName}`}
-                        className="history-source-image"
-                        decoding="async"
-                        loading="lazy"
-                        src={record.croppedImage}
-                      />
-                      <figcaption className="history-source-caption">Tile</figcaption>
-                    </figure>
+                  <ol className="history-card-body history-concepts">
+                    {record.concepts.map((concept, imageIndex) => {
+                      const stamp = formatTimestamp(concept.timestamp)
+                      return (
+                        <li className="history-concept" key={concept.generationId}>
+                          <figure className="history-source">
+                            <img
+                              alt={`Tile uploaded by ${record.userName}`}
+                              className="history-source-image"
+                              decoding="async"
+                              loading="lazy"
+                              src={concept.croppedImage}
+                            />
+                            <figcaption className="history-source-caption">Tile</figcaption>
+                          </figure>
 
-                    <div className="history-results">
-                      {record.generatedImages.map((image, imageIndex) => (
-                        <button
-                          aria-label={`View concept ${imageIndex + 1} full size`}
-                          className="history-result"
-                          key={`${record.generationId}-${imageIndex}`}
-                          onClick={() => setLightbox({ recordIndex, imageIndex })}
-                          type="button"
-                        >
-                          <img
-                            alt={`Concept ${imageIndex + 1}`}
-                            className="history-result-image"
-                            decoding="async"
-                            loading="lazy"
-                            src={image}
-                          />
-                          <span className="history-result-badge">
-                            {String(imageIndex + 1).padStart(2, '0')}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                          <button
+                            aria-label={`View concept ${imageIndex + 1} by ${record.userName} full size`}
+                            className="history-result"
+                            onClick={() => setLightbox({ recordIndex, imageIndex })}
+                            type="button"
+                          >
+                            <img
+                              alt={`Concept ${imageIndex + 1}`}
+                              className="history-result-image"
+                              decoding="async"
+                              loading="lazy"
+                              src={concept.image}
+                            />
+                            <span className="history-result-badge">{conceptNumber(imageIndex)}</span>
+                          </button>
+
+                          <div className="history-stamp history-concept-stamp">
+                            <span className="history-concept-title">Concept {conceptNumber(imageIndex)}</span>
+                            <span className="history-stamp-date">{stamp.date}</span>
+                            {stamp.time && <span className="history-stamp-time">{stamp.time}</span>}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ol>
                 </article>
               )
             })}
@@ -298,7 +336,7 @@ function History() {
           <div className="lightbox-caption">
             <div className="flex items-center justify-center gap-1.5">
               <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary">
-                Concept {String(lightbox.imageIndex + 1).padStart(2, '0')}
+                Concept {conceptNumber(lightbox.imageIndex)}
               </span>
               <span className="text-outline text-[10px]">•</span>
               <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">

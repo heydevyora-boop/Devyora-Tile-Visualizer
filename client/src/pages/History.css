@@ -292,6 +292,51 @@
   pointer-events: none;
 }
 
+/* One user's concepts, newest first: tile, concept, number and time per row. */
+.history-concepts {
+  list-style: none;
+  margin: 0;
+}
+
+/* Wraps rather than squeezes: the stamp drops below when the card is narrow. */
+.history-concept {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.history-concept .history-source {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.history-concept .history-result {
+  flex: 1 1 8rem;
+  max-width: 14rem;
+}
+
+.history-concept-stamp {
+  flex: 1 0 auto;
+  white-space: nowrap;
+}
+
+.history-concept + .history-concept {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-outline-variant);
+}
+
+.history-concept-title {
+  font-family: 'Metrophobic', sans-serif;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
 /* Tablet and up: give the tile thumbnail and concepts more room side by side. */
 @media (min-width: 768px) {
   .history-card-body {
@@ -314,6 +359,12 @@
 
   .history-results {
     flex: 1;
+  }
+
+  /* A user's concepts stay stacked; each row lays out its own parts. */
+  .history-concepts {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
