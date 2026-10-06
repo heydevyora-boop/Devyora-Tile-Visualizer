@@ -198,3 +198,44 @@
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   The sidebar's own menu button and its collapse, shared by both frames (the
+   admin frame imports this stylesheet too). Each frame's top-bar copy of the
+   button has its own modifier class and rule.
+   ------------------------------------------------------------------------- */
+/* The manual collapse. Two classes deep, so it beats the plain
+   `.shell__sidebar { display: flex }` the desk-width media query sets —
+   media queries add no specificity of their own. */
+.shell--sidebar-collapsed .shell__sidebar {
+  display: none;
+}
+
+/* The sidebar's own header row: the wordmark, and the control that hides it.
+   Scoped to its own class, so the shared `.shell__brand` rules keep working
+   untouched where it is not used. */
+.shell__sidebar-head {
+  display: flex;
+  align-items: center;
+  /* The toggle sits in the gutter and the wordmark follows it on the same
+     row, so the control that hides the sidebar reads as belonging to the
+     sidebar rather than to whatever happens to be beside it. */
+  padding-left: 0.375rem;
+  padding-right: 0.625rem;
+  margin-bottom: 1.5rem;
+}
+.shell__sidebar-head .shell__brand {
+  /* The toggle sets the left edge of this row now, and the row owns the
+     spacing beneath it. */
+  padding-left: 0.25rem;
+  margin-bottom: 0;
+}
+
+/* The salesperson's top-bar copy: on a desk it appears once the sidebar is
+   collapsed, as the way back. Below the desk breakpoint it opens the drawer,
+   as it always has. */
+@media (min-width: 1024px) {
+  .shell--sidebar-collapsed .shell__menu-button--user {
+    display: inline-flex;
+  }
+}

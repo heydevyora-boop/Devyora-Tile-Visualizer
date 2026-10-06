@@ -90,7 +90,7 @@ function Clients() {
         <ul className="ws__list">
           {visible.map((customer) => (
             <li key={customer.id}>
-              <Link className="ws__row ws__row--button" to={`/clients/${customer.id}`}>
+              <Link className="ws__row ws__row--button ws__row--client" to={`/clients/${customer.id}`}>
                 <div className="ws__row-body">
                   <span className="ws__row-title">{customer.name}</span>
                   <span className="ws__row-meta">{customer.mobile}</span>

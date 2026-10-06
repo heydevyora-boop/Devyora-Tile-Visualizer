@@ -22,10 +22,21 @@ const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
 
+const DESK_WIDTH = '(min-width: 1024px)'
+
+/**
+ * Whether the salesperson has hidden the sidebar. Held for the life of the
+ * page rather than in storage: every page renders its own AppShell, so this
+ * carries the choice from one screen to the next, while a fresh load always
+ * opens with the sidebar showing.
+ */
+let sidebarCollapsed = false
+
 function AppShell({ title, children }: { title: string; children: ReactNode }) {
   const navigate = useNavigate()
   const { userName, logout } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => sidebarCollapsed)
 
   // Escape closes the drawer, matching every other overlay in the app.
   useEffect(() => {
@@ -40,6 +51,22 @@ function AppShell({ title, children }: { title: string; children: ReactNode }) {
   const handleLogout = () => {
     logout()
     navigate('/', { replace: true })
+  }
+
+  /**
+   * The same pattern as the admin frame: one handler for the sidebar's own
+   * button and the top bar's. Where the sidebar is on screen it hides and
+   * shows it; on a phone, where there is no sidebar, it opens the drawer.
+   */
+  const handleMenu = () => {
+    if (window.matchMedia(DESK_WIDTH).matches) {
+      setCollapsed((previous) => {
+        sidebarCollapsed = !previous
+        return !previous
+      })
+    } else {
+      setDrawerOpen(true)
+    }
   }
 
   const nav = (
@@ -65,9 +92,20 @@ function AppShell({ title, children }: { title: string; children: ReactNode }) {
   )
 
   return (
-    <div className="shell">
+    <div className={`shell${collapsed ? ' shell--sidebar-collapsed' : ''}`}>
       <aside className="shell__sidebar">
-        <div className="shell__brand">DEVYORA</div>
+        <div className="shell__sidebar-head">
+          <button
+            type="button"
+            className="shell__icon-button"
+            aria-label="Hide the menu"
+            aria-expanded={true}
+            onClick={handleMenu}
+          >
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+          <div className="shell__brand">DEVYORA</div>
+        </div>
         {nav}
         <div className="shell__sidebar-footer">
           <span className="shell__who" title={userName ?? undefined}>
@@ -100,10 +138,10 @@ function AppShell({ title, children }: { title: string; children: ReactNode }) {
         <header className="shell__topbar">
           <button
             type="button"
-            className="shell__icon-button shell__menu-button"
-            aria-label="Open menu"
-            aria-expanded={drawerOpen}
-            onClick={() => setDrawerOpen(true)}
+            className="shell__icon-button shell__menu-button shell__menu-button--user"
+            aria-label={collapsed ? 'Show the menu' : 'Open menu'}
+            aria-expanded={!collapsed || drawerOpen}
+            onClick={handleMenu}
           >
             <span className="material-symbols-outlined">menu</span>
           </button>

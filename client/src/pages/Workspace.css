@@ -287,6 +287,41 @@ button.ws__badge::after {
   border-color: var(--color-primary);
 }
 
+/* A client row: name and number, and who introduced them. When the card is
+   too narrow for both side by side, the badge moves onto its own line under
+   the name instead of being pushed over it; long names wrap (to two lines)
+   rather than collapse to a letter. */
+.ws__row--client {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
+.ws__row--client .ws__row-body {
+  flex: 1 1 9rem;
+}
+
+.ws__row--client .ws__row-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.ws__row--client .ws__row-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws__row--client .ws__badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ws__back {
   display: inline-flex;
   align-items: center;
