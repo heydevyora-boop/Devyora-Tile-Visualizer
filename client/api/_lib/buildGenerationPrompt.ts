@@ -189,6 +189,14 @@ function describeRegeneration(brief: GenerationBrief): string {
     )
   }
   lines.push('', 'KEEP EXACTLY AS APPROVED AND AS BEFORE:', listAspects(mustKeep))
+  // "The fixtures as before" must not hold a bad bathroom layout in place: the
+  // model never sees the earlier image, and the layout rule is not optional.
+  if (isBathroom(brief) && mustKeep.includes('architecturalDesign')) {
+    lines.push(
+      '',
+      'The BATHROOM LAYOUT above still applies in full. Keeping the fixtures as before never means keeping the WC in front of the vanity or crowded beside it.',
+    )
+  }
   return lines.join('\n')
 }
 
@@ -210,16 +218,21 @@ function isBathroom(brief: GenerationBrief): boolean {
  * of the vanity by default, while the same advice given in the request (as a
  * correction) was followed. So every bathroom request now carries the layout
  * itself, stated positively — where each fixture goes — beside the other facts.
+ *
+ * The WC goes on a different wall from the vanity (or a corner, the far end, or
+ * behind a partition). An earlier version also allowed it "on the same wall as
+ * the vanity, beside it with a clear gap", and the model took that option: the
+ * WC moved from in front of the basin to crowded right next to it.
  * It arranges the room only; it never moves a tile or the highlighter location.
  */
 function describeBathroomLayout(): string {
   return [
-    'BATHROOM LAYOUT — arrange the fixtures exactly like this. This is a bathroom, and the layout is part of the request.',
-    '- The vanity with the basin stands against one wall. The floor directly in front of it is kept clear for a person to stand and wash.',
-    '- The WC stands EITHER against the same wall as the vanity, beside it with a clear gap of at least 30 cm, OR against a side wall near the far corner of the room. It faces into the open floor of the room.',
-    '- Nothing stands in the clear floor in front of the vanity: the WC is never placed there, and never directly opposite the basin facing it across the room.',
-    '- If the room has a shower or a bath, it takes the far end or a corner, behind glass, clear of the WC and the vanity.',
-    '- From the door there is a clear walking path to the vanity, the WC and the shower. Every fixture is wall-mounted or floor-standing as a real installation would be.',
+    'BATHROOM LAYOUT — arrange the fixtures exactly like this. This is a bathroom, and the layout is part of the request. Three separate zones: shower, vanity, WC.',
+    '- VANITY ZONE: the vanity with the basin stands against one wall. The floor directly in front of it is kept clear for a person to stand, wash, open the vanity and step away.',
+    '- WC ZONE: the WC stands on a DIFFERENT wall from the vanity — a side wall, a corner, or the far end of the room — or in a section set apart by a low partition. It faces into open floor, with clear space in front of it and at its sides.',
+    '- The WC is never next to the vanity, touching it or squeezed into the space beside it, and never in the clear floor in front of the vanity or directly opposite the basin facing it.',
+    '- SHOWER ZONE: if the room has a shower or a bath, it takes the far end or a corner, behind glass, with a clear way in, away from the WC and the vanity.',
+    '- From the door there is a clear walking path to the vanity, the WC and the shower. Every fixture is wall-hung or floor-standing as a real installation would be.',
     'This arranges the fixtures only. The tiles, the surfaces they cover and the highlighter location stay exactly as the structured selections specify.',
   ].join('\n')
 }
