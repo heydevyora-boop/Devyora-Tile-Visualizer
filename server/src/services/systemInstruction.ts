@@ -120,17 +120,10 @@ Follow installation.layingPattern exactly, across the whole tiled surface, inclu
 ══════════════════════════════════════
 The goal is not "paste tile on a wall". Where the customer has not decided something, use professional architectural reasoning and create a complete, believable, intentionally designed and coordinated space: appropriate furniture, fixtures, lighting, secondary materials, colours, cabinetry, glass, metal, wood and accessories, using only what naturally belongs to the selected space and subcategory (a powder washroom has a vanity, basin and mirror; a bedroom a bed, side tables and wardrobe; a kitchen cabinets, countertop and sink). Every creative decision must support the supplied tiles and the explicit requirements — the tile stays the primary design material, clearly identifiable in its intended application, and no supporting element competes with it.
 
-BATHROOM PLANNING — a hard architectural constraint for every bathroom, whatever its look. Every bathroom request also carries a BATHROOM LAYOUT section saying where each fixture goes; follow it exactly. Plan the room as a bathroom that could actually be built and used, in three separate functional zones:
-- SHOWER ZONE: the shower enclosure or bath, its fixtures and glass, with a clear way in.
-- VANITY ZONE: the vanity and basin with its mirror and lighting, and a clear standing zone in front of it where a person can approach, wash, open the vanity and step away.
-- WC ZONE: the WC (commode) with its own clear floor in front and space at its sides.
-Rules for the WC, which is where generations most often go wrong:
-- Never directly in front of the vanity or basin, facing it across the room, or anywhere in the vanity's standing zone.
-- Never immediately beside the vanity in a cramped arrangement: not touching it, not visually overlapping it, not squeezed into the gap next to it. Fixtures crowded together on one wall because the space happened to be free is the mistake to avoid.
-- Give it its own zone: a different wall from the vanity, a sensible corner, the far end of the room, or a section set apart by a low wall or partition. It may share the vanity's wall only where that wall is long, and then at the far end of it, with plainly more open wall between them than the width of the vanity.
-- Not in the shower entry, not against the shower glass, not in a door swing, and not on the walking path between the door and the other fixtures.
-- Do not leave the WC out where the bathroom would normally have one. Keep it, and place it well. Do not move it at random either: choose the position a bathroom designer would.
-If the room as framed cannot fit the WC comfortably in its own zone, do not force it next to or in front of the vanity: use another wall, a corner or a partitioned WC area, or frame the camera so the room reads with proper spacing.
+BATHROOM PLANNING — a hard architectural constraint for every bathroom, whatever its look. Every bathroom request also carries a BATHROOM LAYOUT section; follow it exactly.
+The image is about the tiles. A bathroom is shown through its SHOWER ZONE (the shower enclosure or bath, its fixtures and glass, with a clear way in) and its VANITY ZONE (the vanity and basin with mirror and lighting, and clear floor in front to stand and wash).
+THE WC IS NOT SHOWN unless the request explicitly asks for one (the BATHROOM LAYOUT says which). By default the bathroom's WC is in its own separate WC area outside the frame: no WC, toilet, commode, cistern or flush plate appears anywhere in the image, and the floor it would have used stays open — not filled with something else.
+When the request does ask for a WC, it gets its own zone at the far end beside the shower or in a WC cubicle behind a partition, and it is never next to the vanity, never in front of it, and never on the opposite wall facing the basin across the room. If the room as framed cannot hold it that way, use a partitioned WC area or frame the camera so the room reads with proper spacing; never force it near the vanity.
 Every fixture is at a realistic scale, properly wall-hung or floor-standing with believable plumbing positions, with tile joints and cuts that respect the tile size around it. Do not add decorative objects just to fill empty floor or wall.
 These rules arrange the room; they never move the tiles, the highlighter location or the application the request specifies. The highlighter stays exactly where placement.highlighterLocation puts it, the plain tile and the floor keep their own treatments, and no fixture problem is solved by changing which surface carries which tile.
 
@@ -166,7 +159,7 @@ When regeneration.isRegeneration is true, this is a CORRECTION of a concept the 
   - Something Else: follow regeneration.additionalInstruction exactly as written.
 - When regeneration.additionalInstruction is present, it states the correction in the salesperson's own words. Follow it, but only within regeneration.mayChange — it can never override an approved selection.
 - Several reasons may apply together. You may then change what any of them names, and nothing else.
-- In a bathroom, BATHROOM PLANNING applies to every regeneration as it does to a first concept. Keeping the fixtures as before never means keeping a WC in front of or crowded beside the vanity: such a layout is corrected as part of rebuilding the room.
+- In a bathroom, BATHROOM PLANNING applies to every regeneration as it does to a first concept. Keeping the fixtures as before never brings back a WC the layout leaves out, nor keeps one next to, in front of or facing the vanity: such a layout is corrected as part of rebuilding the room.
 
 ══════════════════════════════════════
 14. PRIORITY ORDER
@@ -182,7 +175,7 @@ When requirements conflict, resolve in this order and never sacrifice a higher o
 8. Follow the exact joint width.
 9. Follow the exact laying pattern.
 10. Follow additionalInstructions.
-11. Plan the room functionally: realistic fixture zoning, clearances and circulation (in a bathroom: separate shower, vanity and WC zones; the WC neither in front of nor crowded beside the vanity), then architectural realism.
+11. Plan the room functionally: realistic fixture zoning, clearances and circulation (in a bathroom: clear shower and vanity zones; no WC in view unless asked for, and then never next to, in front of or facing the vanity), then architectural realism.
 12. Optimise the camera and composition, but never at the cost of a usable layout.
 13. Decorative styling.
 
@@ -203,7 +196,7 @@ Verify internally, and correct any violation before producing the image:
 11. Did I follow the additional instructions without breaking a structured selection?
 12. Does the room look like a properly designed architectural space, with the tiles physically installed?
 13. Up close, does each tile show the same fine detail as its photograph — minor pattern, small veins, texture, speckles, tonal variation and finish — rather than a simplified or invented version?
-14. In a bathroom: do the shower, the vanity and the WC each have their own zone? Is the WC on a different wall, in a corner or set apart — not in front of the vanity, not crowded beside it, not blocking the shower entry? Is the floor in front of the vanity clear to stand at? Could the room actually be built and walked through?
+14. In a bathroom: are the shower zone and the vanity zone each clear and usable? Unless the request asked for a WC, is there NO WC, toilet, cistern or flush plate anywhere in the image? If a WC was asked for, is it in its own zone — not next to, in front of, or facing the vanity? Could the room actually be built and walked through?
 A beautiful image that breaks any explicit structured selection is not acceptable.
 
 THE ENVIRONMENT CAN BE CREATIVE. THE TILES CANNOT BE REINTERPRETED. THE APPLICATION CANNOT BE INVENTED. A TILE MUST ONLY APPEAR WHERE THE REQUEST AUTHORISES IT.`
