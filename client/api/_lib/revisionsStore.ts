@@ -266,7 +266,8 @@ export interface GenerationActivity {
   customerName: string | null
   createdAt: string
   /** The concept — a Drive URL, or a base64 fallback. Stored with the record, never regenerated. */
-  imageUrl: string
+  /** Null in the lite list; fetched per record with getGenerationImage. */
+  imageUrl: string | null
   croppedTileImage: string | null
   plainTileImage: string | null
   plainTileProvided: boolean | null
@@ -294,6 +295,36 @@ const ACTIVITY_LIMIT = 100
 const MAX_ACTIVITY_BYTES = 3_500_000
 
 /**
+ * What the lite activity list leaves out: every image. Without them a record
+ * is a few hundred bytes, so the whole list fits in one response instead of
+ * being cut to the two or three newest records that fit beside inline images.
+ */
+const LITE_EXCLUDED_FIELDS = {
+  imageUrl: 0,
+  'context.croppedTileImage': 0,
+  'context.plainTileImage': 0,
+  'context.originalTileImage': 0,
+} as const
+
+/**
+ * The image of one generation, for a list that was fetched lite. Scoped like
+ * the list: an admin may read anyone's, anyone else only their own, so an id
+ * from someone else's record finds nothing.
+ */
+export async function getGenerationImage(
+  scope: OwnerScope,
+  id: string,
+): Promise<{ id: string; imageUrl: string } | null> {
+  await ensureIndexes()
+  const collection = await getCollection<RevisionDoc>(COLLECTION)
+  const doc = await collection.findOne(
+    { _id: id, ...(scope.isAdmin ? {} : { salesperson: scope.salesperson }) },
+    { projection: { imageUrl: 1 } },
+  )
+  return doc ? { id: doc._id, imageUrl: doc.imageUrl } : null
+}
+
+/**
  * Every generation this caller may see, newest first.
  *
  * An admin sees everyone's; anyone else sees only their own. The owner filter is
@@ -302,16 +333,22 @@ const MAX_ACTIVITY_BYTES = 3_500_000
  */
 export async function listGenerationActivity(
   scope: OwnerScope,
-  options: { salesperson?: string; limit?: number } = {},
+  options: { salesperson?: string; limit?: number; lite?: boolean } = {},
 ): Promise<GenerationActivity[]> {
   await ensureIndexes()
   const collection = await getCollection<RevisionDoc>(COLLECTION)
   const limit = Math.min(Math.max(Math.trunc(options.limit ?? ACTIVITY_LIMIT), 1), ACTIVITY_LIMIT)
   const docs = await collection
-    .find({
-      ...(options.salesperson ? { salesperson: options.salesperson.trim().toLowerCase() } : {}),
-      ...(scope.isAdmin ? {} : { salesperson: scope.salesperson }),
-    })
+    .find(
+      {
+        ...(options.salesperson ? { salesperson: options.salesperson.trim().toLowerCase() } : {}),
+        ...(scope.isAdmin ? {} : { salesperson: scope.salesperson }),
+      },
+      // Lite: the images are what make a record large (inline base64 when
+      // Drive is not in use), so they are not even read. Each one is fetched
+      // on its own with getGenerationImage.
+      options.lite ? { projection: LITE_EXCLUDED_FIELDS } : undefined,
+    )
     .sort({ createdAt: -1 })
     .limit(limit)
     .toArray()
@@ -330,9 +367,9 @@ export async function listGenerationActivity(
       customerId: doc.customerId,
       customerName: context.customerName,
       createdAt: doc.createdAt,
-      imageUrl: doc.imageUrl,
-      croppedTileImage: context.croppedTileImage,
-      plainTileImage: context.plainTileImage ?? null,
+      imageUrl: options.lite ? null : doc.imageUrl,
+      croppedTileImage: options.lite ? null : context.croppedTileImage,
+      plainTileImage: options.lite ? null : (context.plainTileImage ?? null),
       plainTileProvided: context.plainTileProvided ?? null,
       tileSize: context.tileSize,
       space: context.space,

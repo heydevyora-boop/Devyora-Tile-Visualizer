@@ -224,7 +224,8 @@ export interface GenerationActivity {
   customerId: string | null
   customerName: string | null
   createdAt: string
-  imageUrl: string
+  /** Null in the lite list (?lite=1); each image is fetched on its own. */
+  imageUrl: string | null
   space: string | null
   /** True once it has been saved (it then also appears in Saved Concepts). */
   savedToClient: boolean

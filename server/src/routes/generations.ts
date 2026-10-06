@@ -8,7 +8,7 @@ import {
   saveVisualisation,
 } from '../services/savedVisualisationsStore'
 import { toOwnerScope } from '../services/clientsStore'
-import { listGenerationActivity } from '../services/revisionsStore'
+import { getGenerationImage, listGenerationActivity } from '../services/revisionsStore'
 import { verifyAuthHeader } from '../config/auth'
 import { DbError, asDbError } from '../services/db'
 
@@ -64,9 +64,21 @@ router.get('/generations', async (req, res) => {
     }
     // The admin activity log: every generation, saved to a client or not.
     if (req.query?.view === 'activity') {
+      // One generation's image, for a list fetched with lite=1.
+      if (typeof req.query?.image === 'string' && req.query.image) {
+        const image = await getGenerationImage(scope, req.query.image)
+        if (!image) {
+          res.status(404).json({ error: 'That generation was not found.' })
+          return
+        }
+        res.status(200).json(image)
+        return
+      }
       const salesperson =
         typeof req.query?.salesperson === 'string' ? req.query.salesperson : undefined
-      res.status(200).json(await listGenerationActivity(scope, { salesperson }))
+      // lite=1: every record, without images (see listGenerationActivity).
+      const lite = req.query?.lite === '1'
+      res.status(200).json(await listGenerationActivity(scope, { salesperson, lite }))
       return
     }
     const customerId = typeof req.query?.customerId === 'string' ? req.query.customerId : undefined
