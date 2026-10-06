@@ -305,21 +305,24 @@ const LITE_EXCLUDED_FIELDS = {
 } as const
 
 /**
- * The image of one generation, for a list that was fetched lite. Scoped like
+ * The images of one generation (the render, and the tile it was made from),
+ * for a list that was fetched lite. Scoped like
  * the list: an admin may read anyone's, anyone else only their own, so an id
  * from someone else's record finds nothing.
  */
 export async function getGenerationImage(
   scope: OwnerScope,
   id: string,
-): Promise<{ id: string; imageUrl: string } | null> {
+): Promise<{ id: string; imageUrl: string; croppedTileImage: string | null } | null> {
   await ensureIndexes()
   const collection = await getCollection<RevisionDoc>(COLLECTION)
   const doc = await collection.findOne(
     { _id: id, ...(scope.isAdmin ? {} : { salesperson: scope.salesperson }) },
-    { projection: { imageUrl: 1 } },
+    { projection: { imageUrl: 1, 'context.croppedTileImage': 1 } },
   )
-  return doc ? { id: doc._id, imageUrl: doc.imageUrl } : null
+  return doc
+    ? { id: doc._id, imageUrl: doc.imageUrl, croppedTileImage: doc.context?.croppedTileImage ?? null }
+    : null
 }
 
 /**

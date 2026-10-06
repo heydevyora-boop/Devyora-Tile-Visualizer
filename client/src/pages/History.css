@@ -292,10 +292,104 @@
   pointer-events: none;
 }
 
+/* The user row is the control that opens and closes their work. */
+.history-user-toggle {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-outline-variant);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-user-toggle[aria-expanded='false'] {
+  border-bottom-color: transparent;
+}
+
+.history-user-toggle:hover .history-user-name,
+.history-user-toggle:focus-visible .history-user-name {
+  color: var(--color-primary);
+}
+
+.history-user-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.history-user-toggle .history-user {
+  flex: 1;
+}
+
+.history-user-chevron {
+  font-size: 20px;
+  color: var(--color-outline);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.history-user-chevron.is-open {
+  transform: rotate(90deg);
+  color: var(--color-primary);
+}
+
+/* One user's visualizations, each with its versions. */
+.history-visualizations {
+  gap: 1.25rem;
+}
+
+.history-viz + .history-viz {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-outline-variant);
+}
+
+.history-viz-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.history-viz-title-block {
+  min-width: 0;
+}
+
+.history-viz-title {
+  margin: 0 0 0.25rem;
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+}
+
+.history-viz-meta {
+  margin: 0;
+  font-family: 'Metrophobic', sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.08em;
+  color: var(--color-on-surface-variant);
+}
+
+.history-version-why {
+  margin-top: 0.25rem;
+  max-width: 14rem;
+  white-space: normal;
+  text-align: right;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--color-on-surface-variant);
+}
+
 /* One user's concepts, newest first: tile, concept, number and time per row. */
 .history-concepts {
   list-style: none;
   margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 /* Wraps rather than squeezes: the stamp drops below when the card is narrow. */
@@ -361,7 +455,8 @@
     flex: 1;
   }
 
-  /* A user's concepts stay stacked; each row lays out its own parts. */
+  /* A user's visualizations and versions stay stacked; each row lays out its own parts. */
+  .history-visualizations,
   .history-concepts {
     flex-direction: column;
     align-items: stretch;
@@ -369,6 +464,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .history-user-chevron,
   .history-result {
     transition: none;
   }

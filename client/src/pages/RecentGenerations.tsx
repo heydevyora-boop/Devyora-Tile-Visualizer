@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import GenerationImage from '../components/GenerationImage'
 import { useAuth } from '../state/AuthContext'
 import {
   ApiError,
@@ -9,7 +10,7 @@ import {
   type GenerationActivity,
   type SavedVisualisation,
 } from '../utils/api'
-import { getCached, loadShared, setCached } from '../utils/apiCache'
+import { getCached, setCached } from '../utils/apiCache'
 import './Workspace.css'
 
 /** Date and time as a showroom would read them, not an ISO string. */
@@ -36,59 +37,6 @@ function formatWhen(timestamp: string): string {
 const ACTIVITY_KEY = '/api/generations?view=activity&lite=1'
 /** The saved list, which Saved Concepts and the dashboard share. */
 const SAVED_KEY = '/api/generations'
-
-const imageKey = (id: string) => `/api/generations?view=activity&image=${encodeURIComponent(id)}`
-
-/**
- * One generation's stored image, fetched when its card comes near the screen,
- * so a long history never downloads every image at once. Kept in the shared
- * cache, so revisiting the page shows it immediately.
- */
-function GenerationImage({ id, alt, token }: { id: string; alt: string; token: string | null }) {
-  const boxRef = useRef<HTMLSpanElement>(null)
-  const [src, setSrc] = useState<string | null>(
-    () => getCached<{ imageUrl: string }>(imageKey(id))?.imageUrl ?? null,
-  )
-
-  useEffect(() => {
-    if (src) return
-    const box = boxRef.current
-    if (!box) return
-    let cancelled = false
-    const load = () =>
-      loadShared(imageKey(id), () => apiGet<{ imageUrl: string }>(imageKey(id), token))
-        .then((image) => {
-          if (!cancelled) setSrc(image.imageUrl)
-        })
-        .catch(() => {})
-    if (typeof IntersectionObserver === 'undefined') {
-      void load()
-      return () => {
-        cancelled = true
-      }
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          observer.disconnect()
-          void load()
-        }
-      },
-      { rootMargin: '400px' },
-    )
-    observer.observe(box)
-    return () => {
-      cancelled = true
-      observer.disconnect()
-    }
-  }, [id, src, token])
-
-  return src ? (
-    <img className="ws__card-image" src={src} alt={alt} loading="lazy" />
-  ) : (
-    <span ref={boxRef} className="ws__card-image" role="img" aria-label={alt} />
-  )
-}
 
 function RecentGenerations() {
   const navigate = useNavigate()
@@ -182,6 +130,7 @@ function RecentGenerations() {
                     />
                   ) : (
                     <GenerationImage
+                      className="ws__card-image"
                       id={record.id}
                       alt={`${record.space ?? 'Generated'} concept`}
                       token={token}
