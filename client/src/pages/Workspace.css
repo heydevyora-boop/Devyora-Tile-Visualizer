@@ -522,6 +522,38 @@ button.ws__badge::after {
   border-color: var(--color-outline-variant);
 }
 
+/* Recent Generations: a visualization's heading opens its versions below it. */
+.ws__viz-toggle {
+  background-color: var(--color-surface-container-low);
+}
+
+.ws__viz-toggle .ws__row-title {
+  font-weight: 600;
+}
+
+.ws__viz-chevron {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: var(--color-outline);
+  transition: transform 0.2s ease;
+}
+
+.ws__viz-chevron.is-open {
+  transform: rotate(90deg);
+  color: var(--color-primary);
+}
+
+.ws__viz-versions {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws__viz-chevron {
+    transition: none;
+  }
+}
+
 .ws__card-actions {
   display: flex;
   padding: 0 0.625rem 0.625rem;

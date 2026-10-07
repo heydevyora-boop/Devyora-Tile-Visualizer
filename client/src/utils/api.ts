@@ -227,6 +227,9 @@ export interface GenerationActivity {
   /** Null in the lite list (?lite=1); each image is fetched on its own. */
   imageUrl: string | null
   space: string | null
+  /** Why this version was asked for, when it corrects an earlier one. */
+  reasons?: string[]
+  note?: string
   /** True once it has been saved (it then also appears in Saved Concepts). */
   savedToClient: boolean
 }
