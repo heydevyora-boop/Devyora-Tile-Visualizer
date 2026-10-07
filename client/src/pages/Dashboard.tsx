@@ -4,7 +4,6 @@ import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, apiGet, type Customer, type SavedVisualisation } from '../utils/api'
 import { getCached, setCached } from '../utils/apiCache'
-import { haptic } from '../utils/haptic'
 import './Workspace.css'
 
 /**
@@ -75,7 +74,7 @@ function Dashboard() {
 
       <h2 className="ws__section-title">Quick actions</h2>
       <div className="ws__actions">
-        <Link className="ws__action ws__action--primary" to="/start" onClick={haptic}>
+        <Link className="ws__action ws__action--primary" to="/start">
           <span className="material-symbols-outlined">add_a_photo</span>
           <span>New Visualization</span>
         </Link>

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import HeaderUserMenu from './HeaderUserMenu'
-import { haptic } from '../utils/haptic'
 import '../pages/DesignStep.css'
 
 type FlowStepProps = {
@@ -100,10 +99,7 @@ function FlowStep({
                 id="continue-btn"
                 type="button"
                 disabled={!canContinue}
-                onClick={() => {
-                  haptic()
-                  navigate(continueTo)
-                }}
+                onClick={() => navigate(continueTo)}
               >
                 <span>Continue</span>
                 <span className="material-symbols-outlined text-[20px]">east</span>

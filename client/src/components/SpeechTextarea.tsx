@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import './SpeechTextarea.css'
-import { haptic } from '../utils/haptic'
 
 /**
  * The browser's own speech recognition (the Web Speech API), described just far
@@ -172,7 +171,6 @@ function SpeechTextarea({ value, onValueChange, maxLength, ...textareaProps }: S
   }
 
   const toggle = () => {
-    haptic()
     if (recognitionRef.current) stop()
     else start()
   }

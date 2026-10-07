@@ -5,7 +5,6 @@ import { useAuth } from '../state/AuthContext'
 import { ApiError, type SpaceNode } from '../utils/api'
 import { getCached } from '../utils/apiCache'
 import { loadSpaceNodes, spaceNodesKey } from '../utils/flowData'
-import { haptic } from '../utils/haptic'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Space.css'
 
@@ -218,10 +217,7 @@ function Space() {
                 id="continue-btn"
                 type="button"
                 disabled={!atLeaf}
-                onClick={() => {
-                  haptic()
-                  navigate('/highlighter-location')
-                }}
+                onClick={() => navigate('/highlighter-location')}
               >
                 <span>Continue</span>
                 <span className="material-symbols-outlined text-[20px]">east</span>

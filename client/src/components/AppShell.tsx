@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
-import { haptic } from '../utils/haptic'
 import './AppShell.css'
 
 /**
@@ -78,11 +77,7 @@ function AppShell({ title, children }: { title: string; children: ReactNode }) {
           className={({ isActive }) => `shell__nav-link${isActive ? ' shell__nav-link--active' : ''}`}
           // Closed from the tap itself rather than by watching the location:
           // otherwise the next screen opens underneath a menu still on top.
-          onClick={() => {
-            // New Visualization is one of the few taps that gets a haptic tick.
-            if (item.to === '/start') haptic()
-            setDrawerOpen(false)
-          }}
+          onClick={() => setDrawerOpen(false)}
         >
           <span className="material-symbols-outlined shell__nav-icon">{item.icon}</span>
           <span>{item.label}</span>

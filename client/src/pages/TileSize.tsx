@@ -5,7 +5,6 @@ import { useAuth } from '../state/AuthContext'
 import { ApiError, type TileFormat } from '../utils/api'
 import { getCached } from '../utils/apiCache'
 import { TILE_FORMATS_KEY, loadTileFormats } from '../utils/flowData'
-import { haptic } from '../utils/haptic'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './TileSize.css'
 
@@ -106,7 +105,6 @@ function TileSize() {
 
   const handleContinue = () => {
     if (!tileSize) return
-    haptic()
     navigate('/space')
   }
 

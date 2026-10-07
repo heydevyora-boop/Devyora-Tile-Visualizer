@@ -1,9 +1,9 @@
 /**
- * A short tactile tick for the few actions that move a consultation forward
- * (New Visualization, Start, Continue, Generate, the microphone).
+ * A short tactile tick for every tap on something pressable — buttons, links,
+ * options, tabs, toggles — across the whole app (see installGlobalHaptics).
  *
- * Call it first thing in the tap handler, before navigating or fetching:
- * browsers only allow haptics while handling the user's own tap.
+ * It runs inside the tap's own click event, before the page's handler
+ * navigates or fetches: browsers only allow haptics during the user's tap.
  *
  * - Android (Chrome, Samsung Internet, …) has the Vibration API. One 35ms
  *   pulse: anything much shorter is below what many phone motors can spin up
@@ -26,6 +26,8 @@ function isAppleTouchDevice(): boolean {
 function iosSwitchTick(): void {
   const label = document.createElement('label')
   label.setAttribute('aria-hidden', 'true')
+  // The global listener must not answer this click with another tick.
+  label.setAttribute('data-no-haptic', '')
   // Not rendered: no layout, nothing visible, and it cannot take focus (so an
   // open keyboard stays open). The label still toggles its switch.
   label.style.display = 'none'
@@ -41,7 +43,12 @@ function iosSwitchTick(): void {
   }
 }
 
+/** True while a tick is being produced, so it can never set off another. */
+let ticking = false
+
 export function haptic(): void {
+  if (ticking) return
+  ticking = true
   try {
     if (typeof navigator === 'undefined') return
     if (typeof navigator.vibrate === 'function') {
@@ -51,5 +58,60 @@ export function haptic(): void {
     if (typeof document !== 'undefined' && isAppleTouchDevice()) iosSwitchTick()
   } catch {
     // Haptics are a nicety; never let them break the action they decorate.
+  } finally {
+    ticking = false
   }
+}
+
+/**
+ * What counts as pressable: anything a person taps to act, choose or move on.
+ * Text fields are not here, so typing never vibrates.
+ */
+const PRESSABLE = [
+  'button',
+  'a[href]',
+  'summary',
+  'select',
+  'input[type="checkbox"]',
+  'input[type="radio"]',
+  'input[type="submit"]',
+  'input[type="button"]',
+  'input[type="file"]',
+  '[role="button"]',
+  '[role="link"]',
+  '[role="tab"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="switch"]',
+  '[role="checkbox"]',
+  '[role="radio"]',
+].join(',')
+
+let installed = false
+
+/**
+ * One listener for the whole app, so every button and link — admin and
+ * salesperson panels alike, and any added later — ticks once per tap without
+ * each one wiring it up.
+ *
+ * Only real taps count (event.isTrusted): the iOS tick itself works by
+ * clicking a hidden switch, and that synthetic click must not tick again.
+ * A disabled button fires no click, so it stays silent. Capture phase, so the
+ * tick lands before a page handler navigates away.
+ */
+export function installGlobalHaptics(): void {
+  if (installed || typeof document === 'undefined') return
+  installed = true
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (!event.isTrusted) return
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const pressable = target.closest(PRESSABLE)
+      if (!pressable || pressable.closest('[data-no-haptic]')) return
+      haptic()
+    },
+    { capture: true },
+  )
 }

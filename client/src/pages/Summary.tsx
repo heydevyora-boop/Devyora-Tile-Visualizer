@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import { formatTileSize as tileSizeLabelFor } from '../utils/tileSizeLabel'
-import { haptic } from '../utils/haptic'
 import { useFlow } from '../state/FlowContext'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Summary.css'
@@ -303,10 +302,7 @@ function Summary() {
                 id="generate-btn"
                 type="button"
                 disabled={!ready}
-                onClick={() => {
-                  haptic()
-                  navigate('/loading')
-                }}
+                onClick={() => navigate('/loading')}
               >
                 <span>Generate concept</span>
                 <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
