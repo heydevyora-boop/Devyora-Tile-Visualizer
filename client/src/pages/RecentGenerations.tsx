@@ -25,8 +25,9 @@ function formatWhen(timestamp: string): string {
 
 /**
  * One visualization: a consultation's request and every image made for it.
- * The first image is Version 01; each "Want another concept?" correction of it
- * is the next version of the same visualization, not a new one.
+ * Shown as "Version NN" (the user's NNth visualization). Its first image is
+ * Concept 01, and each "Want another concept?" correction of it is the next
+ * concept of the same version — the same numbering the result screen uses.
  */
 type Visualization = {
   generationId: string
@@ -34,7 +35,7 @@ type Visualization = {
   number: number
   customerName: string | null
   space: string | null
-  /** Oldest first: Version 01 is the original. */
+  /** Oldest first: Concept 01 is the original. */
   versions: GenerationActivity[]
 }
 
@@ -77,8 +78,9 @@ function groupVisualizations(records: GenerationActivity[]): Visualization[] {
 const twoDigits = (value: number) => String(value).padStart(2, '0')
 
 /**
- * Everything this salesperson has generated, saved or not, as visualizations
- * and their versions.
+ * Everything this salesperson has generated, saved or not: Version NN for each
+ * visualization, with its concepts under it. One user's own work only, so
+ * there is no per-user grouping here (that is the admin history).
  *
  * Every successful generation is already recorded with the salesperson who made
  * it; this reads those records (the server scopes them to the signed-in user).
@@ -104,16 +106,6 @@ function RecentGenerations() {
   const [saving, setSaving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  // Every visualization starts collapsed; its heading opens and closes it.
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
-
-  const toggle = (generationId: string) =>
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (next.has(generationId)) next.delete(generationId)
-      else next.add(generationId)
-      return next
-    })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -179,103 +171,86 @@ function RecentGenerations() {
       {records && records.length > 0 && (
         <ul className="ws__list ws__visualizations">
           {groupVisualizations(records).map((viz) => {
-            const open = expanded.has(viz.generationId)
-            const panelId = `visualization-${viz.generationId}`
-            const title = `Visualization ${twoDigits(viz.number)}`
+            const title = `Version ${twoDigits(viz.number)}`
             const lastAt = viz.versions[viz.versions.length - 1]?.createdAt ?? ''
             return (
               <li key={viz.generationId}>
-                {/* The heading is the control: it opens and closes this visualization. */}
-                <button
-                  aria-controls={panelId}
-                  aria-expanded={open}
-                  className="ws__row ws__row--button ws__viz-toggle"
-                  onClick={() => toggle(viz.generationId)}
-                  type="button"
-                >
+                <div className="ws__row ws__viz-head">
                   <span className="ws__row-body">
                     <span className="ws__row-title">{title}</span>
                     <span className="ws__row-meta">
                       {[viz.customerName, viz.space].filter(Boolean).join(' · ') || 'No client'}
                     </span>
                     <span className="ws__row-meta">
-                      {viz.versions.length} {viz.versions.length === 1 ? 'version' : 'versions'} ·{' '}
+                      {viz.versions.length} {viz.versions.length === 1 ? 'concept' : 'concepts'} ·{' '}
                       {formatWhen(lastAt)}
                     </span>
                   </span>
-                  <span
-                    aria-hidden="true"
-                    className={`material-symbols-outlined ws__viz-chevron${open ? ' is-open' : ''}`}
-                  >
-                    chevron_right
-                  </span>
-                </button>
+                </div>
 
-                {open && (
-                  <ul className="ws__gallery ws__viz-versions" id={panelId}>
-                    {viz.versions.map((record, versionIndex) => {
-                      const savedId = savedByRevision[record.id]
-                      const isSaved = Boolean(savedId) || record.savedToClient
-                      const label = `Version ${twoDigits(versionIndex + 1)}`
-                      const why = [...(record.reasons ?? []), record.note ?? '']
-                        .filter(Boolean)
-                        .join(' · ')
-                      return (
-                        <li key={record.id}>
-                          <div className="ws__card ws__card--static">
-                            {/* The stored image of this version; nothing is regenerated. */}
-                            {record.imageUrl ? (
-                              <img
-                                className="ws__card-image"
-                                src={record.imageUrl}
-                                alt={`${title}, ${label}`}
-                                loading="lazy"
-                              />
-                            ) : (
-                              <GenerationImage
-                                className="ws__card-image"
-                                id={record.id}
-                                alt={`${title}, ${label}`}
-                                token={token}
-                              />
+                <ul className="ws__gallery ws__viz-versions">
+                  {viz.versions.map((record, versionIndex) => {
+                    const savedId = savedByRevision[record.id]
+                    const isSaved = Boolean(savedId) || record.savedToClient
+                    const label = `Concept ${twoDigits(versionIndex + 1)}`
+                    const why = [...(record.reasons ?? []), record.note ?? '']
+                      .filter(Boolean)
+                      .join(' · ')
+                    return (
+                      <li key={record.id}>
+                        <div className="ws__card ws__card--static">
+                          {/* The stored image of this concept; nothing is regenerated. */}
+                          {record.imageUrl ? (
+                            <img
+                              className="ws__card-image"
+                              src={record.imageUrl}
+                              alt={`${title}, ${label}`}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <GenerationImage
+                              className="ws__card-image"
+                              id={record.id}
+                              alt={`${title}, ${label}`}
+                              token={token}
+                            />
+                          )}
+                          <span className="ws__card-body">
+                            <span className="ws__card-title">{label}</span>
+                            <span className="ws__card-meta">{formatWhen(record.createdAt)}</span>
+                            {versionIndex > 0 && why && (
+                              <span className="ws__card-meta">{why}</span>
                             )}
-                            <span className="ws__card-body">
-                              <span className="ws__card-title">{label}</span>
-                              <span className="ws__card-meta">{formatWhen(record.createdAt)}</span>
-                              {versionIndex > 0 && why && (
-                                <span className="ws__card-meta">{why}</span>
-                              )}
-                            </span>
-                            <span className="ws__card-actions">
-                              {isSaved ? (
-                                <button
-                                  className="ws__badge"
-                                  type="button"
-                                  disabled={!savedId}
-                                  onClick={() => savedId && navigate(`/saved-concepts/${savedId}`)}
-                                >
-                                  Saved
-                                </button>
-                              ) : (
-                                <button
-                                  className="ws__badge ws__badge--action"
-                                  type="button"
-                                  disabled={saving === record.id}
-                                  onClick={() => void handleSave(record)}
-                                >
-                                  <span className="material-symbols-outlined" aria-hidden="true">
-                                    bookmark_add
-                                  </span>
-                                  {saving === record.id ? 'Saving…' : 'Save'}
-                                </button>
-                              )}
-                            </span>
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
+                          </span>
+                          <span className="ws__card-actions">
+                            {isSaved ? (
+                              <button
+                                className="ws__badge"
+                                type="button"
+                                disabled={!savedId}
+                                onClick={() => savedId && navigate(`/saved-concepts/${savedId}`)}
+                              >
+                                Saved
+                              </button>
+                            ) : (
+                              <button
+                                className="ws__badge ws__badge--action"
+                                type="button"
+                                disabled={saving === record.id}
+                                onClick={() => void handleSave(record)}
+                              >
+                                <span className="material-symbols-outlined" aria-hidden="true">
+                                  bookmark_add
+                                </span>
+                                {saving === record.id ? 'Saving…' : 'Save'}
+                              </button>
+                            )}
+                          </span>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               </li>
             )
           })}
