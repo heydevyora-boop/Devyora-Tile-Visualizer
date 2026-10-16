@@ -264,6 +264,62 @@ function describeBathroomLayout(showWc: boolean): string {
 }
 
 /**
+ * The exact shape of the highlighter area, as its own part of the request.
+ *
+ * The system instruction only said where the highlighter goes ("the wall zone
+ * behind and beside the basin"), and the model filled that with a thin
+ * floor-to-ceiling strip beside the vanity — the vanity half on it, half off,
+ * and the strip running far above a Half Height dado. As with the bathroom
+ * layout, the concrete shape is stated in the request itself: one panel, the
+ * fixture centred in it, wide enough to read, and at the selected height.
+ */
+function describeHighlighterZone(brief: GenerationBrief): string {
+  const location = brief.placement.highlighterLocation
+  const height = brief.placement.application.tileHeight
+  const plainProvided = brief.tiles.plain.provided
+  const lines: string[] = []
+
+  if (/basin|vanity/i.test(location.name)) {
+    lines.push(
+      `HIGHLIGHTER ZONE — ${location.name}. The highlighter tile forms ONE clear rectangular feature panel on the wall the vanity stands against:`,
+      '- The vanity, the basin and the mirror above it are centred on this panel. The vanity sits fully inside the panel\'s width — never across its edge, never half on the highlighter and half on the plain tile.',
+      '- The panel is much wider than the vanity: it runs well past both ends of it, at least the vanity\'s own width again in total, or across the whole of that wall where the wall is not much wider. It is never a thin strip or a single column of tiles.',
+    )
+  } else if (/shower/i.test(location.name)) {
+    lines.push(
+      `HIGHLIGHTER ZONE — ${location.name}. The highlighter tile covers the shower's own walls — every wall inside the shower enclosure — as one continuous surface, corner to corner:`,
+      '- It is not a strip or a patch inside the shower, and it does not continue past the shower onto the rest of the room.',
+    )
+  } else if (/plain\s*wall|feature/i.test(location.name)) {
+    lines.push(
+      `HIGHLIGHTER ZONE — ${location.name}. One whole wall carries the highlighter tile, edge to edge and corner to corner:`,
+      '- It is the full width of that wall, never a strip or a patch on it, and it appears on no other wall.',
+    )
+  } else {
+    lines.push(
+      `HIGHLIGHTER ZONE — ${location.name}${location.description ? `: ${location.description}` : ''}`,
+      '- Make it ONE clear, well-proportioned rectangular area that reads at a glance — never a thin strip, a single column of tiles, a scattering or a patch — with the fixture it belongs to centred in it.',
+    )
+  }
+
+  if (height === 'Half Height') {
+    lines.push(
+      '- HEIGHT: the highlighter rises from the floor to the SAME half-height line as the rest of the tiling and stops exactly there. Above that line the wall is the same paint or plaster as above the plain tile. The highlighter never runs up to the ceiling as a strip, column or panel.',
+    )
+  } else if (height === 'Full Height') {
+    lines.push('- HEIGHT: the highlighter runs from floor to ceiling, like the rest of the tiling.')
+  }
+
+  lines.push(
+    plainProvided
+      ? '- The plain tile covers the remaining designated wall surfaces and meets the highlighter along clean, straight joint lines.'
+      : '- The remaining designated surfaces use the complementary non-tile finish, meeting the highlighter along a clean, straight edge.',
+    '- The highlighter is laid in whole tiles at its exact size, joint and pattern; it is never shrunk, stretched or cropped to fit the panel.',
+  )
+  return lines.join('\n')
+}
+
+/**
  * Turns a brief into the model's ordered input.
  *
  * The brief is rendered, not flattened: the selections go in as one JSON object
@@ -293,6 +349,7 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
 
   parts.push({ kind: 'text', text: describeDerivedFacts(brief) })
   if (isBathroom(brief)) parts.push({ kind: 'text', text: describeBathroomLayout(wantsWc(brief)) })
+  parts.push({ kind: 'text', text: describeHighlighterZone(brief) })
 
   parts.push({
     kind: 'text',

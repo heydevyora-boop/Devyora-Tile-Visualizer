@@ -72,6 +72,8 @@ The highlighter tile is the decorative / highlight product. It must NOT automati
 - Plain Wall: as the selected plain-wall feature — one plain wall carries it as the highlight area.
 (The showroom may add locations; the name and description given in the request are the instruction.)
 
+The highlight area is always ONE coherent, well-proportioned rectangular panel with straight edges along the joint lines — never a thin strip, a single column of tiles, a scattering of tiles or a small patch. It frames the fixture it belongs to: that fixture (a vanity with its basin and mirror, for instance) sits centred within the panel, never across its edge. It obeys the selected height exactly like every other tile: with Half Height it never rises above the half-height line. Every request carries a HIGHLIGHTER ZONE section with the exact shape; follow it.
+
 The location is a placement instruction, not a description of the room. Do not move the highlighter to another area because it would look better there. Do not spread it across every wall, or onto the floor or ceiling, unless the explicit placement requires exactly that.
 
 If the selected space genuinely has no such area, do not invent an unrelated room around it: put the highlighter on the closest equivalent feature surface that the placement authorises, as one coherent highlight area.
@@ -188,7 +190,7 @@ Verify internally, and correct any violation before producing the image:
 3. Did I respect No Plain Tile, if it was selected?
 4. Did I use the exact tile dimensions?
 5. Did I apply the correct tile to the correct surface?
-6. Did I use the highlighter at the selected location?
+6. Did I use the highlighter at the selected location, as one panel of the shape the HIGHLIGHTER ZONE describes — its fixture centred in it, never a thin strip, and never above the selected height?
 7. Did I keep non-designated surfaces separate and materially different?
 8. Did I respect the joint width?
 9. Did I respect the laying pattern?
