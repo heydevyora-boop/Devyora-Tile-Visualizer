@@ -196,7 +196,9 @@ export async function createArchitect(
 }
 
 export async function listArchitects(scope: OwnerScope, query?: string): Promise<Architect[]> {
-  await ensureIndexes()
+  // A read does not wait for index setup (see ensureIndexes): on a cold
+  // instance that was several extra database round trips before every list.
+  void ensureIndexes()
   const collection = await getCollection<ArchitectDoc>(ARCHITECTS)
   const docs = await collection
     .find({ ...ownerFilter(scope), ...searchFilter(query) })
@@ -248,7 +250,8 @@ export async function listCustomers(
   scope: OwnerScope,
   options: { query?: string; architectId?: string } = {},
 ): Promise<Customer[]> {
-  await ensureIndexes()
+  // A read does not wait for index setup; see listArchitects.
+  void ensureIndexes()
   const collection = await getCollection<CustomerDoc>(CUSTOMERS)
   const docs = await collection
     .find({

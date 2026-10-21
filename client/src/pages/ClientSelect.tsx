@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { useAuth } from '../state/AuthContext'
 import { useFlow } from '../state/FlowContext'
-import { ApiError, apiGet, apiPost, type Architect, type Customer } from '../utils/api'
+import { ApiError, apiPost, type Architect, type Customer } from '../utils/api'
 import { prefetchFlowData } from '../utils/flowData'
+import { getCached, setCached } from '../utils/apiCache'
+import { ARCHITECTS_KEY, CUSTOMERS_KEY, loadArchitects, loadCustomers } from '../utils/clientsData'
 import './Workspace.css'
 
 type Mode = 'customer' | 'architect' | 'new'
@@ -32,8 +34,14 @@ function ClientSelect() {
   const { setCustomer } = useFlow()
 
   const [mode, setMode] = useState<Mode>('customer')
-  const [customers, setCustomers] = useState<Customer[] | null>(null)
-  const [architects, setArchitects] = useState<Architect[]>([])
+  // Shown at once when another screen (or the background prefetch) already
+  // loaded them; refreshed below either way.
+  const [customers, setCustomers] = useState<Customer[] | null>(
+    () => getCached<Customer[]>(CUSTOMERS_KEY) ?? null,
+  )
+  const [architects, setArchitects] = useState<Architect[]>(
+    () => getCached<Architect[]>(ARCHITECTS_KEY) ?? [],
+  )
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
@@ -44,23 +52,27 @@ function ClientSelect() {
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Each list is shown the moment it arrives: the client names do not wait
+  // for the architect list, which only the Architect / Contractor tab needs.
   useEffect(() => {
-    const controller = new AbortController()
-    void (async () => {
-      try {
-        const [customerList, architectList] = await Promise.all([
-          apiGet<Customer[]>('/api/customers', token, controller.signal),
-          apiGet<Architect[]>('/api/architects', token, controller.signal),
-        ])
-        if (controller.signal.aborted) return
-        setCustomers(customerList)
-        setArchitects(architectList)
-      } catch (caught) {
-        if (controller.signal.aborted) return
-        setLoadError(caught instanceof ApiError ? caught.message : 'Could not load your clients.')
-      }
-    })()
-    return () => controller.abort()
+    let cancelled = false
+    const fail = (caught: unknown) => {
+      if (cancelled) return
+      setLoadError(caught instanceof ApiError ? caught.message : 'Could not load your clients.')
+    }
+    loadCustomers(token)
+      .then((list) => {
+        if (!cancelled) setCustomers(list)
+      })
+      .catch(fail)
+    loadArchitects(token)
+      .then((list) => {
+        if (!cancelled) setArchitects(list)
+      })
+      .catch(fail)
+    return () => {
+      cancelled = true
+    }
   }, [token])
 
   /** Locks the consultation to this client and moves on to the flow. */
@@ -92,11 +104,13 @@ function ClientSelect() {
 
     setSaving(true)
     try {
-      const created = await apiPost<Customer>('/api/customers', token, {
+      const created = await apiPost<Customer>(CUSTOMERS_KEY, token, {
         name,
         mobile,
         architectId: selectedArchitect?.id ?? null,
       })
+      // Keep the shared list current, so the next consultation finds them.
+      setCached(CUSTOMERS_KEY, [created, ...(getCached<Customer[]>(CUSTOMERS_KEY) ?? [])])
       begin(created)
     } catch (caught) {
       setFormError(caught instanceof ApiError ? caught.message : 'Could not save this client.')
@@ -146,7 +160,20 @@ function ClientSelect() {
             onChange={(event) => setSearch(event.target.value)}
             aria-label="Search customers"
           />
-          {customers === null && !loadError && <p className="ws__loading">Loading…</p>}
+          {/* Only on a first, uncached load: placeholder rows in the shape of
+              the list, with a soft shimmer, instead of a bare "Loading…". */}
+          {customers === null && !loadError && (
+            <ul className="ws__list" aria-busy="true" aria-label="Loading your clients">
+              {[0, 1, 2].map((row) => (
+                <li key={row} className="ws__row ws__skeleton-row" aria-hidden="true">
+                  <span className="ws__skeleton-lines">
+                    <span className="ws__skeleton ws__skeleton--title" />
+                    <span className="ws__skeleton ws__skeleton--meta" />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
           {customers !== null && matches.length === 0 && (
             <p className="ws__empty">
               {customers.length === 0

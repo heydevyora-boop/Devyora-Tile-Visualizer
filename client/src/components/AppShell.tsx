@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
+import { prefetchClients } from '../utils/clientsData'
 import './AppShell.css'
 
 /**
@@ -33,8 +34,11 @@ let sidebarCollapsed = false
 
 function AppShell({ title, children }: { title: string; children: ReactNode }) {
   const navigate = useNavigate()
-  const { userName, logout } = useAuth()
+  const { userName, logout, token } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  // Every salesperson screen warms the client list (cached, so this is a
+  // no-op when it is fresh), so New Visualization opens with names ready.
+  useEffect(() => prefetchClients(token), [token])
   const [collapsed, setCollapsed] = useState(() => sidebarCollapsed)
 
   // Escape closes the drawer, matching every other overlay in the app.

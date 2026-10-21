@@ -203,6 +203,66 @@ button.ws__badge::after {
   text-align: center;
 }
 
+/* Placeholder rows while a list loads for the first time: the shape of the
+   real rows, with a soft light sweeping across them. */
+.ws__skeleton-row {
+  min-height: 3.5rem;
+}
+
+.ws__skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.ws__skeleton {
+  display: block;
+  height: 0.75rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-container-high) 0%,
+    var(--color-surface-container-highest) 50%,
+    var(--color-surface-container-high) 100%
+  );
+  background-size: 200% 100%;
+  animation: ws-shimmer 1.2s ease-in-out infinite;
+}
+
+.ws__skeleton--title {
+  width: 45%;
+}
+
+.ws__skeleton--meta {
+  width: 30%;
+  height: 0.625rem;
+  opacity: 0.7;
+}
+
+.ws__skeleton-row:nth-child(2) .ws__skeleton--title {
+  width: 35%;
+}
+
+.ws__skeleton-row:nth-child(3) .ws__skeleton--title {
+  width: 52%;
+}
+
+@keyframes ws-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws__skeleton {
+    animation: none;
+  }
+}
+
 .ws__error {
   border-style: solid;
   border-color: var(--color-error);
