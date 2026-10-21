@@ -10,6 +10,13 @@
   animation: devyora-settle 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* The emblem's ring: fine, in the same colour as the D. */
+.devyora-mark__ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.15;
+}
+
 /* A soft band of light crosses the D, then rests, every 3.6s. */
 .devyora-mark__sheen {
   animation: devyora-sheen 3.6s cubic-bezier(0.45, 0, 0.25, 1) 0.6s infinite;

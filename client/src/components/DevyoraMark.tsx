@@ -8,12 +8,12 @@ const D_PATH =
 
 /**
  * The Devyora "D", for the buttons that create a concept (in place of a
- * generic sparkle icon): a solid serif monogram in the button's own text
- * colour, a soft band of light sweeping across it every few seconds, and a
+ * generic sparkle icon): a solid serif monogram inside a fine ring, like a
+ * logo emblem, in the button's own text colour, a soft band of light sweeping across it every few seconds, and a
  * small four-point star that twinkles after each sweep. `busy` quickens the
  * sweep while a concept is being created.
  */
-function DevyoraMark({ busy = false, size = 22 }: { busy?: boolean; size?: number }) {
+function DevyoraMark({ busy = false, size = 24 }: { busy?: boolean; size?: number }) {
   // url(#…) references must be unique per instance and free of ":".
   const clipId = `devyora-d-${useId().replace(/:/g, '')}`
   return (
@@ -36,22 +36,26 @@ function DevyoraMark({ busy = false, size = 22 }: { busy?: boolean; size?: numbe
         </linearGradient>
       </defs>
       <g className="devyora-mark__glyph">
-        <path d={D_PATH} fill="currentColor" fillRule="evenodd" />
-        <g clipPath={`url(#${clipId})`}>
-          <rect
-            className="devyora-mark__sheen"
-            x="-8"
-            y="-4"
-            width="7"
-            height="32"
-            fill={`url(#${clipId}-sheen)`}
-            transform="skewX(-20)"
-          />
+        {/* The emblem: a fine ring with the D centred inside it. */}
+        <circle className="devyora-mark__ring" cx="12" cy="12" r="11" />
+        <g transform="translate(12 12) scale(0.66) translate(-12.25 -12)">
+          <path d={D_PATH} fill="currentColor" fillRule="evenodd" />
+          <g clipPath={`url(#${clipId})`}>
+            <rect
+              className="devyora-mark__sheen"
+              x="-8"
+              y="-4"
+              width="7"
+              height="32"
+              fill={`url(#${clipId}-sheen)`}
+              transform="skewX(-20)"
+            />
+          </g>
         </g>
       </g>
       <path
         className="devyora-mark__star"
-        d="M21.6 0L22.55 2.75L25.3 3.7L22.55 4.65L21.6 7.4L20.65 4.65L17.9 3.7L20.65 2.75Z"
+        d="M21.4 -0.6L22.25 1.85L24.7 2.7L22.25 3.55L21.4 6L20.55 3.55L18.1 2.7L20.55 1.85Z"
         fill="currentColor"
       />
     </svg>
