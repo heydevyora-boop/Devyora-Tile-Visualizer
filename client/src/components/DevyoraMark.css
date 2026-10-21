@@ -3,74 +3,77 @@
   overflow: visible;
 }
 
-.devyora-mark__ring {
-  stroke: currentColor;
-  stroke-width: 1;
-  opacity: 0.28;
-}
-
-/* A short bright arc travelling round the ring. Circumference ≈ 66. */
-.devyora-mark__orbit {
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-dasharray: 11 55;
+/* The monogram settles in once when the button appears. */
+.devyora-mark__glyph {
   transform-box: fill-box;
   transform-origin: center;
-  animation: devyora-orbit 3.2s linear infinite;
+  animation: devyora-settle 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.devyora-mark--busy .devyora-mark__orbit {
-  animation-duration: 1.1s;
+/* A soft band of light crosses the D, then rests, every 3.6s. */
+.devyora-mark__sheen {
+  animation: devyora-sheen 3.6s cubic-bezier(0.45, 0, 0.25, 1) 0.6s infinite;
 }
 
-/* The D draws itself in once, then holds; the small serifs follow. */
-.devyora-mark__d {
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 44;
-  stroke-dashoffset: 44;
-  animation: devyora-draw 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
-}
-
-.devyora-mark__serif {
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
+/* The star twinkles just after each sweep. */
+.devyora-mark__star {
+  transform-box: fill-box;
+  transform-origin: center;
   opacity: 0;
-  animation: devyora-fade 0.4s ease-out 0.85s forwards;
+  animation: devyora-twinkle 3.6s ease-in-out 0.6s infinite;
 }
 
-@keyframes devyora-orbit {
-  to {
-    transform: rotate(360deg);
+.devyora-mark--busy .devyora-mark__sheen,
+.devyora-mark--busy .devyora-mark__star {
+  animation-duration: 1.4s;
+  animation-delay: 0s;
+}
+
+@keyframes devyora-settle {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
   }
-}
-
-@keyframes devyora-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes devyora-fade {
   to {
     opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes devyora-sheen {
+  0% {
+    transform: skewX(-20deg) translateX(0);
+  }
+  45%,
+  100% {
+    transform: skewX(-20deg) translateX(34px);
+  }
+}
+
+@keyframes devyora-twinkle {
+  0%,
+  38% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+  64%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(90deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .devyora-mark__orbit,
-  .devyora-mark__d,
-  .devyora-mark__serif {
+  .devyora-mark__glyph,
+  .devyora-mark__sheen,
+  .devyora-mark__star {
     animation: none;
   }
-  .devyora-mark__d {
-    stroke-dashoffset: 0;
-  }
-  .devyora-mark__serif {
-    opacity: 1;
+  .devyora-mark__star {
+    opacity: 0.85;
   }
 }
