@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatTileSize as tileSizeLabelFor } from '../utils/tileSizeLabel'
 import { useFlow } from '../state/FlowContext'
 import HeaderUserMenu from '../components/HeaderUserMenu'
+import DevyoraMark from '../components/DevyoraMark'
 import './Summary.css'
 
 const NOT_SELECTED = 'Not selected'
@@ -305,7 +306,7 @@ function Summary() {
                 onClick={() => navigate('/loading')}
               >
                 <span>Generate concept</span>
-                <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                <DevyoraMark />
               </button>
             </div>
           </div>

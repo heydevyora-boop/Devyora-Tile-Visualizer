@@ -9,6 +9,7 @@ import { dedupeByName } from '../utils/dedupeByName'
 import { buildGenerateRequest } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import SpeechTextarea from '../components/SpeechTextarea'
+import DevyoraMark from '../components/DevyoraMark'
 import './Results.css'
 
 // Same-origin by default, matching the rest of the app.
@@ -544,7 +545,7 @@ function Results() {
                       onClick={() => void handleAnotherConcept()}
                     >
                       <span>{addingConcept ? 'Creating…' : 'Create concept'}</span>
-                      <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                      <DevyoraMark busy={addingConcept} />
                     </button>
                     <button
                       className="h-[52px] px-space-md rounded-lg border border-outline-variant text-on-surface hover:border-primary transition-all font-label-caps text-label-caps uppercase tracking-widest"
