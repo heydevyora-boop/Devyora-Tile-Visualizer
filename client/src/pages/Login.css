@@ -140,7 +140,7 @@
 .login__brand-mark {
   display: block;
   width: auto;
-  height: 64px;
+  height: 44px;
   margin: 0 auto var(--login-space-sm);
 }
 
