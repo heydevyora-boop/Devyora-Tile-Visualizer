@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { useFlow } from '../state/FlowContext'
 import { prefetchFlowData } from '../utils/flowData'
+import devyoraLogo from '../assets/devyora-logo.png'
 import './Home.css'
 
 const TILE_SRC =
@@ -59,7 +60,7 @@ function Home() {
         </header>
 
         <section className="home__hero">
-          <p className="home__eyebrow">Atelier Showroom Suite</p>
+          <img className="home__brand-mark" src={devyoraLogo} alt="Devyora" />
           <h1 className="home__brand-title">DEVYORA</h1>
           <h2 className="home__subtitle">Tile Visualizer</h2>
           <p className="home__vision">

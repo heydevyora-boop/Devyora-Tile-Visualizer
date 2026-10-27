@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { landingPathFor, useAuth } from '../state/AuthContext'
+import devyoraLogo from '../assets/devyora-logo.png'
 import './Login.css'
 
 function Login() {
@@ -69,7 +70,7 @@ function Login() {
 
         <section className="login__body">
           <div className="login__intro">
-            <p className="login__eyebrow">Atelier Showroom Suite</p>
+            <img className="login__brand-mark" src={devyoraLogo} alt="Devyora" />
             <h1 className="login__title">DEVYORA</h1>
             <h2 className="login__subtitle">Tile Visualizer</h2>
             <p className="login__vision">Sign in to begin a showroom consultation.</p>

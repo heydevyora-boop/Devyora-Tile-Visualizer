@@ -154,15 +154,11 @@
   width: 100%;
 }
 
-.home__eyebrow {
-  font-family: var(--home-font-heading);
-  font-size: 11px;
-  line-height: 14px;
-  letter-spacing: 0.14em;
-  font-weight: 400;
-  color: var(--color-outline);
-  text-transform: uppercase;
-  margin: 0 0 var(--home-space-sm);
+.home__brand-mark {
+  display: block;
+  width: auto;
+  height: 64px;
+  margin: 0 auto var(--home-space-sm);
 }
 
 .home__brand-title {
