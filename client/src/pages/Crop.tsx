@@ -61,13 +61,8 @@ function Crop({ target }: { target: TileTarget }) {
     setCropError(null)
     try {
       // The rectangle is already in source-photo pixels, which is exactly what
-      // the exporter expects — no conversion, so nothing can drift.
-      const dataUrl = await getCroppedImage(tileImage, {
-        x: Math.round(rect.x),
-        y: Math.round(rect.y),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      })
+      // the exporter expects; it snaps it to whole pixels inside the photo.
+      const dataUrl = await getCroppedImage(tileImage, rect)
       setCroppedTile(target, dataUrl)
       navigate('/tile-input')
     } catch (error) {

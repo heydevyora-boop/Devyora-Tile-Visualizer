@@ -1,6 +1,8 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
+import { mkdir, writeFile } from 'fs/promises'
+import { join } from 'path'
 import { GoogleGenAI } from '@google/genai'
-import { SYSTEM_INSTRUCTION, buildModelRequest } from './buildGenerationPrompt'
+import { SYSTEM_INSTRUCTION, buildModelRequest, describeModelRequest } from './buildGenerationPrompt'
 import { isGoogleDriveConfigured, uploadImageToDrive } from './googleDrive'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL, IMAGE_SIZE } from '../config/imageModel'
 import type { GenerationBrief } from './generationBrief'
@@ -238,7 +240,7 @@ const TILE_REFERENCE_QUALITY = 95
  * nothing the model uses, and a photograph taken in a showroom can carry a
  * GPS location.
  */
-async function prepareTileReference(tile: ParsedDataUrl): Promise<ParsedDataUrl> {
+export async function prepareTileReference(tile: ParsedDataUrl): Promise<ParsedDataUrl> {
   let sharp: (typeof import('sharp'))['default']
   try {
     sharp = (await import('sharp')).default
@@ -291,6 +293,56 @@ async function prepareTileReference(tile: ParsedDataUrl): Promise<ParsedDataUrl>
       error instanceof Error ? error.message : error,
     )
     return tile
+  }
+}
+
+/** A short, stable fingerprint of an image's bytes, so a log line names the exact image sent. */
+export function fingerprint(image: ParsedDataUrl): string {
+  return createHash('sha256').update(image.data, 'base64').digest('hex').slice(0, 12)
+}
+
+/**
+ * Optional debugging: with TILE_DEBUG_DIR set, every generation writes what
+ * the model was actually given and what it returned, side by side —
+ *
+ *   01-highlighter-crop      the crop exactly as the browser sent it
+ *   02-highlighter-reference the copy the model saw (identical bytes unless
+ *                            it had to be resized or turned upright)
+ *   03-plain-crop, 04-plain-reference   the same for the plain tile
+ *   05-provider-input.txt    the system instruction and the ordered request
+ *   05-provider-input.json   the request parts, each image by type, size and fingerprint
+ *   06-model-output          the image exactly as the model returned it
+ *
+ * Off unless set, and meant for a developer's machine: these are customer
+ * photographs, so nothing is written to disk unless someone asks for it. The
+ * photo before cropping never leaves the browser, so it is not here.
+ * Never fails a generation.
+ */
+export async function writeDebugArtifacts(
+  generationId: string,
+  conceptIndex: number,
+  images: Record<string, ParsedDataUrl | null>,
+  request?: { text: string; parts: unknown[] },
+): Promise<void> {
+  const root = process.env.TILE_DEBUG_DIR
+  if (!root) return
+  try {
+    const dir = join(root, `${generationId}-concept-${conceptIndex + 1}`)
+    await mkdir(dir, { recursive: true })
+    for (const [name, image] of Object.entries(images)) {
+      if (!image) continue
+      await writeFile(join(dir, `${name}.${extensionFor(image.mimeType)}`), Buffer.from(image.data, 'base64'))
+    }
+    if (request) {
+      await writeFile(join(dir, '05-provider-input.txt'), request.text)
+      await writeFile(join(dir, '05-provider-input.json'), JSON.stringify(request.parts, null, 2))
+    }
+    console.log(`[generateVisualization] debug artifacts written to ${dir}`)
+  } catch (error) {
+    console.warn(
+      '[generateVisualization] could not write debug artifacts:',
+      error instanceof Error ? error.message : error,
+    )
   }
 }
 
@@ -451,13 +503,42 @@ export async function generateVisualization(
     if (!reference) throw new GenerationError('A tile photograph was missing from the request.', 400)
     return { type: 'image' as const, data: reference.data, mime_type: reference.mimeType }
   })
+  // Each image by its fingerprint, so the log shows which exact photograph
+  // went to the model in which place.
   console.log(
     '[generateVisualization] request parts:',
-    plan.parts.map((part) => (part.kind === 'text' ? 'text' : `image(${part.tile})`)).join(', '),
+    plan.parts
+      .map((part) => {
+        if (part.kind === 'text') return 'text'
+        const reference = references[part.tile]
+        return `image(${part.tile} ${reference ? fingerprint(reference) : 'missing'})`
+      })
+      .join(', '),
   )
   // Generated up front so it can name the Drive files below, and reused
   // as-is on the returned result rather than generating a second, different id.
   const generationId = input.generationId ?? randomUUID()
+  if (process.env.TILE_DEBUG_DIR) {
+    const debugImages: Record<string, ParsedDataUrl | null> = {
+      '01-highlighter-crop': original,
+      '02-highlighter-reference': tile,
+      '03-plain-crop': plainOriginal,
+      '04-plain-reference': plainTile,
+    }
+    await writeDebugArtifacts(generationId, conceptIndex, debugImages, {
+      text: `SYSTEM INSTRUCTION\n\n${SYSTEM_INSTRUCTION}\n\n${'='.repeat(72)}\n\n${describeModelRequest(plan)}`,
+      parts: modelInput.map((part) =>
+        part.type === 'text'
+          ? part
+          : {
+              type: 'image',
+              mime_type: part.mime_type,
+              bytes: Buffer.from(part.data, 'base64').length,
+              sha256: fingerprint({ data: part.data, mimeType: part.mime_type }),
+            },
+      ),
+    })
+  }
 
   const ai = new GoogleGenAI({ apiKey })
 
@@ -510,6 +591,10 @@ export async function generateVisualization(
       502,
     )
   }
+
+  await writeDebugArtifacts(generationId, conceptIndex, {
+    '06-model-output': { data: output.data, mimeType: output.mime_type ?? 'image/png' },
+  })
 
   const compressed = await compressForTransport([
     { data: output.data, mimeType: output.mime_type ?? 'image/png' },

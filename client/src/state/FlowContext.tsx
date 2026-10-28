@@ -81,7 +81,7 @@ type FlowContextValue = {
   additionalRequirement: string
   generatedResult: GeneratedResult | null
   setCustomer: (customer: Customer | null) => void
-  /** Stores a freshly captured/uploaded photo, ready for the crop screen. */
+  /** Stores a freshly captured/uploaded photo, ready for the crop screen, and drops that tile's old crop. */
   setTileSource: (target: TileTarget, image: string) => void
   /** Stores a finished crop. For the plain tile this also records that one was provided. */
   setCroppedTile: (target: TileTarget, image: string) => void
@@ -124,8 +124,17 @@ export function FlowProvider({ children }: { children: ReactNode }) {
   const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null)
 
   const setTileSource = (target: TileTarget, image: string) => {
-    if (target === 'highlighter') setHighlighterSource(image)
-    else setPlainSource(image)
+    // A new photo makes the crop of the previous one stale. Kept, it would
+    // still be what is sent if the new photo were never cropped, so the tile
+    // in the concept would not be the one just photographed.
+    if (target === 'highlighter') {
+      setHighlighterSource(image)
+      setHighlighterTileImage(null)
+      return
+    }
+    setPlainSource(image)
+    setPlainTileImage(null)
+    setPlainTileProvided(null)
   }
 
   const setCroppedTile = (target: TileTarget, image: string) => {

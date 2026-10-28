@@ -8,6 +8,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "test": "node --require ts-node/register/transpile-only --test test/*.test.ts",
     "print-prompts": "ts-node-dev --transpile-only --no-notify src/scripts/printPrompts.ts",
     "test:generate": "ts-node-dev --transpile-only --no-notify src/scripts/testSingleGeneration.ts",
     "migrate:legacy-generations": "ts-node-dev --transpile-only --no-notify src/scripts/migrateLegacyGenerations.ts",

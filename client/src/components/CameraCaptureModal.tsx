@@ -134,7 +134,10 @@ function CameraCaptureModal({ title, onCapture, onClose }: CameraCaptureModalPro
       return
     }
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    onCapture(canvas.toDataURL('image/jpeg', 0.92))
+    // Full quality: below 1.0 the browser halves the colour resolution, and
+    // fine coloured veins lost here cannot be recovered by the crop. This
+    // frame stays on the device; only the crop is uploaded.
+    onCapture(canvas.toDataURL('image/jpeg', 1))
   }
 
   return (
