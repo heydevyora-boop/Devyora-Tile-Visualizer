@@ -79,3 +79,12 @@ test('every space gets the same reference rules — no weaker path', () => {
 test('the first view keeps the nearest tiles large enough to read', () => {
   assert.match(request(parkingFloor), /nearest tiles are large enough in the image for each one's whole design to be read/)
 })
+
+test('every catalogue space id is recognised (Living Room was refused as "living-room")', async () => {
+  const { getSpaceConfig } = await import('../src/config/spaces')
+  for (const space of Object.values(SPACES)) {
+    assert.equal(getSpaceConfig(space.id)?.id, space.id, space.id)
+    assert.equal(getSpaceConfig(space.label)?.id, space.id, space.label)
+  }
+  assert.match(request([node('Living Room', 'living-room'), node('Living Floor')]), /ROOM CONTEXT — what a living room typically contains/)
+})

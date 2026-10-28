@@ -58,3 +58,46 @@ test('a different arrangement of the same stones (another piece of the same prod
   const another = stoneTile({ size: S, stones: 9, lineWidth: 6, ...BLUE_GREY, seed: 99 })
   assert.equal(compareTiles(reference, [another]).overall, 'PASS')
 })
+
+/** A plain tile: one colour with a little sensor-like noise. */
+function plainTile(colour: [number, number, number], seed = 1): RgbImage {
+  let state = seed
+  const data = new Uint8Array(S * S * 3)
+  for (let i = 0; i < S * S; i++) {
+    state = (state * 1664525 + 1013904223) >>> 0
+    const noise = (state / 2 ** 32 - 0.5) * 6
+    data.set(colour.map((c) => Math.round(c + noise)), i * 3)
+  }
+  return { width: S, height: S, data }
+}
+
+test('a plain tile is recognised as plain, and matches itself under another light', () => {
+  const beige = plainTile([201, 186, 160])
+  const report = compareTiles(beige, [relight(plainTile([201, 186, 160], 9), 0.7)])
+  assert.equal(report.plain, true)
+  assert.equal(report.patternScale.verdict, 'N/A')
+  assert.equal(report.overall, 'PASS', JSON.stringify(report))
+})
+
+test('a plain tile given an invented pattern fails, and so does a recoloured one', () => {
+  const beige = plainTile([201, 186, 160])
+  const patterned = stoneTile({ size: S, stones: 9, lineWidth: 6, body: [201, 186, 160], line: [150, 140, 120] })
+  assert.equal(compareTiles(beige, [patterned]).uniformity.verdict, 'FAIL')
+  assert.equal(compareTiles(beige, [plainTile([170, 175, 180])]).bodyColour.verdict, 'FAIL')
+})
+
+test('the same design redrawn at half size (four copies per tile, thinner lines) fails', () => {
+  // Average 2x2 blocks to half size, then repeat 2x2 — the "more, smaller stones" render.
+  const half = new Uint8Array((S / 2) * (S / 2) * 3)
+  for (let y = 0; y < S / 2; y++) for (let x = 0; x < S / 2; x++) for (let c = 0; c < 3; c++) {
+    const at = (dx: number, dy: number) => reference.data[((2 * y + dy) * S + 2 * x + dx) * 3 + c]
+    half[(y * (S / 2) + x) * 3 + c] = Math.round((at(0, 0) + at(1, 0) + at(0, 1) + at(1, 1)) / 4)
+  }
+  const redrawn = new Uint8Array(S * S * 3)
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const from = ((y % (S / 2)) * (S / 2) + (x % (S / 2))) * 3
+    redrawn.set(half.subarray(from, from + 3), (y * S + x) * 3)
+  }
+  const report = compareTiles(reference, [{ width: S, height: S, data: redrawn }])
+  assert.equal(report.patternScale.verdict, 'FAIL', JSON.stringify(report.patternScale))
+})

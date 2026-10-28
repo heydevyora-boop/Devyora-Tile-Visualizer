@@ -150,17 +150,50 @@ export function lightMask(image: RgbImage): Uint8Array {
   return Uint8Array.from(lum, (v) => (v > t ? 1 : 0))
 }
 
-/** Mean linear-light chromaticity (r, g) of the pixels in `mask` (or all). */
+/**
+ * The chromaticity (r, g) of the summed linear light of the pixels in `mask`
+ * (or all). Summing light rather than averaging per-pixel ratios keeps dark
+ * pixels from dominating, and mixes colours the way light does. With a mask,
+ * pixels on the border between the two classes are left out, since resampling
+ * blends them.
+ */
 export function chromaticity(image: RgbImage, mask?: Uint8Array, want = 1): [number, number] {
-  let r = 0, g = 0, n = 0
-  for (let i = 0; i < image.width * image.height; i++) {
-    if (mask && mask[i] !== want) continue
-    const R = toLinear(image.data[i * 3]), G = toLinear(image.data[i * 3 + 1]), B = toLinear(image.data[i * 3 + 2])
-    const total = R + G + B
-    if (total < 1e-4) continue
-    r += R / total; g += G / total; n++
+  const { width, height } = image
+  let R = 0, G = 0, B = 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x
+      if (mask) {
+        if (mask[i] !== want) continue
+        if (x === 0 || y === 0 || x === width - 1 || y === height - 1) continue
+        if (mask[i - 1] !== want || mask[i + 1] !== want || mask[i - width] !== want || mask[i + width] !== want) continue
+      }
+      R += toLinear(image.data[i * 3]); G += toLinear(image.data[i * 3 + 1]); B += toLinear(image.data[i * 3 + 2])
+    }
   }
-  return n ? [r / n, g / n] : [1 / 3, 1 / 3]
+  const total = R + G + B
+  return total > 1e-6 ? [R / total, G / total] : [1 / 3, 1 / 3]
+}
+
+/** Luminance spread (standard deviation / mean) after smoothing: near 0 for a plain tile. */
+export function uniformity(image: RgbImage): number {
+  const lum = smooth(luminance(image), image.width, image.height)
+  const mean = lum.reduce((a, b) => a + b, 0) / lum.length
+  const variance = lum.reduce((a, v) => a + (v - mean) ** 2, 0) / lum.length
+  return mean > 0 ? Math.sqrt(variance) / mean : 0
+}
+
+/**
+ * Whether a tile is plain: its lighter and darker halves differ by less than
+ * a tenth of its brightness, so "features" would be sensor noise.
+ */
+export function isPlain(image: RgbImage): boolean {
+  const lum = smooth(luminance(image), image.width, image.height)
+  const t = isodata(lum)
+  let low = 0, nLow = 0, high = 0, nHigh = 0
+  for (const v of lum) { if (v > t) { high += v; nHigh++ } else { low += v; nLow++ } }
+  const mean = (low + high) / lum.length
+  return !nLow || !nHigh || (high / nHigh - low / nLow) / mean < 0.1
 }
 
 /**
@@ -186,7 +219,7 @@ export function featureScale(mask: Uint8Array, size: number, want: number): numb
 
 export const lightShare = (mask: Uint8Array) => mask.reduce((sum, v) => sum + v, 0) / mask.length
 
-export type Verdict = 'PASS' | 'WARN' | 'FAIL'
+export type Verdict = 'PASS' | 'WARN' | 'FAIL' | 'N/A'
 
 export interface FidelityReport {
   /** Linear chromaticity distance of the tile body (dark class), x1000. */
@@ -199,6 +232,10 @@ export interface FidelityReport {
   lineThickness: { ratio: number; verdict: Verdict }
   /** Rendered / reference share of the lighter class. */
   lineCoverage: { ratio: number; verdict: Verdict }
+  /** Rendered / reference luminance spread: a plain tile given a pattern raises it. */
+  uniformity: { ratio: number; verdict: Verdict }
+  /** True when the reference is a plain tile: pattern measures do not apply. */
+  plain: boolean
   /** Rendered / reference mean luminance: the room's light, informational only. */
   lightingRatio: number
   overall: Verdict
@@ -215,6 +252,7 @@ const ratioBand = (ratio: number, pass: number, warn: number): Verdict => {
  * same size (see rectify/tilePatch). Several rendered patches are averaged.
  */
 export function compareTiles(reference: RgbImage, rendered: RgbImage[]): FidelityReport {
+  if (isPlain(reference)) return comparePlain(reference, rendered)
   const size = reference.width
   const refMask = lightMask(reference)
   const refBody = chromaticity(reference, refMask, 0)
@@ -239,11 +277,49 @@ export function compareTiles(reference: RgbImage, rendered: RgbImage[]): Fidelit
   const report = {
     bodyColour: { distance: +(body / n).toFixed(1), verdict: band(body / n, 8, 15) },
     lineColour: { distance: +(lines / n).toFixed(1), verdict: band(lines / n, 10, 20) },
-    patternScale: { ratio: +(scale / n).toFixed(2), verdict: ratioBand(scale / n, 1.25, 1.5) },
+    // Tight: an exact copy measured 0.97-1.08 through perspective and resampling,
+    // while the design redrawn at half size reads only about 0.75 once its
+    // lines are a pixel or two wide.
+    patternScale: { ratio: +(scale / n).toFixed(2), verdict: ratioBand(scale / n, 1.15, 1.3) },
     lineThickness: { ratio: +(thickness / n).toFixed(2), verdict: ratioBand(thickness / n, 1.35, 1.8) },
     lineCoverage: { ratio: +(share / n).toFixed(2), verdict: ratioBand(share / n, 1.3, 1.7) },
+    uniformity: { ratio: NaN, verdict: 'N/A' as Verdict },
+    plain: false,
     lightingRatio: +(lum / n).toFixed(2),
   }
-  const verdicts = [report.bodyColour, report.lineColour, report.patternScale, report.lineThickness, report.lineCoverage].map((m) => m.verdict)
+  return withOverall(report)
+}
+
+function withOverall(report: Omit<FidelityReport, 'overall'>): FidelityReport {
+  const verdicts = [report.bodyColour, report.lineColour, report.patternScale, report.lineThickness, report.lineCoverage, report.uniformity].map((m) => m.verdict)
   return { ...report, overall: verdicts.includes('FAIL') ? 'FAIL' : verdicts.includes('WARN') ? 'WARN' : 'PASS' }
+}
+
+/** A plain tile: its colour, and that it stayed plain. Pattern measures are not applicable. */
+function comparePlain(reference: RgbImage, rendered: RgbImage[]): FidelityReport {
+  const size = reference.width
+  const refColour = chromaticity(reference)
+  const refSpread = Math.max(uniformity(reference), 0.01)
+  const refLum = luminance(reference).reduce((a, b) => a + b, 0) / (size * size)
+  let colour = 0, spread = 0, lum = 0
+  for (const patch of rendered) {
+    const c = chromaticity(patch)
+    colour += Math.hypot(c[0] - refColour[0], c[1] - refColour[1]) * 1000
+    spread += Math.max(uniformity(patch), 0.01) / refSpread
+    lum += luminance(patch).reduce((a, v) => a + v, 0) / (size * size) / refLum
+  }
+  const n = rendered.length
+  const na = { ratio: NaN, verdict: 'N/A' as Verdict }
+  return withOverall({
+    bodyColour: { distance: +(colour / n).toFixed(1), verdict: band(colour / n, 8, 15) },
+    lineColour: { distance: NaN, verdict: 'N/A' },
+    patternScale: na,
+    lineThickness: na,
+    lineCoverage: na,
+    // Up to about three times the photo's own spread is light falling across
+    // the tile; far beyond it, something was drawn on it.
+    uniformity: { ratio: +(spread / n).toFixed(2), verdict: spread / n <= 3 ? 'PASS' : spread / n <= 5 ? 'WARN' : 'FAIL' },
+    plain: true,
+    lightingRatio: +(lum / n).toFixed(2),
+  })
 }

@@ -105,9 +105,15 @@ export const SPACES: Record<string, SpaceConfig> = {
   },
 }
 
-/** Looks up a space config by the label the client sends (case-insensitive). */
+/**
+ * Looks up a space config by what the client sends (case-insensitive): the
+ * catalogue's space id ("living-room"), or the label ("Living Room") where a
+ * root category has no id. Matching the label alone refused every space whose
+ * id is not its label in lower case.
+ */
 export function getSpaceConfig(label: string): SpaceConfig | undefined {
+  const wanted = label.trim().toLowerCase()
   return Object.values(SPACES).find(
-    (space) => space.label.toLowerCase() === label.trim().toLowerCase(),
+    (space) => space.id === wanted || space.label.toLowerCase() === wanted,
   )
 }
