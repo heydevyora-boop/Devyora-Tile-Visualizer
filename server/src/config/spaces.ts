@@ -76,7 +76,7 @@ export const SPACES: Record<string, SpaceConfig> = {
     label: 'Parking',
     surfaces: ['floor'],
     environment:
-      'A parking area (garage or covered car park): structural columns, ceiling- or wall-mounted lighting typical of a car park, and painted line markings only if they do not compete with the tile as the hero surface. No vehicles blocking the tiled surface from view.',
+      'A real residential or commercial parking area — covered (stilt or basement car park, with a concrete or plastered soffit and structural columns) or open (a driveway or forecourt beside the building). Two or three marked parking bays, each about 2.5 m wide and 5 m long, outlined by thin painted lines (white or yellow, about 100 mm wide) on top of the tiled floor: the paint sits on the tile surface, the tile pattern and joints continue underneath and around it, and no tile is replaced, recoloured or cut to form a line. Optional low wheel stops at the head of each bay. One or two cars at true scale, parked squarely within their bays with their tyres on the floor and soft contact shadows, kept to one side or the far end so most of the tiled floor stays in view. Car-park lighting (linear ceiling fittings or daylight from the open side) with realistic reflections on the floor. Walls, columns and the soffit are painted plaster or concrete — never the tile.',
   },
   staircase: {
     id: 'staircase',

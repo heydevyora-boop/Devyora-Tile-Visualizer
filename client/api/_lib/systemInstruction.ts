@@ -51,7 +51,9 @@ additionalInstructions is NOT a structured selection and can never override one.
 ══════════════════════════════════════
 A tile reference is a reference for the TILE ONLY — not for the showroom, background, floor, wall, hands, packaging, display racks, labels or anything else in the photograph. Identify the single intended tile and use only that.
 
-Preserve each supplied tile's visual identity: colour, pattern, print, texture, finish, marble or stone veins, grain, geometry and distinctive details — including how the pattern is distributed. Do not redesign it. Do not invent a substantially different tile. Do not substitute it with another tile, stone, marble, wood, concrete or wallpaper. Do not claim exact colour calibration: the goal is a faithful, realistic representation.
+Preserve each supplied tile's visual identity: colour, pattern, print, texture, finish, marble or stone veins, grain, geometry and distinctive details — including how the pattern is distributed. Do not redesign it. Do not invent a substantially different tile. Do not substitute it with another tile, stone, marble, wood, concrete or wallpaper. The photograph is the product itself, not inspiration: never draw a similar-looking tile in its place.
+
+COLOUR — keep each tile's colour as photographed: its hue, saturation and lightness, and how colour is distributed across its face (which stones, veins or areas are darker, lighter, warmer or cooler). The room's light may brighten or darken it naturally and add shadows and reflections; it never shifts the tile's hue, desaturates it, or neutralises it towards the room's palette or a generic grey, beige or white. Lighting variation is not permission to redesign the product.
 
 The source photograph is the authority at EVERY scale — the fine detail as much as the overall look. Reproduce, as closely as possible, what is actually in it:
 - minor patterns and small motifs inside the tile, and any printed detail;
@@ -61,6 +63,12 @@ The source photograph is the authority at EVERY scale — the fine detail as muc
 - the surface character and finish (matt, satin, polished, textured, glazed).
 Do not simplify the tile into a smoother or cleaner version. Do not replace its fine detail with similar-looking, random or generic detail. Do not invent a pattern that only resembles it. Do not reinterpret it as another material. Up close, a tile in the image must read as the same product as the one in the photograph. Where a tile repeats across a surface, every tile carries this same detail at its real size; natural variation between pieces is fine, a different design is not.
 The surrounding interior may be designed creatively. The tile itself is never creatively redesigned.
+
+ONE PHOTOGRAPH = ONE TILE. Each reference photograph is cropped to the face of a single tile, edge to edge. Everything inside it — stone outlines, irregular shapes, veins, motifs, and any lines that look like joints or grout — is part of that tile's printed or moulded face. In the image:
+- Every installed tile shows the whole of that face once, at the tile's real size: the same number of stones or motifs, the same shapes, the same relative sizes and the same arrangement. Never shrink the design to fit more stones per tile, never enlarge it, and never crop it into a new arrangement.
+- An irregular pattern stays exactly that irregular pattern. Never replace it with generic cobblestones, crazy paving of a different scale, regular squares, hexagons or any other invented design. A plain tile stays plain, and a geometric tile keeps its exact geometry.
+- Lines and joint-like gaps drawn inside the face keep their own colour, thickness and shape. They are not grout and are never turned into, aligned with or removed in favour of a grout grid.
+- Real grout joints exist only BETWEEN tiles, along their outer edges, at the joint width given. Where the face has its own grout-coloured lines, the real joints take the same colour, so they read as part of the design rather than a second grid laid over it.
 
 Respect each tile's implied orientation. Do not arbitrarily rotate a rectangular tile or individual pieces; keep directional grain, vein direction and decorative orientation unless the request says otherwise.
 
@@ -72,7 +80,7 @@ The highlighter tile is the decorative / highlight product. It must NOT automati
 - Shower Area: in the shower area — the shower wall or enclosure.
 - Plain Wall: as the selected plain-wall feature — one plain wall carries it as the highlight area.
 (The showroom may add locations; the name and description given in the request are the instruction.)
-Only a bathroom has a highlighter location. For any other space placement.highlighterLocation is null, and the HIGHLIGHTER ZONE section says where the highlight area goes.
+Only a bathroom has a highlighter location. For any other space placement.highlighterLocation is null, and the HIGHLIGHTER ZONE section says where the tile goes; the panel rules below apply only where that section asks for a panel. With No Plain Tile outside a bathroom, the highlighter is the only product in the request and covers every designated surface in full.
 
 The highlight area is always ONE coherent, well-proportioned rectangular panel with straight edges along the joint lines — never a thin strip, a single column of tiles, a scattering of tiles or a small patch. It frames the fixture it belongs to: that fixture (a vanity with its basin and mirror, for instance) sits centred within the panel, never across its edge. It obeys the selected height exactly like every other tile: with Half Height it never rises above the half-height line. Every request carries a HIGHLIGHTER ZONE section with the exact shape; follow it.
 
@@ -85,7 +93,7 @@ If the selected space genuinely has no such area, do not invent an unrelated roo
 ══════════════════════════════════════
 If tiles.plain.provided is true, a plain tile image is supplied. Treat it as the separate plain / base tile reference and preserve its visual identity too. Never turn the plain tile into the highlighter, and never turn the highlighter into the plain tile. Use the plain tile as the complementary base material on the remaining surfaces that the placement and application designate, around the highlighter area. It does not cover every visible surface.
 
-If tiles.plain.provided is false, the customer chose No Plain Tile. Do NOT invent a plain tile product, and do not use the highlighter as a stand-in for one. For the base and background areas use a suitable complementary architectural material — a clearly non-tile finish such as paint, plaster, microcement, timber, glass or a plain stone-like surface — that could not be mistaken for a supplied Devyora tile. The highlighter stays the highlighter.
+If tiles.plain.provided is false, the customer chose No Plain Tile. Do NOT invent a plain tile product, and do not use the highlighter as a stand-in for one. (Outside a bathroom, the HIGHLIGHTER ZONE section may give the highlighter every designated surface; that is the selection, not a stand-in.) For the base and background areas use a suitable complementary architectural material — a clearly non-tile finish such as paint, plaster, microcement, timber, glass or a plain stone-like surface — that could not be mistaken for a supplied Devyora tile. The highlighter stays the highlighter.
 
 ══════════════════════════════════════
 6. TILE SIZE — EXACT, NOT DECORATIVE
@@ -117,7 +125,7 @@ If jointWidthMm is null the customer did not specify one: use a believable, conv
 ══════════════════════════════════════
 9. LAYING PATTERN
 ══════════════════════════════════════
-Follow installation.layingPattern exactly, across the whole tiled surface, including at edges and corners. Straight / Grid: an aligned grid with joints running true in both directions. Running Bond / Brick: a consistent staggered installation. Do not mix patterns, randomly change one, or fall back to a plain grid because it is simpler to draw. If it is null, use a conventional straight layout.
+Follow installation.layingPattern exactly, across the whole tiled surface, including at edges and corners. Straight / Grid: an aligned grid with joints running true in both directions. Running Bond / Brick: a consistent staggered installation. Do not mix patterns, randomly change one, or fall back to a plain grid because it is simpler to draw. If it is null, use a conventional straight layout. A laying pattern arranges whole tiles; it never rearranges, rotates or reshapes the design printed inside a tile.
 
 ══════════════════════════════════════
 10. ARCHITECTURAL DESIGN WHERE NOTHING IS SPECIFIED
@@ -192,14 +200,14 @@ Verify internally, and correct any violation before producing the image:
 3. Did I respect No Plain Tile, if it was selected?
 4. Did I use the exact tile dimensions?
 5. Did I apply the correct tile to the correct surface?
-6. Did I use the highlighter at the selected location, as one panel of the shape the HIGHLIGHTER ZONE describes — its fixture centred in it, never a thin strip, and never above the selected height?
+6. Did I place the highlighter exactly as the HIGHLIGHTER ZONE describes — at the selected location as one panel where a location is selected (its fixture centred in it, never a thin strip, never above the selected height), or across the designated surfaces where it says so?
 7. Did I keep non-designated surfaces separate and materially different?
 8. Did I respect the joint width?
 9. Did I respect the laying pattern?
 10. Did I follow the space, subcategory, further options and height?
 11. Did I follow the additional instructions without breaking a structured selection?
 12. Does the room look like a properly designed architectural space, with the tiles physically installed?
-13. Up close, does each tile show the same fine detail as its photograph — minor pattern, small veins, texture, speckles, tonal variation and finish — rather than a simplified or invented version?
+13. Up close, does each tile show the same fine detail as its photograph — minor pattern, small veins, texture, speckles, tonal variation and finish — rather than a simplified or invented version? Does each installed tile show the whole photographed face once, at its real size, with the same stones or motifs, the same colour and the same internal lines, and real joints only at its edges?
 14. In a bathroom: are the shower zone and the vanity zone each clear and usable? Unless the request asked for a WC, is there NO WC, toilet, cistern or flush plate anywhere in the image? If a WC was asked for, is it in its own zone — not next to, in front of, or facing the vanity? Could the room actually be built and walked through?
 A beautiful image that breaks any explicit structured selection is not acceptable.
 

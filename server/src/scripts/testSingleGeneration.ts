@@ -5,25 +5,30 @@
  *
  *   npm run test:generate
  *   npm run test:generate -- --plain 600x600 --location "Shower Area"
+ *   npm run test:generate -- --tile ./my-tile.jpg --space Parking --sub "Parking Floor" --size 600x600
  *
  * Builds the same brief and the same ordered request as a real generation (see
  * sampleBrief.ts for the flags) and sends it once, so the integration, image
  * quality and cost can be validated before a consultation does the same. With
  * --plain, the sample photo is sent as BOTH tiles, as two separate images — a
  * smoke test of the request shape, not of how two different tiles look.
+ *
+ * --tile sends your own tile photo (cropped to one tile, edge to edge), prepared
+ * exactly as a real request prepares it. The reference the model saw is saved
+ * beside the concept, so the two can be compared with npm run eval:fidelity.
  */
 import 'dotenv/config'
 import { readFileSync, mkdirSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { GoogleGenAI } from '@google/genai'
 import { SYSTEM_INSTRUCTION, buildModelRequest } from '../services/buildGenerationPrompt'
-import { parseTileImage } from '../services/generateVisualization'
+import { parseTileImage, prepareTileReference } from '../services/generateVisualization'
 import { IMAGE_ASPECT_RATIO, IMAGE_MODEL as MODEL, IMAGE_SIZE } from '../config/imageModel'
 import { readFlags, sampleBrief } from './sampleBrief'
 
 const flags = readFlags(process.argv.slice(2))
 
-const TILE_PATH = resolve(__dirname, '../../../client/public/sample-tile.jpg')
+const TILE_PATH = flags.tile ? resolve(flags.tile) : resolve(__dirname, '../../../client/public/sample-tile.jpg')
 const OUT_DIR = resolve(__dirname, '../../test-output')
 
 const EXT_BY_MIME: Record<string, string> = {
@@ -41,8 +46,10 @@ async function main() {
   }
 
   const tileBytes = readFileSync(TILE_PATH)
-  const tileDataUrl = `data:image/jpeg;base64,${tileBytes.toString('base64')}`
-  const tile = parseTileImage(tileDataUrl)
+  const mimeType = /\.png$/i.test(TILE_PATH) ? 'image/png' : 'image/jpeg'
+  const tileDataUrl = `data:${mimeType};base64,${tileBytes.toString('base64')}`
+  // Prepared as a real request prepares it: upright, and resized only if too large.
+  const tile = await prepareTileReference(parseTileImage(tileDataUrl))
 
   const brief = sampleBrief(flags)
   const plan = buildModelRequest(brief)
@@ -118,9 +125,12 @@ async function main() {
   mkdirSync(OUT_DIR, { recursive: true })
   const outPath = join(OUT_DIR, `concept1.${ext}`)
   writeFileSync(outPath, buffer)
+  const referencePath = join(OUT_DIR, `reference.${EXT_BY_MIME[tile.mimeType] ?? 'jpg'}`)
+  writeFileSync(referencePath, Buffer.from(tile.data, 'base64'))
 
   console.log('\nIMAGE SAVED')
   console.log('path      :', outPath)
+  console.log('reference :', referencePath)
   console.log('mime type :', mime)
   console.log('size      :', buffer.length, 'bytes', `(${(buffer.length / 1024).toFixed(1)} KB)`)
   console.log('\nConcepts 2 and 3 were NOT generated.')

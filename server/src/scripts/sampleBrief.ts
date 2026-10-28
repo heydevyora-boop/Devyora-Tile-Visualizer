@@ -6,7 +6,7 @@
  * this exists so a brief — and the request rendered from it — can be inspected
  * without a server or a single API call.
  */
-import { buildGenerationBrief, type GenerationBrief } from '../services/generationBrief'
+import { buildGenerationBrief, isBathroomChain, type GenerationBrief } from '../services/generationBrief'
 
 export interface SampleFlags {
   [flag: string]: string | undefined
@@ -29,7 +29,7 @@ function parseSize(value: string): { lengthMm: number; breadthMm: number } {
 
 export const USAGE = `Flags (all optional):
   --space "Bathroom"  --sub "Powder Washroom"  --further "Half Height"
-  --location "Basin / Vanity"   (Basin / Vanity | Shower Area | Plain Wall)
+  --location "Basin / Vanity"   (Basin / Vanity | Shower Area | Plain Wall) — bathrooms only, as in the app
   --size 1200x600               highlighter tile size, mm
   --plain none | 600x600        a plain tile of that size, or No Plain Tile
   --joint 2                     joint width in mm (omit for none)
@@ -51,7 +51,10 @@ const REASON_NAMES: Record<string, string> = {
 }
 
 export function sampleBrief(flags: SampleFlags): GenerationBrief {
-  const names = [flags.space ?? 'Bathroom', flags.sub ?? 'Powder Washroom', flags.further ?? 'Half Height']
+  // The default is a whole bathroom chain; a named space takes only the levels given.
+  const names = flags.space
+    ? [flags.space, flags.sub, flags.further].filter((name): name is string => Boolean(name))
+    : ['Bathroom', flags.sub ?? 'Powder Washroom', flags.further ?? 'Half Height']
   const plainFlag = flags.plain ?? 'none'
   const highlighter = parseSize(flags.size ?? '1200x600')
   const plainProvided = plainFlag !== 'none'
@@ -66,13 +69,16 @@ export function sampleBrief(flags: SampleFlags): GenerationBrief {
       id: `sample:${level}:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
       name,
       description: '',
-      spaceId: level === 0 ? name.toLowerCase() : null,
+      spaceId: level === 0 ? name.toLowerCase().replace(/\s+/g, '-') : null,
     })),
-    highlighterLocation: {
-      id: 'sample:highlighter-location',
-      name: flags.location ?? 'Basin / Vanity',
-      description: 'The highlighter tile is used exactly here, and stays here.',
-    },
+    // As in the app: only a bathroom has a highlighter location.
+    highlighterLocation: isBathroomChain(names[0].toLowerCase().replace(/\s+/g, '-'), names)
+      ? {
+          id: 'sample:highlighter-location',
+          name: flags.location ?? 'Basin / Vanity',
+          description: 'The highlighter tile is used exactly here, and stays here.',
+        }
+      : null,
     jointWidthMm: joint,
     jointPreset: joint === null ? null : `${joint} mm`,
     layingPattern: { id: `sample:pattern:${pattern.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, name: pattern, description: '' },

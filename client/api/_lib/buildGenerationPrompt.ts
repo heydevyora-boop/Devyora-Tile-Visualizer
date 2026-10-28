@@ -141,7 +141,7 @@ function describeDerivedFacts(brief: GenerationBrief): string {
  * tile a floor the application map says is not tiled.
  */
 const CONCEPT_FOCUSES = [
-  'A wide establishing view of the whole space at standing eye level, showing the designated tiled surfaces and the highlighter area in context.',
+  'A wide establishing view of the space at standing eye level, showing the designated tiled surfaces and the highlighter area in context, framed so the nearest tiles are large enough in the image for each one\'s whole design to be read.',
   'A closer three-quarter view that emphasises the highlighter area and the joint and laying-pattern detail, with the surrounding base surfaces still visible.',
   'A different angle on the same space — from another corner or a slightly raised viewpoint — showing how the highlighter area and the base surfaces relate to each other.',
 ]
@@ -279,7 +279,15 @@ function describeHighlighterZone(brief: GenerationBrief): string {
   const plainProvided = brief.tiles.plain.provided
   const lines: string[] = []
 
-  if (!location) {
+  if (!location && !plainProvided) {
+    // The only product in the request: it is the floor (or wall) asked for,
+    // not a feature patch on it.
+    lines.push(
+      'HIGHLIGHTER ZONE — this space has no highlighter location to choose (that choice is for bathrooms only), and there is no plain tile. The highlighter tile is the only product in this request:',
+      '- It covers EVERY designated surface in placement.application completely and continuously, edge to edge, in whole tiles. It is not a patch, panel, strip or feature area on that surface.',
+      '- The complementary non-tile finish is used only on the surfaces placement.application lists as NOT tiled — never on part of a designated surface.',
+    )
+  } else if (!location) {
     lines.push(
       'HIGHLIGHTER ZONE — this space has no highlighter location to choose (that choice is for bathrooms only). The highlighter tile goes on the surfaces placement.application designates:',
       '- Make it ONE clear, well-proportioned area that reads at a glance — never a thin strip, a single column of tiles, a scattering or a patch.',
@@ -315,11 +323,17 @@ function describeHighlighterZone(brief: GenerationBrief): string {
     lines.push('- HEIGHT: the highlighter runs from floor to ceiling, like the rest of the tiling.')
   }
 
+  if (plainProvided) {
+    lines.push(
+      `- The plain tile covers the remaining designated ${location ? 'wall ' : ''}surfaces and meets the highlighter along clean, straight joint lines.`,
+    )
+  } else if (location) {
+    lines.push(
+      '- The remaining designated surfaces use the complementary non-tile finish, meeting the highlighter along a clean, straight edge.',
+    )
+  }
   lines.push(
-    plainProvided
-      ? `- The plain tile covers the remaining designated ${location ? 'wall ' : ''}surfaces and meets the highlighter along clean, straight joint lines.`
-      : '- The remaining designated surfaces use the complementary non-tile finish, meeting the highlighter along a clean, straight edge.',
-    '- The highlighter is laid in whole tiles at its exact size, joint and pattern; it is never shrunk, stretched or cropped to fit the panel.',
+    '- The highlighter is laid in whole tiles at its exact size, joint and pattern; it is never shrunk, stretched or cropped to fit the area.',
   )
   return lines.join('\n')
 }
@@ -363,8 +377,8 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
       brief.placement.highlighterLocation
         ? 'This is the highlighter tile (tiles.highlighter): the decorative / highlight product, used at placement.highlighterLocation only.'
         : 'This is the highlighter tile (tiles.highlighter): the decorative / highlight product, used only where the HIGHLIGHTER ZONE section places it.',
-      'Use only the tile in this photograph, not its background.',
-      'Reproduce this tile exactly, down to its fine detail: minor pattern, small veins, texture, speckles, tonal variation and finish. Do not simplify it or invent a similar design.',
+      'Use only the tile in this photograph, not its background. It is cropped to ONE whole tile, edge to edge: every installed highlighter tile shows this entire face once, at the tile\'s real size.',
+      'Reproduce this tile exactly, down to its fine detail: colour as photographed, minor pattern, stone shapes, small veins, texture, speckles, tonal variation and finish. Lines inside the face are part of the design, not grout. Do not simplify it or invent a similar design.',
     ].join('\n'),
   })
   parts.push({ kind: 'image', tile: 'highlighter' })
@@ -375,8 +389,8 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
       text: [
         'REFERENCE IMAGE 2 — PLAIN / BASE TILE.',
         'This is the plain tile (tiles.plain): the separate plain / base product. It is not the highlighter and the highlighter is not it.',
-        'Use only the tile in this photograph, not its background.',
-        'Reproduce this tile exactly, down to its fine detail: subtle texture, speckles, tonal variation and finish. A plain tile still has surface character; do not flatten it or invent one.',
+        'Use only the tile in this photograph, not its background. It is cropped to ONE whole tile, edge to edge: every installed plain tile shows this entire face once, at the tile\'s real size.',
+        'Reproduce this tile exactly, down to its fine detail: colour as photographed, subtle texture, speckles, tonal variation and finish. A plain tile still has surface character; do not flatten it or invent one.',
       ].join('\n'),
     })
     parts.push({ kind: 'image', tile: 'plain' })
@@ -386,6 +400,9 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
       text: [
         'NO PLAIN TILE — tiles.plain.provided is false.',
         'The customer explicitly chose No Plain Tile, so there is no second reference image. This is intended, not an error. Do not invent a plain tile product and do not use the highlighter as one.',
+        ...(brief.placement.highlighterLocation
+          ? []
+          : ['Here the highlighter is the selected product for every designated surface, as the HIGHLIGHTER ZONE says; that is not a stand-in.']),
       ].join('\n'),
     })
   }
