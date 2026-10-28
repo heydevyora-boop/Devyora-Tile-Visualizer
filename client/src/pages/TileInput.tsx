@@ -1,7 +1,8 @@
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow, type TileTarget } from '../state/FlowContext'
 import { readTileFile } from '../utils/readTileFile'
+import { usesHighlightTile } from '../utils/buildGenerateRequest'
 import CameraCaptureModal from '../components/CameraCaptureModal'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './TileInput.css'
@@ -10,6 +11,8 @@ const TILE_LABELS: Record<TileTarget, string> = {
   highlighter: 'Highlighter tile',
   plain: 'Plain tile',
 }
+/** The one tile of a one-tile space (parking and the like). */
+const BASE_TILE_LABEL = 'Base / Plain tile'
 
 type TileErrors = Record<TileTarget, string | null>
 
@@ -23,7 +26,14 @@ function TileInput() {
     plainTileProvided,
     setTileSource,
     selectNoPlainTile,
+    spacePath,
   } = useFlow()
+  // Parking and the other one-tile spaces ask for a single base tile; it is
+  // sent as the one tile, with no plain tile.
+  const twoTiles = usesHighlightTile(spacePath)
+  useEffect(() => {
+    if (!twoTiles && plainTileProvided !== false) selectNoPlainTile()
+  }, [twoTiles, plainTileProvided, selectNoPlainTile])
   const highlighterFileRef = useRef<HTMLInputElement>(null)
   const plainFileRef = useRef<HTMLInputElement>(null)
   const [cameraTarget, setCameraTarget] = useState<TileTarget | null>(null)
@@ -34,12 +44,15 @@ function TileInput() {
 
   // A plain tile is either a photo, or the explicit choice not to have one.
   // Anything else — including an undecided plain tile — is incomplete.
-  const plainDecided = plainTileProvided === false || (plainTileProvided === true && plainTileImage !== null)
+  const plainDecided =
+    !twoTiles || plainTileProvided === false || (plainTileProvided === true && plainTileImage !== null)
   const canContinue = highlighterTileImage !== null && plainDecided
 
   const missingMessage =
     highlighterTileImage === null
-      ? 'Add the highlighter tile to continue.'
+      ? twoTiles
+        ? 'Add the highlighter tile to continue.'
+        : 'Add the tile to continue.'
       : !plainDecided
         ? 'Add a plain tile, or choose No Plain Tile, to continue.'
         : null
@@ -79,7 +92,7 @@ function TileInput() {
   const renderPreview = (target: TileTarget) => {
     const image = target === 'highlighter' ? highlighterTileImage : plainTileImage
     if (image) {
-      return <img alt={`Cropped ${TILE_LABELS[target].toLowerCase()}`} className="tile-card__image" src={image} />
+      return <img alt={`Cropped ${(twoTiles ? TILE_LABELS[target] : BASE_TILE_LABEL).toLowerCase()}`} className="tile-card__image" src={image} />
     }
     if (target === 'plain' && plainTileProvided === false) {
       return (
@@ -155,7 +168,7 @@ function TileInput() {
             <button
               aria-label="Return"
               className="w-11 h-11 flex items-center justify-center text-on-surface hover:text-primary transition-colors focus:outline-none"
-              onClick={() => navigate('/home')}
+              onClick={() => navigate('/space')}
               type="button"
             >
               <span className="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
@@ -177,7 +190,7 @@ function TileInput() {
             <div className="flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container-low shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
               <span className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-widest">
-                Step 01 / 08
+                Step 02 / 08
               </span>
             </div>
           </div>
@@ -186,17 +199,25 @@ function TileInput() {
               Add your tiles
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant">
-              Photograph or upload each tile. You can crop each one in the next step.
+              {twoTiles
+                ? 'Photograph or upload each tile. You can crop each one in the next step.'
+                : 'Photograph or upload the tile. You can crop it in the next step.'}
             </p>
           </div>
 
           <div className="tile-input__cards">
             <section className="tile-card" aria-labelledby="highlighter-heading">
               <div className="tile-card__header">
-                <h2 className="tile-card__title" id="highlighter-heading">Highlighter</h2>
+                <h2 className="tile-card__title" id="highlighter-heading">
+                  {twoTiles ? 'Highlighter' : BASE_TILE_LABEL}
+                </h2>
                 <span className="tile-card__badge">Required</span>
               </div>
-              <p className="tile-card__hint">The decorative tile — the feature of the design.</p>
+              <p className="tile-card__hint">
+                {twoTiles
+                  ? 'The decorative tile — the feature of the design.'
+                  : 'The tile laid across the whole surface.'}
+              </p>
               <div className="tile-card__preview">{renderPreview('highlighter')}</div>
               {renderActions('highlighter')}
               {errors.highlighter ? (
@@ -204,30 +225,32 @@ function TileInput() {
               ) : null}
             </section>
 
-            <section className="tile-card" aria-labelledby="plain-heading">
-              <div className="tile-card__header">
-                <h2 className="tile-card__title" id="plain-heading">Plain</h2>
-                <span className="tile-card__badge">Required</span>
-              </div>
-              <p className="tile-card__hint">The plain base tile — or choose No Plain Tile if there isn’t one.</p>
-              <div className="tile-card__preview">{renderPreview('plain')}</div>
-              {renderActions('plain')}
-              <button
-                aria-pressed={plainTileProvided === false}
-                className={`tile-card__button tile-card__button--toggle${plainTileProvided === false ? ' is-selected' : ''}`}
-                data-testid="plain-none"
-                onClick={handleNoPlainTile}
-                type="button"
-              >
-                <span className="material-symbols-outlined">
-                  {plainTileProvided === false ? 'check_circle' : 'block'}
-                </span>
-                <span>No Plain Tile</span>
-              </button>
-              {errors.plain ? (
-                <p className="tile-card__error" role="alert">{errors.plain}</p>
-              ) : null}
-            </section>
+            {twoTiles && (
+              <section className="tile-card" aria-labelledby="plain-heading">
+                <div className="tile-card__header">
+                  <h2 className="tile-card__title" id="plain-heading">Plain</h2>
+                  <span className="tile-card__badge">Required</span>
+                </div>
+                <p className="tile-card__hint">The plain base tile — or choose No Plain Tile if there isn’t one.</p>
+                <div className="tile-card__preview">{renderPreview('plain')}</div>
+                {renderActions('plain')}
+                <button
+                  aria-pressed={plainTileProvided === false}
+                  className={`tile-card__button tile-card__button--toggle${plainTileProvided === false ? ' is-selected' : ''}`}
+                  data-testid="plain-none"
+                  onClick={handleNoPlainTile}
+                  type="button"
+                >
+                  <span className="material-symbols-outlined">
+                    {plainTileProvided === false ? 'check_circle' : 'block'}
+                  </span>
+                  <span>No Plain Tile</span>
+                </button>
+                {errors.plain ? (
+                  <p className="tile-card__error" role="alert">{errors.plain}</p>
+                ) : null}
+              </section>
+            )}
           </div>
 
           <div className="tile-input__footer">
@@ -247,7 +270,7 @@ function TileInput() {
 
       {cameraTarget ? (
         <CameraCaptureModal
-          title={TILE_LABELS[cameraTarget]}
+          title={twoTiles ? TILE_LABELS[cameraTarget] : BASE_TILE_LABEL}
           onCapture={handleCaptured}
           onClose={() => setCameraTarget(null)}
         />

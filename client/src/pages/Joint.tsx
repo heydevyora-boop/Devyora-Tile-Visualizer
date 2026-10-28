@@ -55,7 +55,7 @@ function Joint() {
     <FlowStep
       title="Joint"
       step="Step 05 / 08"
-      backTo={needsHighlighterLocation(spacePath) ? '/highlighter-location' : '/space'}
+      backTo={needsHighlighterLocation(spacePath) ? '/highlighter-location' : '/tile-size'}
       heading="Joint width"
       lede="The grout gap between tiles, in millimetres."
       continueTo="/pattern"

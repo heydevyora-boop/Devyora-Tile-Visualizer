@@ -12,6 +12,24 @@ export function needsHighlighterLocation(spacePath: Pick<SpaceNode, 'name' | 'sp
   return spacePath.some((node) => /bath|wash\s?room|powder|toilet|\bwc\b/i.test(node.name))
 }
 
+/**
+ * The spaces whose designs pair a highlight tile with a plain / base tile:
+ * those whose catalogue has feature surfaces — a bathroom's zones, a kitchen
+ * dado, a TV or feature wall. Everywhere else (parking, terrace, balcony,
+ * staircase, entrance, facade) one base tile covers the surface.
+ */
+const HIGHLIGHT_SPACES = new Set(['bathroom', 'kitchen', 'living-room', 'bedroom'])
+
+/**
+ * Whether the chosen space asks for a highlight tile and a plain tile, or for
+ * one base tile. Before a space is chosen, the two-tile screen as before.
+ */
+export function usesHighlightTile(spacePath: Pick<SpaceNode, 'name' | 'spaceId'>[]): boolean {
+  const root = spacePath[0]
+  if (!root || needsHighlighterLocation(spacePath)) return true
+  return HIGHLIGHT_SPACES.has(root.spaceId ?? root.name.trim().toLowerCase().replace(/\s+/g, '-'))
+}
+
 /** Everything the generate request is built from — the flow's own state. */
 export interface GenerateRequestState {
   customer: Customer | null
@@ -50,12 +68,15 @@ export function buildGenerateRequest(state: GenerateRequestState): Record<string
       'No highlighter tile photo was found. Please go back and add the highlighter tile.',
     )
   }
+  // One base tile: there is no plain tile, whatever an earlier space left.
+  const twoTiles = usesHighlightTile(state.spacePath)
+  const plainTileProvided = twoTiles ? state.plainTileProvided : false
   // The plain tile is an explicit decision: a photo, or "No Plain Tile". An
   // undecided one is refused here rather than sent as if it were the same thing
   // as having none.
   if (
-    state.plainTileProvided === null ||
-    (state.plainTileProvided && !state.plainTileImage)
+    plainTileProvided === null ||
+    (plainTileProvided && !state.plainTileImage)
   ) {
     throw new Error(
       'The plain tile has not been set. Please go back and add a plain tile, or choose No Plain Tile.',
@@ -76,14 +97,14 @@ export function buildGenerateRequest(state: GenerateRequestState): Record<string
   return {
     // Two separate references — never merged into one image field.
     highlighterTileImage: state.highlighterTileImage,
-    plainTileImage: state.plainTileProvided ? state.plainTileImage : null,
-    plainTileProvided: state.plainTileProvided,
+    plainTileImage: plainTileProvided ? state.plainTileImage : null,
+    plainTileProvided,
     // Each tile carries its own size. The showroom picks one common size today,
     // so both are given the same numbers; the shape does not assume they match,
     // so asking for two sizes later changes this one line and nothing else.
     tileDimensions: {
       highlighter: dimensions,
-      plain: state.plainTileProvided ? dimensions : null,
+      plain: plainTileProvided ? dimensions : null,
     },
     space: state.space,
     // The ids of the chosen application, re-checked server-side.

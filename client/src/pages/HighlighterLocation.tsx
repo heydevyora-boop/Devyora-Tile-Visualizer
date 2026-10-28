@@ -24,7 +24,7 @@ function HighlighterLocation() {
     <FlowStep
       title="Highlighter"
       step="Step 04 / 08"
-      backTo="/space"
+      backTo="/tile-size"
       heading="Highlighter kahan use karna hai?"
       lede="The highlighter tile is used exactly here, and stays here."
       continueTo="/joint"

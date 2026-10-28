@@ -25,7 +25,8 @@ function Home() {
     // screen treats "a highlighter and a plain decision" as complete, so
     // without this the previous customer's tiles would already satisfy it.
     resetTileInputs()
-    navigate('/tile-input')
+    // The space comes first: it decides which tiles are asked for.
+    navigate('/space')
   }
 
   return (

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
+import { needsHighlighterLocation } from '../utils/buildGenerateRequest'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, type TileFormat } from '../utils/api'
 import { getCached } from '../utils/apiCache'
@@ -30,7 +31,7 @@ function label(format: TileFormat): string {
  */
 function TileSize() {
   const navigate = useNavigate()
-  const { tileSize, setTileSize, setTileFormatOption } = useFlow()
+  const { tileSize, setTileSize, setTileFormatOption, spacePath } = useFlow()
   const { token } = useAuth()
 
   // Normally prefetched when the consultation started, so it is already here.
@@ -105,7 +106,8 @@ function TileSize() {
 
   const handleContinue = () => {
     if (!tileSize) return
-    navigate('/space')
+    // The space was chosen first; only a bathroom asks where the highlighter goes.
+    navigate(needsHighlighterLocation(spacePath) ? '/highlighter-location' : '/joint')
   }
 
   return (
@@ -146,7 +148,7 @@ function TileSize() {
             <div className="flex items-center gap-space-xs bg-surface-container-high px-space-sm py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
               <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary font-medium">
-                Step 02 / 08
+                Step 03 / 08
               </span>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { formatTileSize as tileSizeLabelFor } from '../utils/tileSizeLabel'
 import { useFlow } from '../state/FlowContext'
-import { needsHighlighterLocation } from '../utils/buildGenerateRequest'
+import { needsHighlighterLocation, usesHighlightTile } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import DevyoraMark from '../components/DevyoraMark'
 import './Summary.css'
@@ -143,13 +143,15 @@ function Summary() {
 
   const tileSizeLabel = tileSizeLabelFor(tileSize, tileFormatOption) ?? NOT_SELECTED
   // The plain tile is complete as a photo or as the explicit "No Plain Tile".
+  // A one-tile space has no plain tile to decide.
+  const twoTiles = usesHighlightTile(spacePath)
   const plainDecided =
-    plainTileProvided === false || (plainTileProvided === true && plainTileImage !== null)
+    !twoTiles || plainTileProvided === false || (plainTileProvided === true && plainTileImage !== null)
   // Only a bathroom has a highlighter location to choose.
   const askLocation = needsHighlighterLocation(spacePath)
   // What is still missing, by name — so a disabled Generate says why.
   const missing = [
-    !highlighterTileImage && 'the highlighter tile',
+    !highlighterTileImage && (twoTiles ? 'the highlighter tile' : 'the tile'),
     !plainDecided && 'a plain tile (or No Plain Tile)',
     !tileSize && 'the tile size',
     spacePath.length === 0 && 'the placement',
@@ -214,23 +216,25 @@ function Summary() {
               and changed separately. */}
           <div className="px-margin pb-space-md flex flex-col gap-space-md">
             <TileBlock
-              label="Highlighter tile"
+              label={twoTiles ? 'Highlighter tile' : 'Base / Plain tile'}
               image={highlighterTileImage}
               source={highlighterSource}
               emptyText={NOT_SELECTED}
               emptyIsError
               cropTo="/crop/highlighter"
             />
-            <TileBlock
-              label="Plain tile"
-              image={plainTileImage}
-              source={plainSource}
-              // Three distinct states, never collapsed into "empty": a photo,
-              // the explicit "No Plain Tile", or not decided yet.
-              emptyText={plainTileProvided === false ? 'No Plain Tile' : NOT_SELECTED}
-              emptyIsError={plainTileProvided !== false}
-              cropTo="/crop/plain"
-            />
+            {twoTiles && (
+              <TileBlock
+                label="Plain tile"
+                image={plainTileImage}
+                source={plainSource}
+                // Three distinct states, never collapsed into "empty": a photo,
+                // the explicit "No Plain Tile", or not decided yet.
+                emptyText={plainTileProvided === false ? 'No Plain Tile' : NOT_SELECTED}
+                emptyIsError={plainTileProvided !== false}
+                cropTo="/crop/plain"
+              />
+            )}
           </div>
 
           <div className="px-margin flex flex-col gap-space-sm">

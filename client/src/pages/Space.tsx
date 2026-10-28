@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow } from '../state/FlowContext'
 import { useAuth } from '../state/AuthContext'
 import { ApiError, type SpaceNode } from '../utils/api'
 import { getCached } from '../utils/apiCache'
 import { loadSpaceNodes, spaceNodesKey } from '../utils/flowData'
-import { needsHighlighterLocation } from '../utils/buildGenerateRequest'
+import { usesHighlightTile } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Space.css'
 
@@ -24,7 +24,9 @@ import './Space.css'
  */
 function Space() {
   const navigate = useNavigate()
-  const { spacePath, setSpacePath, setSpace } = useFlow()
+  const { spacePath, setSpacePath, setSpace, resetTileInputs, setHighlighterLocationOption } = useFlow()
+  // The space the current tiles were entered for, if any.
+  const chosenRoot = useRef<SpaceNode[]>(spacePath.slice(0, 1))
   const { token } = useAuth()
 
   // What was loaded, and for which level. Keeping the level alongside the
@@ -63,6 +65,14 @@ function Space() {
 
   const choose = (node: SpaceNode) => {
     const next = [...spacePath, node]
+    if (spacePath.length === 0) {
+      // A different space may ask for different tiles: tiles entered for a
+      // highlight-and-plain space must not carry into a one-tile space, nor
+      // the reverse. A bathroom's highlighter location belongs to it alone.
+      if (usesHighlightTile(next) !== usesHighlightTile(chosenRoot.current)) resetTileInputs()
+      setHighlighterLocationOption(null)
+      chosenRoot.current = [node]
+    }
     setSpacePath(next)
     // The root category still drives the curated per-room prompt config.
     setSpace(next[0].spaceId ?? next[0].name)
@@ -70,7 +80,7 @@ function Space() {
 
   const back = () => {
     if (spacePath.length === 0) {
-      navigate('/tile-size')
+      navigate('/home')
       return
     }
     const next = spacePath.slice(0, -1)
@@ -115,7 +125,7 @@ function Space() {
             <div className="flex items-center gap-space-xs bg-surface-container-high px-space-sm py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
               <span className="font-label-caps text-label-caps uppercase tracking-widest text-primary font-medium">
-                Step 03 / 08
+                Step 01 / 08
               </span>
             </div>
           </div>
@@ -219,7 +229,8 @@ function Space() {
                 type="button"
                 disabled={!atLeaf}
                 // Only a bathroom asks where the highlighter goes.
-                onClick={() => navigate(needsHighlighterLocation(spacePath) ? '/highlighter-location' : '/joint')}
+                // Then the tiles this space asks for.
+                onClick={() => navigate('/tile-input')}
               >
                 <span>Continue</span>
                 <span className="material-symbols-outlined text-[20px]">east</span>

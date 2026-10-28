@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFlow, type TileTarget } from '../state/FlowContext'
 import { getCroppedImage } from '../utils/cropImage'
+import { usesHighlightTile } from '../utils/buildGenerateRequest'
 import FreeCrop, { type CropRect, type FreeCropHandle } from '../components/FreeCrop'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Crop.css'
@@ -28,11 +29,12 @@ const TILE_LABELS: Record<TileTarget, string> = {
  */
 function Crop({ target }: { target: TileTarget }) {
   const navigate = useNavigate()
-  const { highlighterSource, plainSource, setCroppedTile, clearTile } = useFlow()
+  const { highlighterSource, plainSource, setCroppedTile, clearTile, spacePath } = useFlow()
   // The photo being cropped. No fallback image: a crop with nothing behind it
   // must never become a real tile reference.
   const tileImage = target === 'plain' ? plainSource : highlighterSource
-  const tileLabel = TILE_LABELS[target]
+  // A one-tile space (parking and the like) has just "the tile".
+  const tileLabel = usesHighlightTile(spacePath) ? TILE_LABELS[target] : 'tile'
   const cropRef = useRef<FreeCropHandle>(null)
 
   const [rect, setRect] = useState<CropRect | null>(null)
