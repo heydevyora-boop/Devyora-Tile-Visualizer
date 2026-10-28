@@ -118,17 +118,27 @@ function Login() {
   }
 
   const handleBiometricSignIn = async (automatic = false) => {
-    if (!enrolment || biometricBusy || submitting) return
+    if (biometricBusy || submitting) return
+    // Without a remembered account the phone is asked for any passkey it holds
+    // for this site (one synced from another device signs straight in).
+    const known = enrolment
     setBiometricBusy(true)
     setError(null)
     try {
-      adoptSession(await signInWithBiometrics(enrolment.username))
+      adoptSession(await signInWithBiometrics(known?.username ?? ''))
     } catch (signInError) {
       setBiometricBusy(false)
       // The server may have retired this device (account removed, password changed).
       setEnrolment(enrolledAccount())
+      const cancelled = signInError instanceof BiometricError && signInError.cancelled
       // A prompt that opened by itself and was dismissed needs no message; the button is right there.
-      if (automatic && signInError instanceof BiometricError && signInError.cancelled) return
+      if (automatic && cancelled) return
+      if (!known && cancelled) {
+        setError(
+          'Face ID / fingerprint is not set up on this phone yet. Sign in once with your username and password, and you will be asked to turn it on.',
+        )
+        return
+      }
       setError(signInError instanceof Error ? signInError.message : 'Please sign in with your password.')
     }
   }
@@ -295,7 +305,8 @@ function Login() {
             </form>
           )}
 
-          {canUseBiometrics && enrolment && !biometricFirst && !offering && (
+          {/* On every phone with Face ID / fingerprint, registered here or not. */}
+          {canUseBiometrics === true && !biometricFirst && !offering && (
             <div className="login__biometric">
               <span className="login__biometric-or">or</span>
               <button
@@ -310,7 +321,7 @@ function Login() {
                 </span>
                 <span>{biometricBusy ? 'Checking…' : 'Sign in with Face ID / Fingerprint'}</span>
               </button>
-              <span className="login__biometric-who">as {enrolment.displayName}</span>
+              {enrolment && <span className="login__biometric-who">as {enrolment.displayName}</span>}
             </div>
           )}
         </section>
