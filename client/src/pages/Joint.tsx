@@ -3,6 +3,7 @@ import { useFlow } from '../state/FlowContext'
 import { useDesignOptions } from '../utils/useDesignOptions'
 import type { DesignOption } from '../utils/api'
 import FlowStep from '../components/FlowStep'
+import { needsHighlighterLocation } from '../utils/buildGenerateRequest'
 
 const pill = (selected: boolean) =>
   `px-space-md h-11 rounded-full border transition-all font-body-sm text-body-sm ${
@@ -23,7 +24,7 @@ const pill = (selected: boolean) =>
  * stop the conversation.
  */
 function Joint() {
-  const { jointWidthMm, setJointWidthMm, jointOption, setJointOption } = useFlow()
+  const { jointWidthMm, setJointWidthMm, jointOption, setJointOption, spacePath } = useFlow()
   const { options, error } = useDesignOptions('joint')
 
   const [customJoint, setCustomJoint] = useState('')
@@ -54,7 +55,7 @@ function Joint() {
     <FlowStep
       title="Joint"
       step="Step 05 / 08"
-      backTo="/highlighter-location"
+      backTo={needsHighlighterLocation(spacePath) ? '/highlighter-location' : '/space'}
       heading="Joint width"
       lede="The grout gap between tiles, in millimetres."
       continueTo="/pattern"

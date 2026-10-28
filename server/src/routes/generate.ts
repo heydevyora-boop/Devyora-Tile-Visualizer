@@ -9,7 +9,7 @@ import {
   requireJointWidth,
 } from '../services/designOptionsStore'
 import { GenerateRequestError, toSizeId, validateTiles } from '../services/generateRequest'
-import { buildGenerationBrief } from '../services/generationBrief'
+import { buildGenerationBrief, isBathroomChain } from '../services/generationBrief'
 import { assertSelectionsUnchanged, resolveCorrection } from '../services/correctionRequest'
 import { getArchitect, getCustomer, toOwnerScope } from '../services/clientsStore'
 import { recordRevision } from '../services/revisionsStore'
@@ -63,7 +63,6 @@ router.post('/generate', async (req, res) => {
 
   const missingFields: string[] = []
   if (!space) missingFields.push('space')
-  if (!highlighterLocationOptionId) missingFields.push('highlighterLocationOptionId')
 
   if (missingFields.length > 0) {
     res.status(400).json({
@@ -106,14 +105,19 @@ router.post('/generate', async (req, res) => {
       : null
     // Where the highlighter goes is a hard architectural input, so an option
     // that is missing, disabled or invented is refused outright rather than
-    // quietly replaced with a plausible one.
-    const highlighterLocation = await findActiveOption(
-      'highlighterLocation',
-      String(highlighterLocationOptionId),
-    )
-    if (!highlighterLocation) {
+    // quietly replaced with a plausible one. Only a bathroom has one (basin /
+    // vanity, shower area, plain wall); for any other space it is not asked
+    // for, and one sent anyway is ignored.
+    const needsLocation = isBathroomChain(resolved.spaceId, resolved.path.map((node) => node.name))
+    const highlighterLocation =
+      needsLocation && highlighterLocationOptionId
+        ? await findActiveOption('highlighterLocation', String(highlighterLocationOptionId))
+        : null
+    if (needsLocation && !highlighterLocation) {
       res.status(400).json({
-        error: 'That highlighter location is not one we offer. Please pick one from the list.',
+        error: highlighterLocationOptionId
+          ? 'That highlighter location is not one we offer. Please pick one from the list.'
+          : 'Missing required field(s): highlighterLocationOptionId',
       })
       return
     }
@@ -152,11 +156,13 @@ router.post('/generate', async (req, res) => {
       plainTileProvided: tiles.plainTileProvided,
       plainDimensions: tiles.plainDimensions,
       path: resolved.path,
-      highlighterLocation: {
-        id: highlighterLocation.id,
-        name: highlighterLocation.name,
-        description: highlighterLocation.description,
-      },
+      highlighterLocation: highlighterLocation
+        ? {
+            id: highlighterLocation.id,
+            name: highlighterLocation.name,
+            description: highlighterLocation.description,
+          }
+        : null,
       jointWidthMm: joint ?? null,
       jointPreset: jointOption?.name ?? null,
       layingPattern: pattern
@@ -224,7 +230,7 @@ router.post('/generate', async (req, res) => {
         plainTileProvided: tiles.plainTileProvided,
         plainTileImage: result.plainTileImageUrl ?? null,
         plainTileSize: tiles.plainDimensions ? toSizeId(tiles.plainDimensions) : null,
-        highlighterLocation: highlighterLocation.name,
+        highlighterLocation: highlighterLocation?.name ?? null,
         // The full structured record of what was selected, so a concept can be
         // inspected later exactly as it was asked for.
         brief,

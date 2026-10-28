@@ -5,7 +5,7 @@
 import { getSpaceConfig } from './spaces.js'
 import { renderApplicationMap } from './applicationMap.js'
 import { SYSTEM_INSTRUCTION } from './systemInstruction.js'
-import { toModelView, type GenerationBrief } from './generationBrief.js'
+import { isBathroomChain, toModelView, type GenerationBrief } from './generationBrief.js'
 import type { TileDimensions } from './generateRequest.js'
 import { ASPECT_TEXT, ruleFor, type Aspect, type ChangeScope } from './regenerationRules.js'
 
@@ -205,8 +205,7 @@ function describeRegeneration(brief: GenerationBrief): string {
  * space's own id, or any level named like one (washroom, powder room, toilet).
  */
 function isBathroom(brief: GenerationBrief): boolean {
-  if (brief.placement.space.spaceId === 'bathroom') return true
-  return brief.placement.path.some((name) => /bath|wash\s?room|powder|toilet|\bwc\b/i.test(name))
+  return isBathroomChain(brief.placement.space.spaceId, brief.placement.path)
 }
 
 /**
@@ -280,7 +279,12 @@ function describeHighlighterZone(brief: GenerationBrief): string {
   const plainProvided = brief.tiles.plain.provided
   const lines: string[] = []
 
-  if (/basin|vanity/i.test(location.name)) {
+  if (!location) {
+    lines.push(
+      'HIGHLIGHTER ZONE — this space has no highlighter location to choose (that choice is for bathrooms only). The highlighter tile goes on the surfaces placement.application designates:',
+      '- Make it ONE clear, well-proportioned area that reads at a glance — never a thin strip, a single column of tiles, a scattering or a patch.',
+    )
+  } else if (/basin|vanity/i.test(location.name)) {
     lines.push(
       `HIGHLIGHTER ZONE — ${location.name}. The highlighter tile forms ONE clear rectangular feature panel on the wall the vanity stands against:`,
       '- The vanity, the basin and the mirror above it are centred on this panel. The vanity sits fully inside the panel\'s width — never across its edge, never half on the highlighter and half on the plain tile.',
@@ -313,7 +317,7 @@ function describeHighlighterZone(brief: GenerationBrief): string {
 
   lines.push(
     plainProvided
-      ? '- The plain tile covers the remaining designated wall surfaces and meets the highlighter along clean, straight joint lines.'
+      ? `- The plain tile covers the remaining designated ${location ? 'wall ' : ''}surfaces and meets the highlighter along clean, straight joint lines.`
       : '- The remaining designated surfaces use the complementary non-tile finish, meeting the highlighter along a clean, straight edge.',
     '- The highlighter is laid in whole tiles at its exact size, joint and pattern; it is never shrunk, stretched or cropped to fit the panel.',
   )
@@ -356,7 +360,9 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
     kind: 'text',
     text: [
       'REFERENCE IMAGE 1 — HIGHLIGHTER TILE.',
-      'This is the highlighter tile (tiles.highlighter): the decorative / highlight product, used at placement.highlighterLocation only.',
+      brief.placement.highlighterLocation
+        ? 'This is the highlighter tile (tiles.highlighter): the decorative / highlight product, used at placement.highlighterLocation only.'
+        : 'This is the highlighter tile (tiles.highlighter): the decorative / highlight product, used only where the HIGHLIGHTER ZONE section places it.',
       'Use only the tile in this photograph, not its background.',
       'Reproduce this tile exactly, down to its fine detail: minor pattern, small veins, texture, speckles, tonal variation and finish. Do not simplify it or invent a similar design.',
     ].join('\n'),

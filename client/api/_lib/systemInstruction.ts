@@ -72,6 +72,7 @@ The highlighter tile is the decorative / highlight product. It must NOT automati
 - Shower Area: in the shower area — the shower wall or enclosure.
 - Plain Wall: as the selected plain-wall feature — one plain wall carries it as the highlight area.
 (The showroom may add locations; the name and description given in the request are the instruction.)
+Only a bathroom has a highlighter location. For any other space placement.highlighterLocation is null, and the HIGHLIGHTER ZONE section says where the highlight area goes.
 
 The highlight area is always ONE coherent, well-proportioned rectangular panel with straight edges along the joint lines — never a thin strip, a single column of tiles, a scattering of tiles or a small patch. It frames the fixture it belongs to: that fixture (a vanity with its basin and mirror, for instance) sits centred within the panel, never across its edge. It obeys the selected height exactly like every other tile: with Half Height it never rises above the half-height line. Every request carries a HIGHLIGHTER ZONE section with the exact shape; follow it.
 

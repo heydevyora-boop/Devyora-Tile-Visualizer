@@ -5,6 +5,7 @@ import { useAuth } from '../state/AuthContext'
 import { ApiError, type SpaceNode } from '../utils/api'
 import { getCached } from '../utils/apiCache'
 import { loadSpaceNodes, spaceNodesKey } from '../utils/flowData'
+import { needsHighlighterLocation } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import './Space.css'
 
@@ -217,7 +218,8 @@ function Space() {
                 id="continue-btn"
                 type="button"
                 disabled={!atLeaf}
-                onClick={() => navigate('/highlighter-location')}
+                // Only a bathroom asks where the highlighter goes.
+                onClick={() => navigate(needsHighlighterLocation(spacePath) ? '/highlighter-location' : '/joint')}
               >
                 <span>Continue</span>
                 <span className="material-symbols-outlined text-[20px]">east</span>

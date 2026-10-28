@@ -10,7 +10,7 @@ import {
   requireJointWidth,
 } from './_lib/designOptionsStore.js'
 import { GenerateRequestError, toSizeId, validateTiles } from './_lib/generateRequest.js'
-import { buildGenerationBrief } from './_lib/generationBrief.js'
+import { buildGenerationBrief, isBathroomChain } from './_lib/generationBrief.js'
 import { assertSelectionsUnchanged, resolveCorrection } from './_lib/correctionRequest.js'
 import { getArchitect, getCustomer, toOwnerScope } from './_lib/clientsStore.js'
 import { DbError, asDbError } from './_lib/db.js'
@@ -179,7 +179,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const missingFields: string[] = []
     if (!space) missingFields.push('space')
-    if (!highlighterLocationOptionId) missingFields.push('highlighterLocationOptionId')
 
     if (missingFields.length > 0) {
       res.status(400).json({
@@ -234,14 +233,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : null
     // Where the highlighter goes is a hard architectural input, so an option
     // that is missing, disabled or invented is refused outright rather than
-    // quietly replaced with a plausible one.
-    const highlighterLocation = await findActiveOption(
-      'highlighterLocation',
-      String(highlighterLocationOptionId),
-    )
-    if (!highlighterLocation) {
+    // quietly replaced with a plausible one. Only a bathroom has one (basin /
+    // vanity, shower area, plain wall); for any other space it is not asked
+    // for, and one sent anyway is ignored.
+    const needsLocation = isBathroomChain(resolved.spaceId, resolved.path.map((node) => node.name))
+    const highlighterLocation =
+      needsLocation && highlighterLocationOptionId
+        ? await findActiveOption('highlighterLocation', String(highlighterLocationOptionId))
+        : null
+    if (needsLocation && !highlighterLocation) {
       res.status(400).json({
-        error: 'That highlighter location is not one we offer. Please pick one from the list.',
+        error: highlighterLocationOptionId
+          ? 'That highlighter location is not one we offer. Please pick one from the list.'
+          : 'Missing required field(s): highlighterLocationOptionId',
       })
       return
     }
@@ -280,11 +284,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       plainTileProvided: tiles.plainTileProvided,
       plainDimensions: tiles.plainDimensions,
       path: resolved.path,
-      highlighterLocation: {
-        id: highlighterLocation.id,
-        name: highlighterLocation.name,
-        description: highlighterLocation.description,
-      },
+      highlighterLocation: highlighterLocation
+        ? {
+            id: highlighterLocation.id,
+            name: highlighterLocation.name,
+            description: highlighterLocation.description,
+          }
+        : null,
       jointWidthMm: joint ?? null,
       jointPreset: jointOption?.name ?? null,
       layingPattern: pattern
@@ -358,7 +364,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         plainTileProvided: tiles.plainTileProvided,
         plainTileImage: result.plainTileImageUrl ?? null,
         plainTileSize: tiles.plainDimensions ? toSizeId(tiles.plainDimensions) : null,
-        highlighterLocation: highlighterLocation.name,
+        highlighterLocation: highlighterLocation?.name ?? null,
         // The full structured record of what was selected, so a concept can be
         // inspected later exactly as it was asked for.
         brief,

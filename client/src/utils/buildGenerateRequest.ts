@@ -2,6 +2,16 @@ import type { Customer, DesignOption, SpaceNode } from './api'
 import { buildApplicationMap } from './applicationMap'
 import { parseTileSizeId } from './tileSizeLabel'
 
+/**
+ * Whether the chosen application has a highlighter location to choose — only
+ * a bathroom does (basin / vanity, shower area, plain wall). The same test the
+ * server applies to the chain it re-resolves.
+ */
+export function needsHighlighterLocation(spacePath: Pick<SpaceNode, 'name' | 'spaceId'>[]): boolean {
+  if (spacePath[0]?.spaceId === 'bathroom') return true
+  return spacePath.some((node) => /bath|wash\s?room|powder|toilet|\bwc\b/i.test(node.name))
+}
+
 /** Everything the generate request is built from — the flow's own state. */
 export interface GenerateRequestState {
   customer: Customer | null
@@ -55,7 +65,9 @@ export function buildGenerateRequest(state: GenerateRequestState): Record<string
   if (!dimensions) {
     throw new Error('The tile size has not been set. Please go back and choose a tile size.')
   }
-  if (!state.highlighterLocationOption) {
+  const askLocation = needsHighlighterLocation(state.spacePath)
+  const highlighterLocation = askLocation ? state.highlighterLocationOption : null
+  if (askLocation && !highlighterLocation) {
     throw new Error(
       'The highlighter location has not been chosen. Please go back and choose where it is used.',
     )
@@ -80,7 +92,8 @@ export function buildGenerateRequest(state: GenerateRequestState): Record<string
     // re-resolved path — sent so the request itself carries the explicit
     // application as data, not only as ids the server has to look up.
     applicationMap: state.spacePath.length ? buildApplicationMap(state.spacePath) : undefined,
-    highlighterLocationOptionId: state.highlighterLocationOption.id,
+    // Only for a bathroom; a location left over from one is not sent for any other space.
+    highlighterLocationOptionId: highlighterLocation?.id,
     // An id where the option came from the showroom's list, so the server
     // verifies it; the millimetres only when typed in.
     jointOptionId: state.jointOption?.id,

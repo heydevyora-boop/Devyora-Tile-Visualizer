@@ -53,8 +53,11 @@ export interface GenerationBrief {
     path: string[]
     /** The application, classified once by the application, not left to be inferred. */
     application: ApplicationMap
-    /** Where the highlighter tile is used. A hard architectural input. */
-    highlighterLocation: BriefOption
+    /**
+     * Where the highlighter tile is used. A hard architectural input. Null
+     * outside a bathroom: only a bathroom has a highlighter location to choose.
+     */
+    highlighterLocation: BriefOption | null
   }
   installation: {
     /** Millimetres, exactly as chosen or typed. Null when none was specified. */
@@ -104,7 +107,7 @@ export interface BriefSource {
   plainDimensions: TileDimensions | null
   /** The verified application chain, root first. */
   path: { id: string; name: string; description: string; spaceId: string | null }[]
-  highlighterLocation: BriefOption
+  highlighterLocation: BriefOption | null
   jointWidthMm?: number | null
   jointPreset?: string | null
   layingPattern?: BriefOption | null
@@ -119,6 +122,16 @@ export interface BriefSource {
 }
 
 const toOption = ({ id, name, description }: BriefOption): BriefOption => ({ id, name, description })
+
+/**
+ * Whether a chosen chain is a bathroom: the root space's own id, or any level
+ * named like one (washroom, powder room, toilet). Only a bathroom has a
+ * highlighter location to choose (basin / vanity, shower area, plain wall).
+ */
+export function isBathroomChain(spaceId: string | null, names: string[]): boolean {
+  if (spaceId === 'bathroom') return true
+  return names.some((name) => /bath|wash\s?room|powder|toilet|\bwc\b/i.test(name))
+}
 
 /**
  * Assembles the brief from already-verified selections.
@@ -162,7 +175,7 @@ export function buildGenerationBrief(source: BriefSource): GenerationBrief {
       furtherOptions: furtherOptions.map(toOption),
       path: source.path.map((node) => node.name),
       application: buildApplicationMap(source.path),
-      highlighterLocation: toOption(source.highlighterLocation),
+      highlighterLocation: source.highlighterLocation ? toOption(source.highlighterLocation) : null,
     },
     installation: {
       jointWidthMm: joint,
@@ -200,7 +213,7 @@ function approvedSelections(brief: GenerationBrief): Record<string, unknown> {
     spaceAndApplication: brief.placement.path.length
       ? [brief.placement.space.id, brief.placement.subcategory?.id ?? null, brief.placement.furtherOptions.map((o) => o.id)]
       : null,
-    highlighterLocation: brief.placement.highlighterLocation.id,
+    highlighterLocation: brief.placement.highlighterLocation?.id ?? null,
     joint: brief.installation.jointWidthMm,
     layingPattern: brief.installation.layingPattern?.id ?? null,
     additionalInstructions: brief.additionalInstructions,

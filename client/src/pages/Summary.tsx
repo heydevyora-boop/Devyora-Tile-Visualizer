@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { formatTileSize as tileSizeLabelFor } from '../utils/tileSizeLabel'
 import { useFlow } from '../state/FlowContext'
+import { needsHighlighterLocation } from '../utils/buildGenerateRequest'
 import HeaderUserMenu from '../components/HeaderUserMenu'
 import DevyoraMark from '../components/DevyoraMark'
 import './Summary.css'
@@ -144,13 +145,15 @@ function Summary() {
   // The plain tile is complete as a photo or as the explicit "No Plain Tile".
   const plainDecided =
     plainTileProvided === false || (plainTileProvided === true && plainTileImage !== null)
+  // Only a bathroom has a highlighter location to choose.
+  const askLocation = needsHighlighterLocation(spacePath)
   // What is still missing, by name — so a disabled Generate says why.
   const missing = [
     !highlighterTileImage && 'the highlighter tile',
     !plainDecided && 'a plain tile (or No Plain Tile)',
     !tileSize && 'the tile size',
     spacePath.length === 0 && 'the placement',
-    !highlighterLocationOption && 'the highlighter location',
+    askLocation && !highlighterLocationOption && 'the highlighter location',
   ].filter((item): item is string => Boolean(item))
   const ready = missing.length === 0
   const instructions = additionalRequirement.trim()
@@ -263,12 +266,14 @@ function Summary() {
               to="/space"
               editLabel="Change the placement"
             />
-            <Row
-              label="Highlighter location"
-              value={highlighterLocationOption?.name ?? NOT_SELECTED}
-              to="/highlighter-location"
-              editLabel="Change the highlighter location"
-            />
+            {askLocation && (
+              <Row
+                label="Highlighter location"
+                value={highlighterLocationOption?.name ?? NOT_SELECTED}
+                to="/highlighter-location"
+                editLabel="Change the highlighter location"
+              />
+            )}
             {/* Optional, as it always was — so an unset joint reads as not
                 specified rather than as a missing required choice. */}
             <Row
