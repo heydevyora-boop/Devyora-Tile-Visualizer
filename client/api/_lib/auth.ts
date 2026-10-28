@@ -95,7 +95,9 @@ export async function verifyCredentials(username: string, password: string): Pro
   return ok && account ? account : null
 }
 
-const TOKEN_TTL = '12h'
+// Signed in stays signed in on that browser, as on any official site: a
+// month, after which Face ID / fingerprint (or the password) signs back in.
+const TOKEN_TTL = '30d'
 
 export class AuthConfigError extends Error {}
 

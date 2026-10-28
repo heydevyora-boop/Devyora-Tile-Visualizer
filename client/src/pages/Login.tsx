@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { landingPathFor, useAuth } from '../state/AuthContext'
 import devyoraLogo from '../assets/devyora-logo.png'
 import {
+  BiometricError,
   biometricsAvailable,
+  cancelAutofillSignIn,
   enableBiometrics,
   enrolledAccount,
+  signInFromAutofill,
   signInWithBiometrics,
+  takeSignedOut,
 } from '../utils/passkey'
 import './Login.css'
 
@@ -18,9 +22,10 @@ function Login() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Face ID / fingerprint: whether this device has it, which account (if any)
-  // enrolled it here, and the one-time offer shown after a password sign-in.
-  const [canUseBiometrics, setCanUseBiometrics] = useState(false)
+  // Face ID / fingerprint: whether this device has it (null while checking),
+  // which account (if any) enrolled it here, and the one-time offer shown
+  // after a password sign-in.
+  const [canUseBiometrics, setCanUseBiometrics] = useState<boolean | null>(null)
   const [enrolment, setEnrolment] = useState(() => enrolledAccount())
   const [offering, setOffering] = useState(false)
   const [offerBusy, setOfferBusy] = useState(false)
@@ -28,6 +33,11 @@ function Login() {
   const [biometricBusy, setBiometricBusy] = useState(false)
   // Holds the usual redirect while the offer is on screen.
   const holdRedirect = useRef(false)
+  // A device that uses Face ID / fingerprint opens on that, not on the form;
+  // the form is one tap away.
+  const [usePassword, setUsePassword] = useState(false)
+  const biometricFirst = Boolean(enrolment) && canUseBiometrics !== false && !usePassword
+  const autoPrompted = useRef(false)
 
   useEffect(() => {
     void biometricsAvailable().then(setCanUseBiometrics)
@@ -58,7 +68,7 @@ function Login() {
     setError(null)
     // Offer Face ID / fingerprint after this sign-in, unless this device
     // already uses it for this account.
-    holdRedirect.current = canUseBiometrics && enrolment?.username !== username.trim().toLowerCase()
+    holdRedirect.current = canUseBiometrics === true && enrolment?.username !== username.trim().toLowerCase()
 
     try {
       // Verified server-side; admins land on /history, everyone else on /home.
@@ -107,7 +117,7 @@ function Login() {
     }
   }
 
-  const handleBiometricSignIn = async () => {
+  const handleBiometricSignIn = async (automatic = false) => {
     if (!enrolment || biometricBusy || submitting) return
     setBiometricBusy(true)
     setError(null)
@@ -117,9 +127,45 @@ function Login() {
       setBiometricBusy(false)
       // The server may have retired this device (account removed, password changed).
       setEnrolment(enrolledAccount())
+      // A prompt that opened by itself and was dismissed needs no message; the button is right there.
+      if (automatic && signInError instanceof BiometricError && signInError.cancelled) return
       setError(signInError instanceof Error ? signInError.message : 'Please sign in with your password.')
     }
   }
+
+  // Opening the login screen on an enrolled device asks for Face ID /
+  // fingerprint straight away, once — but not right after signing out.
+  useEffect(() => {
+    if (autoPrompted.current || !biometricFirst || canUseBiometrics !== true || isAuthenticated) return
+    autoPrompted.current = true
+    if (takeSignedOut()) return
+    void handleBiometricSignIn(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [biometricFirst, canUseBiometrics, isAuthenticated])
+
+  // On the form, this device's saved passkey is offered in the username
+  // field's autofill too, so it works even where this browser has forgotten
+  // the enrolment.
+  const autofillOn = canUseBiometrics === true && !biometricFirst && !offering && !submitting && !biometricBusy
+  useEffect(() => {
+    if (!autofillOn || isAuthenticated) return
+    let live = true
+    void signInFromAutofill()
+      .then((session) => {
+        if (!live || !session) return
+        setEnrolment(enrolledAccount())
+        adoptSession(session)
+      })
+      .catch((autofillError: unknown) => {
+        if (!live) return
+        setEnrolment(enrolledAccount())
+        setError(autofillError instanceof Error ? autofillError.message : 'Please sign in with your password.')
+      })
+    return () => {
+      live = false
+      cancelAutofillSignIn()
+    }
+  }, [autofillOn, isAuthenticated, adoptSession])
 
   return (
     <main className="login">
@@ -142,72 +188,114 @@ function Login() {
             <p className="login__vision">Sign in to begin a showroom consultation.</p>
           </div>
 
-          <form className="login__form" onSubmit={handleSubmit} noValidate>
-            <div className="login__field">
-              <label className="login__label" htmlFor="login-username">
-                Username
-              </label>
-              <input
-                autoCapitalize="none"
-                autoComplete="username"
-                autoCorrect="off"
-                className="login__input"
+          {biometricFirst && enrolment ? (
+            <div className="login__form">
+              <button
+                className="login__submit"
+                disabled={biometricBusy}
+                id="login-biometric-btn"
+                onClick={() => void handleBiometricSignIn()}
+                type="button"
+              >
+                <span className="material-symbols-outlined login__biometric-icon" aria-hidden="true">
+                  fingerprint
+                </span>
+                <span className="login__submit-label">
+                  {biometricBusy ? 'Checking…' : 'Sign in with Face ID / Fingerprint'}
+                </span>
+              </button>
+              <span className="login__biometric-who login__biometric-who--first">as {enrolment.displayName}</span>
+
+              <div className="login__error-slot" aria-live="polite">
+                {error && (
+                  <p className="login__error" id="loginError" role="alert">
+                    <span className="material-symbols-outlined login__error-icon">error</span>
+                    <span>{error}</span>
+                  </p>
+                )}
+              </div>
+
+              <button
+                className="login__offer-later"
+                disabled={biometricBusy}
+                id="login-use-password-btn"
+                onClick={() => {
+                  setError(null)
+                  setUsePassword(true)
+                }}
+                type="button"
+              >
+                Use username and password instead
+              </button>
+            </div>
+          ) : (
+            <form className="login__form" onSubmit={handleSubmit} noValidate>
+              <div className="login__field">
+                <label className="login__label" htmlFor="login-username">
+                  Username
+                </label>
+                <input
+                  autoCapitalize="none"
+                  autoComplete="username webauthn"
+                  autoCorrect="off"
+                  className="login__input"
+                  disabled={submitting}
+                  id="login-username"
+                  name="username"
+                  onChange={(event) => handleChange(setUsername)(event.target.value)}
+                  placeholder="Username"
+                  spellCheck={false}
+                  type="text"
+                  value={username}
+                />
+              </div>
+
+              <div className="login__field">
+                <label className="login__label" htmlFor="login-password">
+                  Password
+                </label>
+                <input
+                  autoComplete="current-password"
+                  className="login__input"
+                  disabled={submitting}
+                  id="login-password"
+                  name="password"
+                  onChange={(event) => handleChange(setPassword)(event.target.value)}
+                  placeholder="Password"
+                  type="password"
+                  value={password}
+                />
+              </div>
+
+              {/* Reserved height: the message fades in without shifting the button. */}
+              <div className="login__error-slot" aria-live="polite">
+                {error && (
+                  <p className="login__error" id="loginError" role="alert">
+                    <span className="material-symbols-outlined login__error-icon">error</span>
+                    <span>{error}</span>
+                  </p>
+                )}
+              </div>
+
+              <button
+                className="login__submit"
                 disabled={submitting}
-                id="login-username"
-                name="username"
-                onChange={(event) => handleChange(setUsername)(event.target.value)}
-                placeholder="Username"
-                spellCheck={false}
-                type="text"
-                value={username}
-              />
-            </div>
+                id="login-submit-btn"
+                type="submit"
+              >
+                <span className="login__submit-label">
+                  {submitting ? 'Signing In' : 'Sign In'}
+                </span>
+                {submitting ? (
+                  <span className="login__spinner" aria-hidden="true"></span>
+                ) : (
+                  <span className="material-symbols-outlined login__submit-icon">arrow_forward</span>
+                )}
+              </button>
+            </form>
+          )}
 
-            <div className="login__field">
-              <label className="login__label" htmlFor="login-password">
-                Password
-              </label>
-              <input
-                autoComplete="current-password"
-                className="login__input"
-                disabled={submitting}
-                id="login-password"
-                name="password"
-                onChange={(event) => handleChange(setPassword)(event.target.value)}
-                placeholder="Password"
-                type="password"
-                value={password}
-              />
-            </div>
-
-            {/* Reserved height: the message fades in without shifting the button. */}
-            <div className="login__error-slot" aria-live="polite">
-              {error && (
-                <p className="login__error" id="loginError" role="alert">
-                  <span className="material-symbols-outlined login__error-icon">error</span>
-                  <span>{error}</span>
-                </p>
-              )}
-            </div>
-
-            <button
-              className="login__submit"
-              disabled={submitting}
-              id="login-submit-btn"
-              type="submit"
-            >
-              <span className="login__submit-label">
-                {submitting ? 'Signing In' : 'Sign In'}
-              </span>
-              {submitting ? (
-                <span className="login__spinner" aria-hidden="true"></span>
-              ) : (
-                <span className="material-symbols-outlined login__submit-icon">arrow_forward</span>
-              )}
-            </button>
-          </form>
-
-          {canUseBiometrics && enrolment && !offering && (
+          {canUseBiometrics && enrolment && !biometricFirst && !offering && (
             <div className="login__biometric">
               <span className="login__biometric-or">or</span>
               <button

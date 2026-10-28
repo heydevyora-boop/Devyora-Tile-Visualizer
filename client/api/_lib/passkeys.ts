@@ -307,5 +307,8 @@ export async function login(originHeader: string | undefined, body: Record<strin
     role: account.role,
     displayName: account.displayName,
   })
-  return { status: 200, body: { token, role: account.role, displayName: account.displayName } }
+  return {
+    status: 200,
+    body: { token, role: account.role, displayName: account.displayName, username: account.username },
+  }
 }

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { markSignedOut } from '../utils/passkey'
 
 export type Role = 'admin' | 'user'
 
@@ -139,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
+    markSignedOut()
     setSession(null)
   }, [])
 
