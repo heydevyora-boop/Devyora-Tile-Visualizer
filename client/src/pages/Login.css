@@ -299,6 +299,125 @@
   margin-top: var(--login-space-xs);
 }
 
+/* Face ID / fingerprint: the alternative to the password, on a device that enrolled. */
+.login__biometric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--login-space-sm);
+  width: 100%;
+  margin-top: var(--login-space-md);
+}
+
+.login__biometric-or {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-outline);
+}
+
+.login__biometric-btn {
+  width: 100%;
+  min-height: var(--login-control-height);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--login-radius);
+  background: transparent;
+  color: var(--color-primary);
+  font-family: var(--login-font-body);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--login-space-sm);
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.login__biometric-btn:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.login__biometric-btn:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.login__biometric-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login__biometric-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.login__biometric-icon {
+  font-size: 22px;
+}
+
+.login__biometric-who {
+  font-size: 12px;
+  color: var(--color-on-surface-variant);
+}
+
+/* The one-time offer after a password sign-in. */
+.login__offer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--login-space-md);
+  background-color: color-mix(in srgb, var(--color-surface-container-lowest) 72%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.login__offer {
+  width: 100%;
+  max-width: 22rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--login-space-sm);
+  text-align: center;
+  padding: var(--login-space-lg, 24px);
+  border-radius: 16px;
+  border: 1px solid var(--color-outline-variant);
+  background-color: var(--color-surface-container);
+}
+
+.login__offer-icon {
+  font-size: 40px;
+  color: var(--color-primary);
+}
+
+.login__offer-title {
+  margin: 0;
+  font-family: var(--login-font-heading);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--color-on-surface);
+}
+
+.login__offer-text {
+  margin: 0 0 var(--login-space-sm);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-on-surface-variant);
+}
+
+.login__offer-later {
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-on-surface-variant);
+  font-family: var(--login-font-body);
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .login__submit:active:not(:disabled) {
   transform: scale(0.99);
 }

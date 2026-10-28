@@ -21,6 +21,8 @@ type AuthContextValue = {
    * network/unexpected failure, so the caller can show a distinct message.
    */
   login: (username: string, password: string) => Promise<Role | null>
+  /** Starts a session the server issued another way (Face ID / fingerprint sign-in). */
+  adoptSession: (session: { token: string; role: Role; displayName: string }) => void
   logout: () => void
 }
 
@@ -132,6 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.role
   }, [])
 
+  const adoptSession = useCallback((data: { token: string; role: Role; displayName: string }) => {
+    setSession({ role: data.role, userName: data.displayName, token: data.token })
+  }, [])
+
   const logout = useCallback(() => {
     setSession(null)
   }, [])
@@ -144,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userName: session?.userName ?? null,
         token: session?.token ?? null,
         login,
+        adoptSession,
         logout,
       }}
     >
