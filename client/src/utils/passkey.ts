@@ -1,6 +1,7 @@
 import {
   browserSupportsWebAuthn,
   browserSupportsWebAuthnAutofill,
+  getBrowserCapabilities,
   platformAuthenticatorIsAvailable,
   startAuthentication,
   startRegistration,
@@ -37,10 +38,32 @@ export class BiometricError extends Error {
   }
 }
 
-/** Whether this device has a built-in Face ID / fingerprint / Windows Hello check. */
+/** A phone or tablet (iPadOS reports itself as a Mac; touch points tell them apart). */
+function isPhoneOrTablet(): boolean {
+  const ua = navigator.userAgent
+  return /Android|iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
+}
+
+/**
+ * Whether this device can sign in with Face ID / fingerprint / Windows Hello.
+ *
+ * The browser's own "is there a built-in authenticator" answer is not
+ * reliable: some Android phones say no despite a fingerprint and screen lock,
+ * and that hid the option on those phones entirely. A phone or tablet always
+ * has its own lock check, so it gets the option; a computer also qualifies
+ * when the browser can keep passkeys itself (Chrome's password manager,
+ * without Windows Hello).
+ */
 export async function biometricsAvailable(): Promise<boolean> {
+  if (!browserSupportsWebAuthn()) return false
+  if (isPhoneOrTablet()) return true
   try {
-    return browserSupportsWebAuthn() && (await platformAuthenticatorIsAvailable())
+    if (await platformAuthenticatorIsAvailable()) return true
+    const capabilities = await getBrowserCapabilities()
+    return (
+      capabilities.userVerifyingPlatformAuthenticator === 'supported' ||
+      capabilities.passkeyPlatformAuthenticator === 'supported'
+    )
   } catch {
     return false
   }
