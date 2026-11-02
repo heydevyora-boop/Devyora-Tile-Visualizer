@@ -9,7 +9,7 @@ import {
   cancelAutofillSignIn,
   enableBiometrics,
   enrolledAccount,
-  openInChromeUrl,
+  openInBrowserUrl,
   signInFromAutofill,
   signInWithBiometrics,
   takeSignedOut,
@@ -336,18 +336,21 @@ function Login() {
           {blockedHere && !offering && (
             <div className="login__biometric" id="login-biometric-blocked">
               <span className="login__biometric-or">or</span>
-              {blockedHere === 'android' && (
-                <a className="login__biometric-btn" href={openInChromeUrl()}>
+              {blockedHere.android && (
+                <a className="login__biometric-btn" href={openInBrowserUrl()}>
                   <span className="material-symbols-outlined login__biometric-icon" aria-hidden="true">
                     fingerprint
                   </span>
-                  <span>Open in Chrome for Face ID / Fingerprint</span>
+                  <span>Open in your browser for Face ID / Fingerprint</span>
                 </a>
               )}
               <span className="login__biometric-who">
-                {blockedHere === 'android'
-                  ? 'Face ID / fingerprint does not work in this app’s built-in browser.'
-                  : 'Face ID / fingerprint does not work in this app’s built-in browser. Open this page in Safari to use it.'}
+                {blockedHere.inApp
+                  ? 'Face ID / fingerprint does not work inside this app.'
+                  : 'This browser does not support Face ID / fingerprint sign-in.'}{' '}
+                {blockedHere.android
+                  ? 'Open this page in Chrome, Samsung Internet, Firefox, Edge or another browser.'
+                  : 'Open this page in Safari, Chrome or another browser.'}
               </span>
             </div>
           )}

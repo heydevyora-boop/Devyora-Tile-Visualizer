@@ -54,19 +54,23 @@ function isInAppBrowser(): boolean {
 }
 
 /**
- * Where to send a phone that cannot use Face ID / fingerprint in the browser
- * it is in: 'android' (Chrome can be opened from here), 'ios' (Safari has to be
- * opened by hand), or null when the option is not blocked.
+ * Why a phone cannot use Face ID / fingerprint where it is, or null when it
+ * can. Any browser that supports passkeys can — Chrome, Safari, Samsung
+ * Internet, Firefox, Edge, Opera, Brave — so this is only an app's built-in
+ * browser (`inApp`) or a browser without passkey support. `android`: the
+ * phone's own browser can be opened from here (see openInBrowserUrl).
  */
-export function biometricsBlockedHere(): 'android' | 'ios' | null {
-  if (!isPhoneOrTablet() || (browserSupportsWebAuthn() && !isInAppBrowser())) return null
-  return /Android/i.test(navigator.userAgent) ? 'android' : 'ios'
+export function biometricsBlockedHere(): { android: boolean; inApp: boolean } | null {
+  if (!isPhoneOrTablet()) return null
+  const inApp = isInAppBrowser()
+  if (browserSupportsWebAuthn() && !inApp) return null
+  return { android: /Android/i.test(navigator.userAgent), inApp }
 }
 
-/** This page, opened in Chrome from an Android app's built-in browser. */
-export function openInChromeUrl(): string {
+/** This page, opened in the phone's own default browser — whichever it is — on Android. */
+export function openInBrowserUrl(): string {
   const { host, pathname, search } = window.location
-  return `intent://${host}${pathname}${search}#Intent;scheme=https;package=com.android.chrome;end`
+  return `intent://${host}${pathname}${search}#Intent;scheme=https;end`
 }
 
 /**
