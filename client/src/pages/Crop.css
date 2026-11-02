@@ -482,31 +482,30 @@ p {
 
    The frame used to be a square capped at min(420px, 42svh), so on a 390px phone
    it was 294px wide with a 48px black gap each side. On a phone it now takes the
-   width of the screen less a small even margin, as tall as it is wide (capped),
+   width of the screen less an 8px margin and the height the screen allows,
    with a thin warm hairline on all four sides in place of the heavy shadow.
    The photo inside is still fitted by its own aspect ratio (FreeCrop), so it is
    never stretched; a wider frame only gives a landscape photo room to be larger.
    Tablets and desktop keep the square above. */
 @media (max-width: 640px) {
   .crop-page .crop-canvas-wrap {
-    padding-left: 12px;
-    padding-right: 12px;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
-  /* As wide as the screen allows and as tall as it is wide, so the crop area is
-     a full-width square rather than a narrow box: a portrait photo, which is
-     fitted by its height, also shows wider. On a short phone the height is
-     capped by the room left between the controls above (~250px) and the action
-     bar below (~76px, plus a small gap), so the screen still fits without
-     scrolling; it never drops below 240px. */
+  /* As wide as the screen allows, and as tall as the room left between the
+     controls above (~250px) and the action bar below (~76px, plus a small gap),
+     up to 480px — so the screen still fits without scrolling; it never drops
+     below 240px. */
   .crop-page #cropCanvas {
     box-sizing: border-box;
     width: 100%;
     max-width: none;
-    height: auto;
-    aspect-ratio: 1 / 1;
-    max-height: 480px;
-    max-height: max(240px, min(480px, calc(100svh - 336px)));
+    /* All the height the screen allows (not just a square), so a portrait
+       photo — fitted by its height — shows larger and its top and bottom lines
+       longer. */
+    height: 480px;
+    height: max(240px, min(480px, calc(100svh - 336px)));
     border: 1px solid rgba(226, 195, 153, 0.42);
     border-radius: 0.5rem;
     box-shadow: none;

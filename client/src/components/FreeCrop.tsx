@@ -31,6 +31,14 @@ const MIN_ZOOM = 1
 const MAX_ZOOM = 6
 /** Smallest selection, in source pixels — below this a crop carries no detail. */
 const MIN_CROP_PX = 32
+/**
+ * Space between the fitted photo and the frame, in screen pixels. Without it a
+ * portrait photo's top and bottom edges — where the selection starts — sat on
+ * the frame's own border: the lines were hard to see, and the frame clipped
+ * half of their touch strips. More above and below, where that happened.
+ */
+const GUTTER_X = 8
+const GUTTER_Y = 14
 
 type Drag =
   | { kind: 'move'; pointerId: number; startX: number; startY: number; startRect: CropRect }
@@ -105,7 +113,10 @@ const FreeCrop = forwardRef<FreeCropHandle, {
   // Source pixels -> screen pixels. One scale for both axes, so nothing is
   // ever stretched: a distorted preview would misrepresent the tile.
   const scale = natural && frame
-    ? Math.min(frame.width / natural.width, frame.height / natural.height) * zoom
+    ? Math.min(
+        Math.max(1, frame.width - 2 * GUTTER_X) / natural.width,
+        Math.max(1, frame.height - 2 * GUTTER_Y) / natural.height,
+      ) * zoom
     : 1
 
   const toScreen = (x: number, y: number) => {

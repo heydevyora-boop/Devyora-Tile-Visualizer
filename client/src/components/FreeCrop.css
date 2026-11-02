@@ -148,7 +148,7 @@
 .freecrop__grip--s {
   left: 0;
   width: 100%;
-  height: min(56px, 40%);
+  height: min(64px, 40%);
   cursor: ns-resize;
 }
 
@@ -160,19 +160,26 @@
   cursor: ew-resize;
 }
 
-.freecrop__grip--n { top: 0; transform: translateY(-50%); }
-.freecrop__grip--s { top: 100%; transform: translateY(-50%); }
+/* The top and bottom strips reach mostly INTO the selection (70%) and a little
+   outside it (30%): when the line is near the frame's edge, the part outside
+   would be clipped, so the strip keeps nearly its full height where it counts. */
+.freecrop__grip--n { top: 0; transform: translateY(-30%); }
+.freecrop__grip--s { top: 100%; transform: translateY(-70%); }
 .freecrop__grip--w { left: 0; transform: translateX(-50%); }
 .freecrop__grip--e { left: 100%; transform: translateX(-50%); }
 
 .freecrop__grip--n::after,
 .freecrop__grip--s::after {
   left: 50%;
-  top: calc(50% - 1.5px);
-  width: 22px;
-  height: 3px;
-  margin-left: -11px;
+  width: 32px;
+  height: 4px;
+  margin-left: -16px;
 }
+
+/* The mark sits on the line itself, which is 30% down the top strip and 70%
+   down the bottom one. */
+.freecrop__grip--n::after { top: calc(30% - 2px); }
+.freecrop__grip--s::after { top: calc(70% - 2px); }
 
 .freecrop__grip--w::after,
 .freecrop__grip--e::after {
@@ -203,7 +210,7 @@
 
   .freecrop__grip--n,
   .freecrop__grip--s {
-    height: min(72px, 34%);
+    height: min(80px, 34%);
   }
 
   .freecrop__grip--w,
