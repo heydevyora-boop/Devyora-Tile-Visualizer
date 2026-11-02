@@ -334,6 +334,10 @@
   transition: background-color 150ms ease, transform 150ms ease;
 }
 
+a.login__biometric-btn {
+  text-decoration: none;
+}
+
 .login__biometric-btn:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
@@ -359,6 +363,7 @@
 .login__biometric-who {
   font-size: 12px;
   color: var(--color-on-surface-variant);
+  text-align: center;
 }
 
 /* Under the main button, on a device that signs in with Face ID / fingerprint. */

@@ -5,9 +5,11 @@ import devyoraLogo from '../assets/devyora-logo.png'
 import {
   BiometricError,
   biometricsAvailable,
+  biometricsBlockedHere,
   cancelAutofillSignIn,
   enableBiometrics,
   enrolledAccount,
+  openInChromeUrl,
   signInFromAutofill,
   signInWithBiometrics,
   takeSignedOut,
@@ -26,6 +28,9 @@ function Login() {
   // which account (if any) enrolled it here, and the one-time offer shown
   // after a password sign-in.
   const [canUseBiometrics, setCanUseBiometrics] = useState<boolean | null>(null)
+  // A phone in an app's built-in browser (Facebook, Instagram…), where it
+  // cannot work: say so rather than show nothing.
+  const [blockedHere] = useState(() => biometricsBlockedHere())
   const [enrolment, setEnrolment] = useState(() => enrolledAccount())
   const [offering, setOffering] = useState(false)
   const [offerBusy, setOfferBusy] = useState(false)
@@ -68,7 +73,10 @@ function Login() {
     setError(null)
     // Offer Face ID / fingerprint after this sign-in, unless this device
     // already uses it for this account.
-    holdRedirect.current = canUseBiometrics === true && enrolment?.username !== username.trim().toLowerCase()
+    // Waits for the device check if it has not finished, so a quick sign-in is
+    // still offered Face ID / fingerprint.
+    const capable = canUseBiometrics ?? (await biometricsAvailable())
+    holdRedirect.current = capable && enrolment?.username !== username.trim().toLowerCase()
 
     try {
       // Verified server-side; admins land on /history, everyone else on /home.
@@ -322,6 +330,25 @@ function Login() {
                 <span>{biometricBusy ? 'Checking…' : 'Sign in with Face ID / Fingerprint'}</span>
               </button>
               {enrolment && <span className="login__biometric-who">as {enrolment.displayName}</span>}
+            </div>
+          )}
+
+          {blockedHere && !offering && (
+            <div className="login__biometric" id="login-biometric-blocked">
+              <span className="login__biometric-or">or</span>
+              {blockedHere === 'android' && (
+                <a className="login__biometric-btn" href={openInChromeUrl()}>
+                  <span className="material-symbols-outlined login__biometric-icon" aria-hidden="true">
+                    fingerprint
+                  </span>
+                  <span>Open in Chrome for Face ID / Fingerprint</span>
+                </a>
+              )}
+              <span className="login__biometric-who">
+                {blockedHere === 'android'
+                  ? 'Face ID / fingerprint does not work in this app’s built-in browser.'
+                  : 'Face ID / fingerprint does not work in this app’s built-in browser. Open this page in Safari to use it.'}
+              </span>
             </div>
           )}
         </section>

@@ -45,6 +45,31 @@ function isPhoneOrTablet(): boolean {
 }
 
 /**
+ * An app's built-in browser — Facebook, Instagram, an Android WebView ("; wv)")
+ * — where a link often opens. Passkeys do not work there, even where the page
+ * is told they might.
+ */
+function isInAppBrowser(): boolean {
+  return /; wv\)|FBAN|FBAV|Instagram|Line\/|Snapchat/i.test(navigator.userAgent)
+}
+
+/**
+ * Where to send a phone that cannot use Face ID / fingerprint in the browser
+ * it is in: 'android' (Chrome can be opened from here), 'ios' (Safari has to be
+ * opened by hand), or null when the option is not blocked.
+ */
+export function biometricsBlockedHere(): 'android' | 'ios' | null {
+  if (!isPhoneOrTablet() || (browserSupportsWebAuthn() && !isInAppBrowser())) return null
+  return /Android/i.test(navigator.userAgent) ? 'android' : 'ios'
+}
+
+/** This page, opened in Chrome from an Android app's built-in browser. */
+export function openInChromeUrl(): string {
+  const { host, pathname, search } = window.location
+  return `intent://${host}${pathname}${search}#Intent;scheme=https;package=com.android.chrome;end`
+}
+
+/**
  * Whether this device can sign in with Face ID / fingerprint / Windows Hello.
  *
  * The browser's own "is there a built-in authenticator" answer is not
@@ -55,7 +80,7 @@ function isPhoneOrTablet(): boolean {
  * without Windows Hello).
  */
 export async function biometricsAvailable(): Promise<boolean> {
-  if (!browserSupportsWebAuthn()) return false
+  if (!browserSupportsWebAuthn() || isInAppBrowser()) return false
   if (isPhoneOrTablet()) return true
   try {
     if (await platformAuthenticatorIsAvailable()) return true
