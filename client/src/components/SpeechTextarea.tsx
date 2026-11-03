@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
+import { transcriptOf } from '../utils/speechTranscript'
 import './SpeechTextarea.css'
 
 /**
@@ -44,6 +45,9 @@ function recognitionConstructor(): RecognitionConstructor | null {
  * the same script the keyboard produces.
  */
 const SPEECH_LANGUAGE = 'en-IN'
+
+/** Phone browsers (Chrome on Android above all) report each result again with the earlier words in it. */
+const REPEATS_RESULTS = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 /** What to tell the person, for each way recognition can fail. Never a raw error code. */
 function messageFor(error: string): string | null {
@@ -96,10 +100,9 @@ function SpeechTextarea({ value, onValueChange, maxLength, ...textareaProps }: S
   const [message, setMessage] = useState<string | null>(null)
 
   const recognitionRef = useRef<Recognition | null>(null)
-  // What was in the field when dictation began, and what has been recognised
-  // and settled since. The field is always `base + settled + still-being-heard`.
+  // What was in the field when dictation began. The field is always
+  // `base + everything recognised in this dictation`.
   const baseRef = useRef('')
-  const settledRef = useRef('')
   // Latest props, read from recognition callbacks that outlive a render.
   const valueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
@@ -137,18 +140,12 @@ function SpeechTextarea({ value, onValueChange, maxLength, ...textareaProps }: S
     recognition.continuous = true
     recognition.interimResults = true
     baseRef.current = valueRef.current
-    settledRef.current = ''
 
     recognition.onstart = () => setListening(true)
     recognition.onresult = (event) => {
       if (recognitionRef.current !== recognition) return
-      let interim = ''
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index]
-        if (result.isFinal) settledRef.current += result[0].transcript
-        else interim += result[0].transcript
-      }
-      show(settledRef.current + interim)
+      // Rebuilt from all results each time, never added to: see transcriptOf.
+      show(transcriptOf(event.results, REPEATS_RESULTS))
     }
     recognition.onerror = (event) => {
       if (recognitionRef.current === recognition) setMessage(messageFor(event.error))
