@@ -43,6 +43,9 @@ function Login() {
   const [usePassword, setUsePassword] = useState(false)
   const biometricFirst = Boolean(enrolment) && canUseBiometrics !== false && !usePassword
   const autoPrompted = useRef(false)
+  // Set when the Face ID / fingerprint button signed in with the typed
+  // password to set it up: the device's setup prompt then opens by itself.
+  const setUpAfterSignIn = useRef(false)
 
   useEffect(() => {
     void biometricsAvailable().then(setCanUseBiometrics)
@@ -111,7 +114,7 @@ function Login() {
     navigate(landingPathFor(role), { replace: true })
   }
 
-  const handleEnable = async () => {
+  const handleEnable = async (automatic = false) => {
     if (!token || offerBusy) return
     setOfferBusy(true)
     setOfferError(null)
@@ -121,7 +124,48 @@ function Login() {
       finishOffer()
     } catch (enableError) {
       setOfferBusy(false)
+      // A prompt that opened by itself may be refused by the browser: the Enable button is right there.
+      if (automatic) return
       setOfferError(enableError instanceof Error ? enableError.message : 'That did not work. Please try again.')
+    }
+  }
+
+  // Signed in from the Face ID / fingerprint button to set it up: open the
+  // device's setup prompt straight away.
+  useEffect(() => {
+    if (!offering || !token || !setUpAfterSignIn.current) return
+    setUpAfterSignIn.current = false
+    void handleEnable(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offering, token])
+
+  /**
+   * Face ID / fingerprint is not set up on this device: sign in with the
+   * username and password typed in, then set it up. A passkey can only be
+   * added to an account that has proved who it is.
+   */
+  const setUpWithPassword = async () => {
+    setBiometricBusy(true)
+    setError(null)
+    holdRedirect.current = true
+    try {
+      const signedInRole = await login(username, password)
+      setBiometricBusy(false)
+      if (signedInRole) {
+        setUpAfterSignIn.current = true
+        setOffering(true)
+        return
+      }
+      holdRedirect.current = false
+      setError('Those credentials were not recognised. Please check and try again.')
+    } catch (loginError) {
+      holdRedirect.current = false
+      setBiometricBusy(false)
+      setError(
+        loginError instanceof Error && loginError.message
+          ? loginError.message
+          : 'Something went wrong while signing in. Please try again.',
+      )
     }
   }
 
@@ -130,6 +174,11 @@ function Login() {
     // Without a remembered account the phone is asked for any passkey it holds
     // for this site (one synced from another device signs straight in).
     const known = enrolment
+    // Not set up here yet, and the username and password are typed in: set it up.
+    if (!known && !automatic && username.trim() && password) {
+      void setUpWithPassword()
+      return
+    }
     setBiometricBusy(true)
     setError(null)
     try {
@@ -143,8 +192,9 @@ function Login() {
       if (automatic && cancelled) return
       if (!known && cancelled) {
         setError(
-          'Face ID / fingerprint is not set up on this phone yet. Sign in once with your username and password, and you will be asked to turn it on.',
+          'Face ID / fingerprint is not set up on this device yet. Enter your username and password above, then tap "Sign in with Face ID / Fingerprint" again to set it up.',
         )
+        document.getElementById('login-username')?.focus()
         return
       }
       setError(signInError instanceof Error ? signInError.message : 'Please sign in with your password.')
