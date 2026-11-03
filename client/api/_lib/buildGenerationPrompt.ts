@@ -67,7 +67,9 @@ function describeTileGeometry(label: string, size: TileDimensions): string {
       : `Rectangular, ${ratio}. The long edge is ${longSide} mm and the short edge ${shortSide} mm; keep that proportion exactly in every tile.`
 
   return [
-    `${label} — one tile measures ${size.lengthMm} mm x ${size.breadthMm} mm. ${shape}`,
+    shortSide === longSide
+      ? `${label} — one tile measures ${longSide} mm x ${shortSide} mm. ${shape}`
+      : `${label} — one tile measures ${longSide} mm on its long edge and ${shortSide} mm on its short edge (the order the size was typed in says nothing about which way it is laid). ${shape}`,
     `At this size it reads as ${character}.`,
     `- Repetition: cover each surface it is used on with whole tiles of this size, repeated. Work out how many fit at ${longSide} mm x ${shortSide} mm and show that many. Never enlarge one tile to fill a surface, and never stretch, squash or skew the photograph to make it fit.`,
     '- Grout: a continuous joint between every pair of tiles, forming a regular grid at exactly those intervals.',
@@ -121,7 +123,7 @@ function describePhotoProportion(photo: { width: number; height: number }, tile:
     const along = photo.width >= photo.height ? 'horizontal' : 'vertical'
     return `REFERENCE PHOTO — ${size}: the proportion of one whole ${tileLong} × ${tileShort} mm tile, photographed with its long ${tileLong} mm edge ${along}. On a wall, lay the tiles the same way — long edge ${along} — and keep every line of the design running in the same direction as in the photograph.`
   }
-  return `REFERENCE PHOTO — ${size} (about ${photoRatio.toFixed(2)}:1) does NOT have the proportion of one ${tileLong} × ${tileShort} mm tile (${tileRatio.toFixed(2)}:1): it shows several tiles or part of one. Take the tile's design from it — its motif, relief, colour and the motif's size relative to a tile, judged from any joints visible in the photograph — and lay that design on tiles of exactly ${tileLong} × ${tileShort} mm, keeping each line of the design running the way it runs in the photograph. Never treat the photograph's outline as one tile.`
+  return `REFERENCE PHOTO — ${size} (about ${photoRatio.toFixed(2)}:1) does NOT have the proportion of one ${tileLong} × ${tileShort} mm tile (${tileRatio.toFixed(2)}:1): it shows several tiles or part of one. Take the tile's design from it — its motif, relief, colour and the motif's size relative to a tile, judged from any joints visible in the photograph — and lay that design on tiles of exactly ${tileLong} × ${tileShort} mm, keeping each line of the design running the way it runs in the photograph. Lay those tiles the way the tiles in the photograph lie, judged from its joints; where no joint shows, on a wall lay them with the long ${tileLong} mm edge horizontal, so each row is only ${tileShort} mm high (about ${(tileShort / 170).toFixed(1)} stair risers, or 1/${Math.round(2700 / tileShort)} of a 2.7 m room height). Never treat the photograph's outline as one tile.`
 }
 
 /**

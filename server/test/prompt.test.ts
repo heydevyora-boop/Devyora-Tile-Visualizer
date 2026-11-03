@@ -114,6 +114,18 @@ test('a photo of several tiles (the reported case) is not treated as one 400 x 1
   assert.match(text, /Never treat the photograph's outline as one tile/)
 })
 
+test('a 400 x 1200 size is stated by edge, and a photo of several tiles says which way to lay them', () => {
+  const text = requestWithPhoto({ lengthMm: 400, breadthMm: 1200 }, { width: 692, height: 540 })
+  assert.match(text, /one tile measures 1200 mm on its long edge and 400 mm on its short edge/)
+  assert.doesNotMatch(text, /one tile measures 400 mm x 1200 mm/)
+  assert.match(text, /Lay those tiles the way the tiles in the photograph lie, judged from its joints/)
+  assert.match(text, /on a wall lay them with the long 1200 mm edge horizontal, so each row is only 400 mm high \(about 2\.4 stair risers, or 1\/7 of a 2\.7 m room height\)/)
+})
+
+test('a square size still reads as one size', () => {
+  assert.match(requestWithPhoto({ lengthMm: 600, breadthMm: 600 }, null), /one tile measures 600 mm x 600 mm\. Square/)
+})
+
 test('a square photo of a square tile', () => {
   assert.match(requestWithPhoto({ lengthMm: 600, breadthMm: 600 }, { width: 900, height: 880 }), /square, the proportion of one whole 600 × 600 mm tile/)
 })
