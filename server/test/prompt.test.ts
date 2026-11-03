@@ -88,3 +88,43 @@ test('every catalogue space id is recognised (Living Room was refused as "living
   }
   assert.match(request([node('Living Room', 'living-room'), node('Living Floor')]), /ROOM CONTEXT — what a living room typically contains/)
 })
+
+function requestWithPhoto(size: { lengthMm: number; breadthMm: number }, photo: { width: number; height: number } | null, joint: number | null = null) {
+  const brief = buildGenerationBrief({
+    highlighterDimensions: size,
+    plainTileProvided: false,
+    plainDimensions: null,
+    path: [node('Bathroom', 'bathroom'), node('Bathroom with Shower Area')],
+    highlighterLocation: { id: 's', name: 'Shower Area', description: '' },
+    jointWidthMm: joint,
+  })
+  return describeModelRequest(buildModelRequest(brief, photo ? { highlighter: photo } : {}))
+}
+
+test('a photo shaped like one 400 x 1200 tile: one tile, and which way it lies', () => {
+  const text = requestWithPhoto({ lengthMm: 400, breadthMm: 1200 }, { width: 1200, height: 400 })
+  assert.match(text, /REFERENCE PHOTO — 1200 × 400 px: the proportion of one whole 1200 × 400 mm tile, photographed with its long 1200 mm edge horizontal/)
+  assert.match(text, /lay the tiles the same way — long edge horizontal/)
+})
+
+test('a photo of several tiles (the reported case) is not treated as one 400 x 1200 tile', () => {
+  const text = requestWithPhoto({ lengthMm: 400, breadthMm: 1200 }, { width: 692, height: 540 })
+  assert.match(text, /does NOT have the proportion of one 1200 × 400 mm tile \(3\.00:1\)/)
+  assert.match(text, /lay that design on tiles of exactly 1200 × 400 mm/)
+  assert.match(text, /Never treat the photograph's outline as one tile/)
+})
+
+test('a square photo of a square tile', () => {
+  assert.match(requestWithPhoto({ lengthMm: 600, breadthMm: 600 }, { width: 900, height: 880 }), /square, the proportion of one whole 600 × 600 mm tile/)
+})
+
+test('the joint is stated relative to the tile, and the design never turns within the tile', () => {
+  assert.match(requestWithPhoto({ lengthMm: 400, breadthMm: 1200 }, null, 2), /GROUT JOINT — 2 mm\..*about 1\/200 of the tile's short 400 mm edge/)
+  assert.match(SYSTEM_INSTRUCTION, /never turn the design within the tile, so vertical waves never become horizontal ones/)
+})
+
+test('without a measured photo the request reads as before', () => {
+  const text = requestWithPhoto({ lengthMm: 400, breadthMm: 1200 }, null)
+  assert.doesNotMatch(text, /REFERENCE PHOTO —/)
+  assert.match(text, /cropped to ONE whole tile, edge to edge/)
+})

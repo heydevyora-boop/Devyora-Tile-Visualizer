@@ -82,14 +82,46 @@ function sameSize(a: TileDimensions, b: TileDimensions): boolean {
   return a.lengthMm === b.lengthMm && a.breadthMm === b.breadthMm
 }
 
-function describeJoint(widthMm: number): string {
+function describeJoint(widthMm: number, tile: TileDimensions): string {
   const character =
     widthMm <= 1.5
       ? 'a very fine joint — the tiles read as almost butt-jointed, and the grid is subtle'
       : widthMm <= 3
         ? 'a fine, conventional joint — clearly visible but not a feature'
         : 'a wide, deliberate joint — the grid is part of the look'
-  return `GROUT JOINT — ${widthMm} mm. This is ${character}. Even on every joint, in both directions.`
+  const shortSide = Math.min(tile.lengthMm, tile.breadthMm)
+  return `GROUT JOINT — ${widthMm} mm. This is ${character}. Even on every joint, in both directions. At this tile size the joint is about 1/${Math.round(shortSide / widthMm)} of the tile's short ${shortSide} mm edge: draw it that thin, never wider.`
+}
+
+/** The reference photographs' pixel sizes, where the service measured them. */
+export interface ReferencePhotos {
+  highlighter?: { width: number; height: number } | null
+  plain?: { width: number; height: number } | null
+}
+
+/**
+ * What the photograph's shape says, measured against the selected tile size.
+ *
+ * The model was only told "this is one tile" — and a crop of two or three
+ * tiles, or a tile on its side, was then squeezed into one tile of the
+ * selected size, changing the design's scale and turning it. Comparing the
+ * two proportions states it as a fact: one tile and which way it lies, or not
+ * one tile, so the design is taken from it and laid on tiles of the real size.
+ */
+function describePhotoProportion(photo: { width: number; height: number }, tile: TileDimensions): string {
+  const tileLong = Math.max(tile.lengthMm, tile.breadthMm)
+  const tileShort = Math.min(tile.lengthMm, tile.breadthMm)
+  const tileRatio = tileLong / tileShort
+  const photoRatio = Math.max(photo.width, photo.height) / Math.min(photo.width, photo.height)
+  const size = `${photo.width} × ${photo.height} px`
+  if (Math.abs(photoRatio - tileRatio) / tileRatio <= 0.15) {
+    if (tileRatio < 1.05) {
+      return `REFERENCE PHOTO — ${size}: square, the proportion of one whole ${tileLong} × ${tileShort} mm tile. Keep the design the way up it is in the photograph.`
+    }
+    const along = photo.width >= photo.height ? 'horizontal' : 'vertical'
+    return `REFERENCE PHOTO — ${size}: the proportion of one whole ${tileLong} × ${tileShort} mm tile, photographed with its long ${tileLong} mm edge ${along}. On a wall, lay the tiles the same way — long edge ${along} — and keep every line of the design running in the same direction as in the photograph.`
+  }
+  return `REFERENCE PHOTO — ${size} (about ${photoRatio.toFixed(2)}:1) does NOT have the proportion of one ${tileLong} × ${tileShort} mm tile (${tileRatio.toFixed(2)}:1): it shows several tiles or part of one. Take the tile's design from it — its motif, relief, colour and the motif's size relative to a tile, judged from any joints visible in the photograph — and lay that design on tiles of exactly ${tileLong} × ${tileShort} mm, keeping each line of the design running the way it runs in the photograph. Never treat the photograph's outline as one tile.`
 }
 
 /**
@@ -111,7 +143,7 @@ function describeDerivedFacts(brief: GenerationBrief): string {
   }
 
   if (brief.installation.jointWidthMm !== null) {
-    blocks.push(describeJoint(brief.installation.jointWidthMm))
+    blocks.push(describeJoint(brief.installation.jointWidthMm, brief.tiles.highlighter.sizeMm))
   }
 
   blocks.push(renderApplicationMap(brief.placement.application))
@@ -351,7 +383,7 @@ function describeHighlighterZone(brief: GenerationBrief): string {
  * Pure: no lookups, no I/O, no photo data. The same brief always yields the
  * same plan, so a stored brief can be replayed exactly.
  */
-export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
+export function buildModelRequest(brief: GenerationBrief, photos: ReferencePhotos = {}): ModelRequestPlan {
   const conceptFocus = pickConceptFocus(brief)
   const parts: RequestPart[] = []
 
@@ -379,6 +411,7 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
         : 'This is the highlighter tile (tiles.highlighter): the decorative / highlight product, used only where the HIGHLIGHTER ZONE section places it.',
       'Use only the tile in this photograph, not its background. It is cropped to ONE whole tile, edge to edge: every installed highlighter tile shows this entire face once, at the tile\'s real size.',
       'Reproduce this tile exactly, down to its fine detail: colour as photographed, minor pattern, stone shapes, small veins, texture, speckles, tonal variation and finish. Lines inside the face are part of the design, not grout. Do not simplify it or invent a similar design.',
+      ...(photos.highlighter ? [describePhotoProportion(photos.highlighter, brief.tiles.highlighter.sizeMm)] : []),
     ].join('\n'),
   })
   parts.push({ kind: 'image', tile: 'highlighter' })
@@ -391,6 +424,7 @@ export function buildModelRequest(brief: GenerationBrief): ModelRequestPlan {
         'This is the plain tile (tiles.plain): the separate plain / base product. It is not the highlighter and the highlighter is not it.',
         'Use only the tile in this photograph, not its background. It is cropped to ONE whole tile, edge to edge: every installed plain tile shows this entire face once, at the tile\'s real size.',
         'Reproduce this tile exactly, down to its fine detail: colour as photographed, subtle texture, speckles, tonal variation and finish. A plain tile still has surface character; do not flatten it or invent one.',
+        ...(photos.plain && brief.tiles.plain.sizeMm ? [describePhotoProportion(photos.plain, brief.tiles.plain.sizeMm)] : []),
       ].join('\n'),
     })
     parts.push({ kind: 'image', tile: 'plain' })

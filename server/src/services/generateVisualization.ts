@@ -296,6 +296,17 @@ export async function prepareTileReference(tile: ParsedDataUrl): Promise<ParsedD
   }
 }
 
+/** Pixel size of a reference as the model receives it, or null when it cannot be read. */
+async function imageSize(image: ParsedDataUrl): Promise<{ width: number; height: number } | null> {
+  try {
+    const sharp = (await import('sharp')).default
+    const { width, height } = await sharp(Buffer.from(image.data, 'base64')).metadata()
+    return width && height ? { width, height } : null
+  } catch {
+    return null
+  }
+}
+
 /** A short, stable fingerprint of an image's bytes, so a log line names the exact image sent. */
 export function fingerprint(image: ParsedDataUrl): string {
   return createHash('sha256').update(image.data, 'base64').digest('hex').slice(0, 12)
@@ -495,7 +506,12 @@ export async function generateVisualization(
   // The brief rendered as ordered input: the structured selections, the facts
   // computed from them, and each tile photograph as its own part directly after
   // a label that names it. The system instruction is separate and static.
-  const plan = buildModelRequest(brief)
+  // Each photograph's shape, so the request can say whether it is one tile of
+  // the selected size and which way it lies.
+  const plan = buildModelRequest(brief, {
+    highlighter: await imageSize(tile),
+    plain: plainTile ? await imageSize(plainTile) : null,
+  })
   const references = { highlighter: tile, plain: plainTile }
   const modelInput = plan.parts.map((part) => {
     if (part.kind === 'text') return { type: 'text' as const, text: part.text }

@@ -31,7 +31,7 @@ function label(format: TileFormat): string {
  */
 function TileSize() {
   const navigate = useNavigate()
-  const { tileSize, setTileSize, setTileFormatOption, spacePath } = useFlow()
+  const { tileSize, setTileSize, setTileFormatOption, spacePath, highlighterTileImage } = useFlow()
   const { token } = useAuth()
 
   // Normally prefetched when the consultation started, so it is already here.
@@ -90,22 +90,54 @@ function TileSize() {
   const customLength = lengthInput ?? chosenCustom?.[1] ?? ''
   const customBreadth = breadthInput ?? chosenCustom?.[2] ?? ''
 
-  const applyCustom = () => {
+  /** Applies the typed custom size; returns it, or null with a message when it is not valid. */
+  const applyCustom = (): string | null => {
     setCustomError(null)
     const lengthMm = Number(customLength.trim())
     const breadthMm = Number(customBreadth.trim())
     for (const [value, name] of [[lengthMm, 'Length'], [breadthMm, 'Breadth']] as const) {
       if (!Number.isFinite(value) || !Number.isInteger(value) || value < 10 || value > 4000) {
         setCustomError(`${name} must be a whole number between 10 mm and 4000 mm.`)
-        return
+        return null
       }
     }
-    setTileSize(toSizeId(lengthMm, breadthMm))
+    const id = toSizeId(lengthMm, breadthMm)
+    setTileSize(id)
     setTileFormatOption(null)
+    return id
   }
 
+  // The highlighter crop's shape, to check it against the chosen size.
+  const [cropShape, setCropShape] = useState<{ width: number; height: number } | null>(null)
+  useEffect(() => {
+    if (!highlighterTileImage) return
+    let live = true
+    const image = new Image()
+    image.onload = () => live && setCropShape({ width: image.naturalWidth, height: image.naturalHeight })
+    image.src = highlighterTileImage
+    return () => {
+      live = false
+    }
+  }, [highlighterTileImage])
+  // A crop of several tiles (or a part of one) is not shaped like one tile of
+  // this size, and the concept then gets the design at the wrong scale.
+  // While a custom size is being typed, that is the size to check against.
+  const typing = customOpen && /^\d+$/.test(customLength) && /^\d+$/.test(customBreadth)
+  const chosen = typing ? ['', customLength, customBreadth] : (tileSize ?? '').match(/^(\d+)x(\d+)$/)
+  const cropMismatch = (() => {
+    if (!chosen || !cropShape) return false
+    const tileRatio = Math.max(+chosen[1], +chosen[2]) / Math.min(+chosen[1], +chosen[2])
+    const cropRatio = Math.max(cropShape.width, cropShape.height) / Math.min(cropShape.width, cropShape.height)
+    return Math.abs(cropRatio - tileRatio) / tileRatio > 0.15
+  })()
+
   const handleContinue = () => {
-    if (!tileSize) return
+    // Sizes typed into the custom fields count even without "Use this size":
+    // otherwise the first standard size, selected by default, went ahead in
+    // their place.
+    if (customOpen && (lengthInput !== null || breadthInput !== null)) {
+      if (!applyCustom()) return
+    } else if (!tileSize) return
     // The space was chosen first; only a bathroom asks where the highlighter goes.
     navigate(needsHighlighterLocation(spacePath) ? '/highlighter-location' : '/joint')
   }
@@ -191,6 +223,10 @@ function TileSize() {
                   onClick={() => {
                     setTileSize(id)
                     setTileFormatOption(format)
+                    // A standard size chosen after typing a custom one wins.
+                    setLengthInput(null)
+                    setBreadthInput(null)
+                    setCustomOpenOverride(false)
                   }}
                 >
                   <span className="font-spec-numeral text-spec-numeral text-on-surface tracking-wide">
@@ -253,7 +289,7 @@ function TileSize() {
                 <button
                   type="button"
                   className="h-11 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest font-label-caps text-label-caps uppercase tracking-widest"
-                  onClick={applyCustom}
+                  onClick={() => void applyCustom()}
                 >
                   Use this size
                 </button>
@@ -263,6 +299,20 @@ function TileSize() {
 
           <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-lg pb-safe">
             <div className="max-w-md mx-auto px-margin pt-space-sm pb-space-md">
+              {cropMismatch && chosen && (
+                <p className="font-body-sm text-body-sm text-on-surface-variant pb-space-sm" id="crop-size-note">
+                  The highlighter crop is not shaped like one {chosen[1]} × {chosen[2]} mm tile — it looks like
+                  several tiles or part of one. For the closest result,{' '}
+                  <button
+                    className="text-primary underline"
+                    type="button"
+                    onClick={() => navigate('/crop/highlighter')}
+                  >
+                    crop exactly one tile
+                  </button>
+                  .
+                </p>
+              )}
               <button
                 className="w-full h-[52px] bg-primary text-on-primary hover:bg-primary-fixed-dim active:scale-[0.99] rounded-lg font-title-md text-title-md tracking-wider uppercase flex items-center justify-center gap-space-xs transition-all shadow-[0_8px_24px_rgba(197,168,128,0.22)] disabled:opacity-60"
                 id="continue-btn"
