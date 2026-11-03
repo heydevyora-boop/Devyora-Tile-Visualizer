@@ -505,7 +505,8 @@ p {
        photo — fitted by its height — shows larger and its top and bottom lines
        longer. */
     height: 480px;
-    height: max(240px, min(480px, calc(100svh - 336px)));
+    /* 336px of controls above and the action bar below, plus the Straighten row. */
+    height: max(240px, min(480px, calc(100svh - 380px)));
     border: 1px solid rgba(226, 195, 153, 0.42);
     border-radius: 0.5rem;
     box-shadow: none;

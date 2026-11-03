@@ -24,7 +24,8 @@ function toRadian(degree: number) {
   return (degree * Math.PI) / 180
 }
 
-function rotateSize(width: number, height: number, rotation: number) {
+/** The size of the box a photo needs once turned by `rotation` degrees (FreeCrop shares it). */
+export function rotateSize(width: number, height: number, rotation: number) {
   const rotRad = toRadian(rotation)
   return {
     width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),

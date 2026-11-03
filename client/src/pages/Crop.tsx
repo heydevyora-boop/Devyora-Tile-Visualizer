@@ -38,6 +38,11 @@ function Crop({ target }: { target: TileTarget }) {
   const cropRef = useRef<FreeCropHandle>(null)
 
   const [rect, setRect] = useState<CropRect | null>(null)
+  // How far the photo is turned, so the tile can be squared up: quarter turns,
+  // plus a fine straighten of up to 45° either way.
+  const [quarterTurns, setQuarterTurns] = useState(0)
+  const [fine, setFine] = useState(0)
+  const rotation = quarterTurns * 90 + fine
   const [confirming, setConfirming] = useState(false)
   const [cropError, setCropError] = useState<string | null>(null)
 
@@ -51,8 +56,13 @@ function Crop({ target }: { target: TileTarget }) {
 
   const handleReset = () => {
     setCropError(null)
+    setQuarterTurns(0)
+    setFine(0)
     cropRef.current?.reset()
   }
+
+  /** A quarter turn clockwise, keeping any fine straightening. */
+  const rotateQuarter = () => setQuarterTurns((current) => (current + 1) % 4)
 
   // Identity is stable so FreeCrop's effect does not re-run on every render.
   const handleChange = useCallback((next: CropRect | null) => setRect(next), [])
@@ -64,7 +74,7 @@ function Crop({ target }: { target: TileTarget }) {
     try {
       // The rectangle is already in source-photo pixels, which is exactly what
       // the exporter expects; it snaps it to whole pixels inside the photo.
-      const dataUrl = await getCroppedImage(tileImage, rect)
+      const dataUrl = await getCroppedImage(tileImage, rect, rotation)
       setCroppedTile(target, dataUrl)
       navigate('/tile-input')
     } catch (error) {
@@ -185,7 +195,7 @@ function Crop({ target }: { target: TileTarget }) {
               className="relative w-full aspect-square max-w-[420px] bg-surface-container-lowest rounded-xl overflow-hidden shadow-2xl"
               id="cropCanvas"
             >
-              <FreeCrop ref={cropRef} imageSrc={tileImage} onChange={handleChange} />
+              <FreeCrop ref={cropRef} imageSrc={tileImage} rotation={rotation} onChange={handleChange} />
               <div
                 className="absolute bottom-3 inset-x-0 mx-auto w-fit flex items-center gap-1.5 bg-surface-container-highest/80 backdrop-blur-md px-3 py-1 rounded-full shadow-lg pointer-events-none"
                 id="gestureHint"
@@ -196,6 +206,43 @@ function Crop({ target }: { target: TileTarget }) {
                 </span>
               </div>
             </div>
+            {/* Straighten: line the tile's edges up with the frame before selecting it. */}
+            <label className="w-full max-w-[420px] flex items-center gap-space-sm pt-space-sm">
+              <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
+                straighten
+              </span>
+              <span className="font-label-caps text-label-caps uppercase tracking-wider text-on-surface-variant">
+                Straighten
+              </span>
+              <input
+                aria-label="Straighten the tile"
+                className="flex-1"
+                id="straightenSlider"
+                style={{ accentColor: 'var(--color-primary)' }}
+                max={45}
+                min={-45}
+                step={0.5}
+                type="range"
+                value={fine}
+                onChange={(event) => setFine(Number(event.target.value))}
+              />
+              <span className="font-spec-numeral text-body-sm text-on-surface w-12" id="rotationValue" style={{ textAlign: 'right' }}>
+                {rotation}°
+              </span>
+              <button
+                aria-label="Rotate 90 degrees"
+                className="w-11 h-11 rounded-full flex items-center justify-center bg-surface-container-low text-on-surface-variant hover:text-primary active:scale-95 transition-all"
+                id="rotateBtn"
+                type="button"
+                onClick={(event) => {
+                  // Inside the label: a tap here must not also move the slider.
+                  event.preventDefault()
+                  rotateQuarter()
+                }}
+              >
+                <span className="material-symbols-outlined text-[18px]">rotate_90_degrees_cw</span>
+              </button>
+            </label>
           </div>
 
           <div className="fixed bottom-0 inset-x-0 z-40 bg-surface/90 backdrop-blur-lg pb-safe">

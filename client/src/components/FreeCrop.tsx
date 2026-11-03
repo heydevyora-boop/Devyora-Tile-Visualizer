@@ -3,10 +3,12 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { rotateSize } from '../utils/cropImage'
 import './FreeCrop.css'
 
 /** A crop rectangle, in the source photo's own pixels. */
@@ -59,13 +61,26 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
  * The rectangle is held in source-photo pixels, not screen pixels. Zooming or
  * panning re-projects it, so the selection stays welded to the tile instead of
  * sliding off it, and the exported crop needs no conversion.
+ *
+ * `rotation` (degrees) turns the photo, so a tile photographed at an angle can
+ * be squared up before it is selected. The rectangle is then held in the
+ * pixels of the turned photo's bounding box — the same box getCroppedImage
+ * draws the photo into before cutting the selection out.
  */
 const FreeCrop = forwardRef<FreeCropHandle, {
   imageSrc: string
+  rotation?: number
   onChange: (rect: CropRect | null) => void
-}>(function FreeCrop({ imageSrc, onChange }, ref) {
+}>(function FreeCrop({ imageSrc, rotation = 0, onChange }, ref) {
   const frameRef = useRef<HTMLDivElement>(null)
-  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null)
+  const [photo, setPhoto] = useState<{ width: number; height: number } | null>(null)
+  // The turned photo's bounding box: what the selection is measured in.
+  // Whole pixels, as the canvas that exports the crop has them.
+  const natural = useMemo(() => {
+    if (!photo) return null
+    const box = rotateSize(photo.width, photo.height, rotation)
+    return { width: Math.max(1, Math.floor(box.width)), height: Math.max(1, Math.floor(box.height)) }
+  }, [photo, rotation])
   const [frame, setFrame] = useState<{ width: number; height: number } | null>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -95,16 +110,24 @@ const FreeCrop = forwardRef<FreeCropHandle, {
     const image = new Image()
     image.onload = () => {
       if (cancelled) return
-      setNatural({ width: image.naturalWidth, height: image.naturalHeight })
-      setRect({ x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight })
-      setZoom(1)
-      setPan({ x: 0, y: 0 })
+      setPhoto({ width: image.naturalWidth, height: image.naturalHeight })
     }
     image.src = imageSrc
     return () => {
       cancelled = true
     }
   }, [imageSrc])
+
+  // A new photo, or a new rotation, starts with everything selected again:
+  // the old selection was measured in the photo as it was turned before.
+  // Adjusted while rendering (not in an effect), so no frame shows a stale box.
+  const [selectionBox, setSelectionBox] = useState<{ width: number; height: number } | null>(null)
+  if (natural && (natural.width !== selectionBox?.width || natural.height !== selectionBox?.height)) {
+    setSelectionBox(natural)
+    setRect({ x: 0, y: 0, width: natural.width, height: natural.height })
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }
 
   useEffect(() => {
     onChange(rect)
@@ -218,7 +241,9 @@ const FreeCrop = forwardRef<FreeCropHandle, {
 
   const topLeft = rect ? toScreen(rect.x, rect.y) : null
   const bottomRight = rect ? toScreen(rect.x + rect.width, rect.y + rect.height) : null
-  const imageOrigin = natural ? toScreen(0, 0) : null
+  // The photo is drawn at its own size and turned about the box's centre, so it
+  // sits exactly where the selection's pixels say it is.
+  const boxCentre = natural ? toScreen(natural.width / 2, natural.height / 2) : null
 
   return (
     <div
@@ -229,17 +254,18 @@ const FreeCrop = forwardRef<FreeCropHandle, {
       onPointerUp={endPointer}
       onPointerCancel={endPointer}
     >
-      {natural && imageOrigin && (
+      {photo && boxCentre && (
         <img
           className="freecrop__image"
           src={imageSrc}
           alt="Tile photo being cropped"
           draggable={false}
           style={{
-            left: `${imageOrigin.x}px`,
-            top: `${imageOrigin.y}px`,
-            width: `${natural.width * scale}px`,
-            height: `${natural.height * scale}px`,
+            left: `${boxCentre.x - (photo.width * scale) / 2}px`,
+            top: `${boxCentre.y - (photo.height * scale) / 2}px`,
+            width: `${photo.width * scale}px`,
+            height: `${photo.height * scale}px`,
+            transform: rotation ? `rotate(${rotation}deg)` : undefined,
           }}
         />
       )}
